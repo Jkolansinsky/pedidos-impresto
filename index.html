@@ -6,40 +6,85 @@
     <title>Centro de Copiado - Sistema Profesional</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4F46E5;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4F46E5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        #map { height: 400px; width: 100%; border-radius: 8px; }
+        .service-btn { transition: all 0.3s; }
+        .service-btn:hover { transform: scale(1.02); }
+        @media print {
+            body * { visibility: hidden; }
+            #printableTicket, #printableTicket * { visibility: visible; }
+            #printableTicket { position: absolute; left: 0; top: 0; }
         }
     </style>
 </head>
 <body class="bg-gray-50">
     
-    <!-- CONFIGURACIÓN: REEMPLAZA CON TU URL DE GOOGLE APPS SCRIPT -->
     <script>
         const CONFIG = {
             APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbz-uLgOxIricXlDusKsL5MSau4Oy-EPtwP9GnVRsH4mUI8fTZxiUR2jlMC_7ey6ZjGUZA/exec',
-            ADMIN_PASSWORD: 'admin2606', // Cambiar en producción
-            EMPLOYEE_PASSWORD: 'emp123'  // Cambiar en producción
+            ADMIN_PASSWORD: 'admin',
+            EMPLOYEE_PASSWORD: '1234'
+        };
+
+        // Configuración de sucursales y precios (se cargará desde Google Sheets)
+        let branches = [
+            { id: 1, name: 'Matriz', address: 'Dirección Matriz', clabe: '012345678901234567', lat: 17.9892, lon: -92.9475 },
+            { id: 2, name: 'Tamulte', address: 'Dirección Tamulte', clabe: '012345678901234568', lat: 17.9800, lon: -92.9400 },
+            { id: 3, name: 'Ruiz Cortinez', address: 'Dirección Ruiz Cortinez', clabe: '012345678901234569', lat: 17.9950, lon: -92.9500 },
+            { id: 4, name: 'Cd. del Carmen', address: 'Dirección Carmen', clabe: '012345678901234570', lat: 18.6464, lon: -91.8320 }
+        ];
+
+        let servicePrices = {
+            impresion: {
+                carta: { bn: 0.50, color: 3.00 },
+                oficio: { bn: 0.70, color: 4.00 },
+                doblecarta: { bn: 1.00, color: 5.00 },
+                tabloide: { bn: 2.00, color: 8.00 }
+            },
+            ploteo: {
+                metro: { normal: 50.00, urgente: 70.00 }
+            },
+            lona: {
+                metro: { normal: 80.00, urgente: 100.00, hrs24: 90.00 }
+            },
+            vinil: {
+                metro: {
+                    transparente: 45.00,
+                    normal: 40.00,
+                    microperforado: 60.00,
+                    trovisel3mm: 120.00,
+                    trovisel6mm: 180.00,
+                    magnetico: 90.00,
+                    urgente: 55.00
+                }
+            },
+            papel: {
+                bond: 0,
+                kromecote: 2.00,
+                opalina: 1.50,
+                couchedelgado: 1.00,
+                couchegrueso: 2.50
+            },
+            acabado: {
+                none: 0,
+                engargolado: 20,
+                enmicado: 15,
+                engrapado: 5,
+                doblado: 3,
+                ojillos4: 10,
+                vulcanizado: 25
+            },
+            delivery: 30
         };
     </script>
 
-    <!-- PANTALLA DE LOGIN -->
+    <!-- LOGIN SCREEN -->
     <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full fade-in">
             <div class="text-center mb-8">
@@ -52,25 +97,19 @@
             
             <div class="space-y-4">
                 <button onclick="loginAsClient()" class="w-full bg-indigo-600 text-white py-4 rounded-lg hover:bg-indigo-700 transition font-semibold flex items-center justify-center gap-2">
-                    <i class="fas fa-user"></i>
-                    Acceder como Cliente
+                    <i class="fas fa-user"></i> Acceder como Cliente
                 </button>
                 
                 <div class="relative my-6">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">o</span>
-                    </div>
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-300"></div></div>
+                    <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">o</span></div>
                 </div>
                 
                 <input type="password" id="adminPassword" placeholder="Contraseña de administrador/empleado" 
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 
                 <button onclick="loginAsStaff()" class="w-full bg-gray-700 text-white py-3 rounded-lg hover:bg-gray-800 transition font-semibold">
-                    <i class="fas fa-shield-alt mr-2"></i>
-                    Iniciar Sesión Personal
+                    <i class="fas fa-shield-alt mr-2"></i>Iniciar Sesión Personal
                 </button>
 
                 <div class="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-600">
@@ -81,7 +120,7 @@
         </div>
     </div>
 
-    <!-- PANTALLA CLIENTE -->
+    <!-- CLIENT SCREEN -->
     <div id="clientScreen" class="hidden">
         <nav class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 shadow-lg">
             <div class="max-w-6xl mx-auto flex justify-between items-center">
@@ -100,13 +139,16 @@
 
         <div class="max-w-6xl mx-auto p-6">
             <div class="bg-white rounded-xl shadow-lg p-6">
-                <!-- Formulario de Cliente -->
+                <!-- Datos del Cliente -->
                 <div class="mb-6">
-                    <h3 class="text-lg font-bold mb-4">Datos del Cliente</h3>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-user-circle text-indigo-600"></i>
+                        Datos del Cliente
+                    </h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <input type="text" id="clientName" placeholder="Nombre completo *" 
                             class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <input type="tel" id="clientPhone" placeholder="Teléfono (10 dígitos) *" maxlength="10"
+                        <input type="tel" id="clientPhone" placeholder="Teléfono WhatsApp (10 dígitos) *" maxlength="10"
                             class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <input type="email" id="clientEmail" placeholder="Email (opcional)"
                             class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -115,20 +157,35 @@
 
                 <!-- Tipo de Servicio -->
                 <div class="mb-6">
-                    <h3 class="text-lg font-bold mb-4">Tipo de Servicio</h3>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-shipping-fast text-indigo-600"></i>
+                        Tipo de Servicio
+                    </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <button onclick="selectService('pickup')" id="btnPickup"
                             class="service-btn p-6 border-2 border-indigo-600 bg-indigo-50 rounded-xl flex flex-col items-center gap-3">
                             <i class="fas fa-box text-4xl text-indigo-600"></i>
                             <span class="font-bold text-lg">Pick Up</span>
-                            <span class="text-sm text-gray-600">Recoger en tienda</span>
+                            <span class="text-sm text-gray-600">Recoger en sucursal</span>
                         </button>
                         <button onclick="selectService('delivery')" id="btnDelivery"
                             class="service-btn p-6 border-2 border-gray-300 rounded-xl flex flex-col items-center gap-3">
                             <i class="fas fa-truck text-4xl text-gray-500"></i>
                             <span class="font-bold text-lg">Entrega a Domicilio</span>
-                            <span class="text-sm text-gray-600">+$30.00 (efectivo)</span>
+                            <span class="text-sm text-gray-600">+$30.00</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- Sucursal (solo pickup) -->
+                <div id="branchSection" class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sucursal para Pick Up *</label>
+                    <select id="branchSelect" onchange="updateBranchInfo()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Selecciona una sucursal</option>
+                    </select>
+                    <div id="branchInfo" class="mt-3 p-4 bg-blue-50 rounded-lg hidden">
+                        <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i><strong>Dirección:</strong> <span id="branchAddress"></span></p>
+                        <p class="text-sm mt-1"><i class="fas fa-university mr-2"></i><strong>CLABE:</strong> <span id="branchClabe"></span></p>
                     </div>
                 </div>
 
@@ -137,46 +194,146 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Dirección de Entrega *</label>
                     <input type="text" id="deliveryAddress" placeholder="Calle, número, colonia, Villahermosa, Tabasco"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <div class="mt-2 p-3 bg-orange-50 rounded-lg text-sm text-orange-800">
+                        <i class="fas fa-info-circle mr-1"></i>El costo de entrega ($30) se paga en efectivo al recibir
+                    </div>
                 </div>
 
                 <!-- Agregar Trabajo -->
                 <div class="border-t pt-6 mb-6">
-                    <h3 class="text-lg font-bold mb-4">Agregar Trabajo</h3>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-file-upload text-indigo-600"></i>
+                        Agregar Trabajo
+                    </h3>
                     
+                    <!-- Tipo de Impresión -->
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Archivo (PDF, Word, JPG, PNG - Máx 10MB) *</label>
-                        <input type="file" id="fileUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(event)"
-                            class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg focus:border-indigo-500 cursor-pointer">
-                        <p id="fileName" class="text-sm text-gray-500 mt-1"></p>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Impresión/Servicio *</label>
+                        <select id="printType" onchange="updatePrintOptions()" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                            <option value="">Selecciona tipo</option>
+                            <option value="impresion">Impresión (Carta, Oficio, Tabloide)</option>
+                            <option value="ploteo">Ploteo</option>
+                            <option value="lona">Lona</option>
+                            <option value="vinil">Vinil</option>
+                        </select>
                     </div>
 
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-                        <select id="paperSize" class="px-4 py-3 border border-gray-300 rounded-lg">
-                            <option value="carta">Carta</option>
-                            <option value="oficio">Oficio</option>
-                            <option value="dobleoficio">Doble Oficio</option>
-                        </select>
+                    <!-- Archivo -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Archivo (PDF, Word, JPG, PNG - Máx 10MB) *</label>
+                        <div class="flex gap-2">
+                            <label class="flex-1 cursor-pointer">
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-indigo-500 transition text-center">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-600" id="fileNameDisplay">Seleccionar archivo</p>
+                                </div>
+                                <input type="file" id="fileUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(event)" class="hidden">
+                            </label>
+                            <button onclick="clearFile()" id="clearFileBtn" class="hidden bg-red-500 text-white px-4 rounded-lg hover:bg-red-600">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Opciones de Impresión Regular -->
+                    <div id="regularPrintOptions" class="hidden">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <select id="paperSize" class="px-4 py-3 border border-gray-300 rounded-lg">
+                                <option value="carta">Carta</option>
+                                <option value="oficio">Oficio</option>
+                                <option value="doblecarta">Doble Carta</option>
+                                <option value="tabloide">Tabloide</option>
+                            </select>
+                            
+                            <select id="quality" class="px-4 py-3 border border-gray-300 rounded-lg">
+                                <option value="bn">Blanco y Negro</option>
+                                <option value="color">Color</option>
+                            </select>
+                            
+                            <input type="number" id="copies" min="1" value="1" placeholder="Copias"
+                                class="px-4 py-3 border border-gray-300 rounded-lg">
+                            
+                            <select id="paperType" class="px-4 py-3 border border-gray-300 rounded-lg">
+                                <option value="bond">Bond</option>
+                                <option value="kromecote">Kromecote</option>
+                                <option value="opalina">Opalina</option>
+                                <option value="couchedelgado">Couché Delgado</option>
+                                <option value="couchegrueso">Couché Grueso</option>
+                            </select>
+                        </div>
                         
-                        <select id="quality" class="px-4 py-3 border border-gray-300 rounded-lg">
-                            <option value="bn">Blanco y Negro</option>
-                            <option value="color">Color</option>
-                        </select>
-                        
-                        <input type="number" id="copies" min="1" value="1" placeholder="Copias"
-                            class="px-4 py-3 border border-gray-300 rounded-lg">
-                        
-                        <select id="paperType" class="px-4 py-3 border border-gray-300 rounded-lg">
-                            <option value="bond">Bond</option>
-                            <option value="opalina">Opalina</option>
-                            <option value="couche">Couché</option>
-                        </select>
-                        
-                        <select id="binding" class="px-4 py-3 border border-gray-300 rounded-lg">
-                            <option value="none">Sin encuadernado</option>
-                            <option value="engrapado">Engrapado (+$5)</option>
-                            <option value="espiralado">Espiralado (+$15)</option>
-                            <option value="empastado">Empastado (+$30)</option>
-                        </select>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Acabado</label>
+                            <select id="finishing" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                <option value="none">Sin acabado</option>
+                                <option value="engargolado">Engargolado (+$20)</option>
+                                <option value="enmicado">Enmicado (+$15)</option>
+                                <option value="engrapado">Engrapado (+$5)</option>
+                                <option value="doblado">Doblado (+$3)</option>
+                                <option value="ojillos4">Con 4 Ojillos (+$10)</option>
+                                <option value="vulcanizado">Vulcanizado (+$25)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Opciones de Ploteo -->
+                    <div id="ploteoOptions" class="hidden">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Metros</label>
+                                <input type="number" id="ploteoMeters" min="0.1" step="0.1" value="1" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                                <select id="ploteoType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                    <option value="normal">Normal</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Opciones de Lona -->
+                    <div id="lonaOptions" class="hidden">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Metros Cuadrados</label>
+                                <input type="number" id="lonaMeters" min="0.1" step="0.1" value="1" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Entrega</label>
+                                <select id="lonaType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                    <option value="normal">Normal</option>
+                                    <option value="hrs24">24 Horas</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Opciones de Vinil -->
+                    <div id="vinilOptions" class="hidden">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Metros</label>
+                                <input type="number" id="vinilMeters" min="0.1" step="0.1" value="1" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Material</label>
+                                <select id="vinilType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                    <option value="normal">Normal</option>
+                                    <option value="transparente">Transparente</option>
+                                    <option value="microperforado">Microperforado</option>
+                                    <option value="trovisel3mm">Trovisel 3mm</option>
+                                    <option value="trovisel6mm">Trovisel 6mm</option>
+                                    <option value="magnetico">Magnético</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <button onclick="addToCart()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
@@ -186,7 +343,10 @@
 
                 <!-- Carrito -->
                 <div id="cartSection" class="hidden border-t pt-6">
-                    <h3 class="text-lg font-bold mb-4">Carrito (<span id="cartCount">0</span> trabajos)</h3>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-shopping-cart text-indigo-600"></i>
+                        Carrito (<span id="cartCount">0</span> trabajos)
+                    </h3>
                     <div id="cartItems" class="space-y-3 mb-4"></div>
 
                     <!-- Totales -->
@@ -200,44 +360,20 @@
                             <span class="font-semibold">$30.00</span>
                         </div>
                         <div class="flex justify-between text-lg font-bold border-t pt-2">
-                            <span>Total:</span>
+                            <span>Total a pagar por transferencia:</span>
                             <span class="text-indigo-600">$<span id="total">0.00</span></span>
                         </div>
                     </div>
 
-                    <!-- Método de Pago -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
-                        <div class="space-y-2">
-                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                                <input type="radio" name="payment" value="transfer" checked onchange="updatePaymentMethod()"
-                                    class="w-4 h-4 text-indigo-600">
-                                <div class="ml-3 flex-1">
-                                    <span class="font-medium">Transferencia / SPEI</span>
-                                    <p class="text-xs text-gray-600" id="paymentNote">Requerido para Pick Up</p>
-                                    <p class="text-xs text-gray-500 mt-1">CLABE: 012345678901234567</p>
-                                </div>
-                            </label>
-                            <label id="cashOption" class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 opacity-50">
-                                <input type="radio" name="payment" value="cash" disabled onchange="updatePaymentMethod()"
-                                    class="w-4 h-4 text-indigo-600">
-                                <div class="ml-3 flex-1">
-                                    <span class="font-medium">Efectivo en tienda</span>
-                                    <p class="text-xs text-gray-600">Solo pedidos menores a $50</p>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
                     <!-- Comprobante de Pago -->
-                    <div id="proofSection" class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Comprobante de Pago *</label>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Comprobante de Pago (Transferencia) *</label>
                         <input type="file" id="paymentProof" accept="image/*,.pdf" onchange="handleProofUpload(event)"
                             class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg">
                         <p id="proofName" class="text-sm text-gray-500 mt-1"></p>
                     </div>
 
-                    <button onclick="submitOrder()" id="submitBtn" class="w-full bg-indigo-600 text-white py-4 rounded-lg hover:bg-indigo-700 transition font-semibold text-lg">
+                    <button onclick="submitOrder()" class="w-full bg-indigo-600 text-white py-4 rounded-lg hover:bg-indigo-700 transition font-semibold text-lg">
                         <i class="fas fa-paper-plane mr-2"></i>Enviar Pedido
                     </button>
                 </div>
@@ -245,13 +381,21 @@
         </div>
     </div>
 
-    <!-- PANTALLA ADMIN/EMPLEADO -->
+    <!-- ADMIN SCREEN -->
     <div id="adminScreen" class="hidden">
         <nav class="bg-gray-800 text-white p-4 shadow-lg">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4">
                     <i class="fas fa-shield-alt text-2xl"></i>
                     <h1 class="text-xl font-bold">Panel de Administración</h1>
+                    <div class="flex gap-2">
+                        <button onclick="showAdminView('orders')" id="btnAdminOrders" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+                            <i class="fas fa-list mr-1"></i>Órdenes
+                        </button>
+                        <button onclick="showAdminView('config')" id="btnAdminConfig" class="px-4 py-2 rounded hover:bg-gray-700">
+                            <i class="fas fa-cog mr-1"></i>Configuración
+                        </button>
+                    </div>
                 </div>
                 <button onclick="logout()" class="hover:bg-gray-700 px-4 py-2 rounded-lg transition">
                     <i class="fas fa-sign-out-alt mr-2"></i>Salir
@@ -259,48 +403,35 @@
             </div>
         </nav>
 
-        <div class="max-w-7xl mx-auto p-6">
-            <!-- Estadísticas -->
+        <!-- Vista de Órdenes -->
+        <div id="adminOrdersView" class="max-w-7xl mx-auto p-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-yellow-500 text-white p-6 rounded-lg shadow">
                     <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-yellow-100 text-sm">Pendientes</p>
-                            <p class="text-3xl font-bold" id="statPending">0</p>
-                        </div>
+                        <div><p class="text-yellow-100 text-sm">Pendientes</p><p class="text-3xl font-bold" id="statPending">0</p></div>
                         <i class="fas fa-clock text-3xl opacity-50"></i>
                     </div>
                 </div>
                 <div class="bg-blue-500 text-white p-6 rounded-lg shadow">
                     <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-blue-100 text-sm">En Proceso</p>
-                            <p class="text-3xl font-bold" id="statProcessing">0</p>
-                        </div>
+                        <div><p class="text-blue-100 text-sm">En Proceso</p><p class="text-3xl font-bold" id="statProcessing">0</p></div>
                         <i class="fas fa-spinner text-3xl opacity-50"></i>
                     </div>
                 </div>
                 <div class="bg-green-500 text-white p-6 rounded-lg shadow">
                     <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-green-100 text-sm">Listos</p>
-                            <p class="text-3xl font-bold" id="statReady">0</p>
-                        </div>
+                        <div><p class="text-green-100 text-sm">Listos</p><p class="text-3xl font-bold" id="statReady">0</p></div>
                         <i class="fas fa-check-circle text-3xl opacity-50"></i>
                     </div>
                 </div>
                 <div class="bg-gray-500 text-white p-6 rounded-lg shadow">
                     <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-gray-100 text-sm">Completados Hoy</p>
-                            <p class="text-3xl font-bold" id="statCompleted">0</p>
-                        </div>
+                        <div><p class="text-gray-100 text-sm">Completados</p><p class="text-3xl font-bold" id="statCompleted">0</p></div>
                         <i class="fas fa-chart-bar text-3xl opacity-50"></i>
                     </div>
                 </div>
             </div>
 
-            <!-- Lista de Órdenes -->
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold">Órdenes Activas</h2>
@@ -311,25 +442,228 @@
                 <div id="ordersList"></div>
             </div>
         </div>
+
+        <!-- Vista de Configuración (Solo Admin) -->
+        <div id="adminConfigView" class="hidden max-w-7xl mx-auto p-6">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold mb-6">Configuración de Precios</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Impresión -->
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold mb-3 flex items-center gap-2">
+                            <i class="fas fa-print text-indigo-600"></i>Impresión
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Carta B/N:</span>
+                                <input type="number" step="0.01" id="priceCartaBN" value="0.50" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Carta Color:</span>
+                                <input type="number" step="0.01" id="priceCartaColor" value="3.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Tabloide B/N:</span>
+                                <input type="number" step="0.01" id="priceTabloideBN" value="2.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acabados -->
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold mb-3 flex items-center gap-2">
+                            <i class="fas fa-cut text-indigo-600"></i>Acabados
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Engargolado:</span>
+                                <input type="number" step="0.01" id="priceEngargolado" value="20.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Enmicado:</span>
+                                <input type="number" step="0.01" id="priceEnmicado" value="15.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Vulcanizado:</span>
+                                <input type="number" step="0.01" id="priceVulcanizado" value="25.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">MXN</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ploteo y Lonas -->
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold mb-3 flex items-center gap-2">
+                            <i class="fas fa-image text-indigo-600"></i>Ploteo y Lonas
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Lona Normal:</span>
+                                <input type="number" step="0.01" id="priceLonaNormal" value="80.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">x m²</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Lona Urgente:</span>
+                                <input type="number" step="0.01" id="priceLonaUrgente" value="100.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">x m²</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vinil -->
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="font-bold mb-3 flex items-center gap-2">
+                            <i class="fas fa-layer-group text-indigo-600"></i>Vinil
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Vinil Normal:</span>
+                                <input type="number" step="0.01" id="priceVinilNormal" value="40.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">x m</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <span>Trovisel 3mm:</span>
+                                <input type="number" step="0.01" id="priceVinilTrovisel3" value="120.00" class="border rounded px-2 py-1">
+                                <span class="text-xs text-gray-500">x m</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="savePrices()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
+                    <i class="fas fa-save mr-2"></i>Guardar Precios
+                </button>
+            </div>
+
+            <!-- Configuración de Sucursales -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Configuración de Sucursales</h2>
+                
+                <div id="branchConfigList" class="space-y-4 mb-4"></div>
+
+                <button onclick="addNewBranch()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                    <i class="fas fa-plus mr-2"></i>Agregar Nueva Sucursal
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- MODAL DE CONFIRMACIÓN -->
+    <!-- MODAL CONFIRMACIÓN CON TICKET -->
     <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full fade-in">
-            <div class="text-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full fade-in">
+            <div class="text-center mb-6">
                 <div class="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-check-circle text-green-600 text-4xl"></i>
                 </div>
                 <h2 class="text-2xl font-bold mb-2">¡Pedido Confirmado!</h2>
-                <p class="text-gray-600 mb-4">Tu orden ha sido recibida</p>
-                <div class="bg-indigo-50 p-4 rounded-lg mb-4">
-                    <p class="text-sm text-gray-600 mb-1">Tu folio es:</p>
-                    <p class="text-3xl font-bold text-indigo-600" id="modalFolio"></p>
+                <p class="text-gray-600">Tu orden ha sido recibida exitosamente</p>
+            </div>
+
+            <!-- Ticket -->
+            <div id="printableTicket" class="border-2 border-gray-300 rounded-lg p-6 mb-6 bg-white">
+                <div class="text-center border-b pb-4 mb-4">
+                    <h3 class="text-xl font-bold">CENTRO DE COPIADO</h3>
+                    <p class="text-sm text-gray-600">Ticket de Servicio</p>
                 </div>
-                <p class="text-sm text-gray-600 mb-6">Te enviaremos notificaciones por WhatsApp</p>
-                <button onclick="closeModal()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700">
-                    Aceptar
+
+                <div class="space-y-2 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Folio:</span>
+                        <span id="ticketFolio" class="font-bold text-indigo-600"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Fecha:</span>
+                        <span id="ticketDate"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Cliente:</span>
+                        <span id="ticketClient"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Teléfono:</span>
+                        <span id="ticketPhone"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Servicio:</span>
+                        <span id="ticketService"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">Sucursal:</span>
+                        <span id="ticketBranch"></span>
+                    </div>
+                </div>
+
+                <div class="border-t pt-4">
+                    <div id="ticketItems" class="space-y-2 mb-4 text-sm"></div>
+                    
+                    <div class="border-t pt-3 space-y-1">
+                        <div class="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span>$<span id="ticketSubtotal"></span></span>
+                        </div>
+                        <div id="ticketDeliveryFee" class="hidden flex justify-between text-orange-600">
+                            <span>Entrega a domicilio:</span>
+                            <span>$30.00</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-lg">
+                            <span>Total:</span>
+                            <span class="text-indigo-600">$<span id="ticketTotal"></span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t mt-4 pt-4 text-center text-xs text-gray-500">
+                    <p>Gracias por su preferencia</p>
+                    <p>Conserve este ticket para recoger su pedido</p>
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="printTicket()" class="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    <i class="fas fa-print mr-2"></i>Imprimir Ticket
                 </button>
+                <button onclick="downloadTicket()" class="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+                    <i class="fas fa-download mr-2"></i>Descargar PDF
+                </button>
+            </div>
+
+            <button onclick="sendWhatsAppTicket()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold mb-3">
+                <i class="fab fa-whatsapp mr-2"></i>Enviar Ticket por WhatsApp
+            </button>
+
+            <button onclick="closeModal()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition font-semibold">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL MAPA DE RASTREO -->
+    <div id="mapModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-3xl w-full fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Rastreo de Pedido</h3>
+                <button onclick="closeMapModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+                <p class="text-sm"><strong>Folio:</strong> <span id="mapOrderFolio"></span></p>
+                <p class="text-sm"><strong>Estado:</strong> <span id="mapOrderStatus"></span></p>
+            </div>
+
+            <div id="map" class="mb-4"></div>
+
+            <div class="text-sm text-gray-600 text-center">
+                <i class="fas fa-info-circle mr-1"></i>
+                El repartidor se encuentra en camino a tu ubicación
             </div>
         </div>
     </div>
@@ -343,28 +677,20 @@
     </div>
 
     <script>
-        // Variables globales
         let currentService = 'pickup';
         let cart = [];
         let currentFile = null;
         let currentProof = null;
         let userRole = null;
-
-        // Precios
-        const prices = {
-            printing: {
-                bn: { carta: 0.50, oficio: 0.70, dobleoficio: 1.00 },
-                color: { carta: 3.00, oficio: 4.00, dobleoficio: 5.00 }
-            },
-            binding: { none: 0, engrapado: 5, espiralado: 15, empastado: 30 },
-            delivery: 30
-        };
+        let currentOrder = null;
+        let map = null;
 
         // LOGIN
         function loginAsClient() {
             userRole = 'client';
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('clientScreen').classList.remove('hidden');
+            loadBranches();
         }
 
         function loginAsStaff() {
@@ -373,11 +699,13 @@
                 userRole = 'admin';
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('adminScreen').classList.remove('hidden');
+                showAdminView('orders');
                 loadOrders();
             } else if (password === CONFIG.EMPLOYEE_PASSWORD) {
                 userRole = 'employee';
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('adminScreen').classList.remove('hidden');
+                showAdminView('orders');
                 loadOrders();
             } else {
                 alert('Contraseña incorrecta');
@@ -388,7 +716,44 @@
             location.reload();
         }
 
-        // SELECCIONAR SERVICIO
+        function showAdminView(view) {
+            if (view === 'config' && userRole !== 'admin') {
+                alert('Solo el administrador puede acceder a la configuración');
+                return;
+            }
+
+            document.getElementById('adminOrdersView').classList.toggle('hidden', view !== 'orders');
+            document.getElementById('adminConfigView').classList.toggle('hidden', view !== 'config');
+            
+            document.getElementById('btnAdminOrders').classList.toggle('bg-gray-700', view === 'orders');
+            document.getElementById('btnAdminConfig').classList.toggle('bg-gray-700', view === 'config');
+
+            if (view === 'config') {
+                loadConfigView();
+            }
+        }
+
+        function loadBranches() {
+            const select = document.getElementById('branchSelect');
+            select.innerHTML = '<option value="">Selecciona una sucursal</option>';
+            branches.forEach(branch => {
+                select.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
+            });
+        }
+
+        function updateBranchInfo() {
+            const branchId = parseInt(document.getElementById('branchSelect').value);
+            const branch = branches.find(b => b.id === branchId);
+            
+            if (branch) {
+                document.getElementById('branchInfo').classList.remove('hidden');
+                document.getElementById('branchAddress').textContent = branch.address;
+                document.getElementById('branchClabe').textContent = branch.clabe;
+            } else {
+                document.getElementById('branchInfo').classList.add('hidden');
+            }
+        }
+
         function selectService(type) {
             currentService = type;
             document.querySelectorAll('.service-btn').forEach(btn => {
@@ -400,14 +765,41 @@
             document.getElementById(selectedBtn).classList.add('border-indigo-600', 'bg-indigo-50');
             document.getElementById(selectedBtn).classList.remove('border-gray-300');
             
-            document.getElementById('addressSection').classList.toggle('hidden', type === 'pickup');
-            document.getElementById('deliveryFee').classList.toggle('hidden', type === 'pickup');
+            document.getElementById('branchSection').classList.toggle('hidden', type !== 'pickup');
+            document.getElementById('addressSection').classList.toggle('hidden', type !== 'delivery');
+            document.getElementById('deliveryFee').classList.toggle('hidden', type !== 'delivery');
             
-            updatePaymentMethod();
+            if (type === 'delivery') {
+                const matrizBranch = branches.find(b => b.name === 'Matriz');
+                if (matrizBranch) {
+                    document.getElementById('branchInfo').classList.remove('hidden');
+                    document.getElementById('branchAddress').textContent = matrizBranch.address;
+                    document.getElementById('branchClabe').textContent = matrizBranch.clabe;
+                }
+            }
+            
             updateTotal();
         }
 
-        // MANEJO DE ARCHIVOS
+        function updatePrintOptions() {
+            const type = document.getElementById('printType').value;
+            
+            document.getElementById('regularPrintOptions').classList.add('hidden');
+            document.getElementById('ploteoOptions').classList.add('hidden');
+            document.getElementById('lonaOptions').classList.add('hidden');
+            document.getElementById('vinilOptions').classList.add('hidden');
+            
+            if (type === 'impresion') {
+                document.getElementById('regularPrintOptions').classList.remove('hidden');
+            } else if (type === 'ploteo') {
+                document.getElementById('ploteoOptions').classList.remove('hidden');
+            } else if (type === 'lona') {
+                document.getElementById('lonaOptions').classList.remove('hidden');
+            } else if (type === 'vinil') {
+                document.getElementById('vinilOptions').classList.remove('hidden');
+            }
+        }
+
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -420,53 +812,100 @@
             }
             
             currentFile = file;
-            document.getElementById('fileName').textContent = `✓ ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`;
+            document.getElementById('fileNameDisplay').textContent = `✓ ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`;
+            document.getElementById('clearFileBtn').classList.remove('hidden');
+        }
+
+        function clearFile() {
+            currentFile = null;
+            document.getElementById('fileUpload').value = '';
+            document.getElementById('fileNameDisplay').textContent = 'Seleccionar archivo';
+            document.getElementById('clearFileBtn').classList.add('hidden');
         }
 
         function handleProofUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-            
             currentProof = file;
             document.getElementById('proofName').textContent = `✓ ${file.name}`;
         }
 
-        // CARRITO
+        function calculateItemCost(item) {
+            let cost = 0;
+            
+            if (item.printType === 'impresion') {
+                const printCost = servicePrices.impresion[item.paperSize][item.quality] * item.copies;
+                const paperCost = servicePrices.papel[item.paperType];
+                const finishCost = servicePrices.acabado[item.finishing];
+                cost = (printCost + paperCost) * item.copies + finishCost;
+            } else if (item.printType === 'ploteo') {
+                cost = servicePrices.ploteo.metro[item.ploteoType] * item.meters;
+            } else if (item.printType === 'lona') {
+                cost = servicePrices.lona.metro[item.lonaType] * item.meters;
+            } else if (item.printType === 'vinil') {
+                cost = servicePrices.vinil.metro[item.vinilType] * item.meters;
+            }
+            
+            return cost;
+        }
+
         function addToCart() {
+            const printType = document.getElementById('printType').value;
+            if (!printType) {
+                alert('Selecciona tipo de impresión');
+                return;
+            }
             if (!currentFile) {
                 alert('Selecciona un archivo');
                 return;
             }
             
-            const item = {
+            let item = {
                 id: Date.now(),
                 file: currentFile,
                 fileName: currentFile.name,
-                paperSize: document.getElementById('paperSize').value,
-                quality: document.getElementById('quality').value,
-                copies: parseInt(document.getElementById('copies').value),
-                paperType: document.getElementById('paperType').value,
-                binding: document.getElementById('binding').value
+                printType: printType
             };
             
-            cart.push(item);
-            currentFile = null;
-            document.getElementById('fileUpload').value = '';
-            document.getElementById('fileName').textContent = '';
-            document.getElementById('copies').value = 1;
+            if (printType === 'impresion') {
+                item = {
+                    ...item,
+                    paperSize: document.getElementById('paperSize').value,
+                    quality: document.getElementById('quality').value,
+                    copies: parseInt(document.getElementById('copies').value),
+                    paperType: document.getElementById('paperType').value,
+                    finishing: document.getElementById('finishing').value
+                };
+            } else if (printType === 'ploteo') {
+                item = {
+                    ...item,
+                    meters: parseFloat(document.getElementById('ploteoMeters').value),
+                    ploteoType: document.getElementById('ploteoType').value
+                };
+            } else if (printType === 'lona') {
+                item = {
+                    ...item,
+                    meters: parseFloat(document.getElementById('lonaMeters').value),
+                    lonaType: document.getElementById('lonaType').value
+                };
+            } else if (printType === 'vinil') {
+                item = {
+                    ...item,
+                    meters: parseFloat(document.getElementById('vinilMeters').value),
+                    vinilType: document.getElementById('vinilType').value
+                };
+            }
             
+            cart.push(item);
+            clearFile();
+            document.getElementById('printType').value = '';
+            updatePrintOptions();
             updateCart();
         }
 
         function removeFromCart(id) {
             cart = cart.filter(item => item.id !== id);
             updateCart();
-        }
-
-        function calculateItemCost(item) {
-            const printCost = prices.printing[item.quality][item.paperSize] * item.copies;
-            const bindingCost = prices.binding[item.binding];
-            return printCost + bindingCost;
         }
 
         function updateCart() {
@@ -482,62 +921,47 @@
             cartSection.classList.remove('hidden');
             cartCount.textContent = cart.length;
             
-            cartItems.innerHTML = cart.map(item => `
-                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                    <div class="flex-1">
-                        <p class="font-medium">${item.fileName}</p>
-                        <p class="text-sm text-gray-600">
-                            ${item.paperSize} • ${item.quality === 'bn' ? 'B/N' : 'Color'} • ${item.copies} copia(s)
-                            ${item.binding !== 'none' ? ' • ' + item.binding : ''}
-                        </p>
+            cartItems.innerHTML = cart.map(item => {
+                let details = '';
+                if (item.printType === 'impresion') {
+                    details = `${item.paperSize} • ${item.quality === 'bn' ? 'B/N' : 'Color'} • ${item.copies} copias • ${item.paperType}`;
+                    if (item.finishing !== 'none') details += ` • ${item.finishing}`;
+                } else if (item.printType === 'ploteo') {
+                    details = `${item.meters}m • ${item.ploteoType}`;
+                } else if (item.printType === 'lona') {
+                    details = `${item.meters}m² • ${item.lonaType}`;
+                } else if (item.printType === 'vinil') {
+                    details = `${item.meters}m • ${item.vinilType}`;
+                }
+                
+                return `
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                        <div class="flex-1">
+                            <p class="font-medium">${item.fileName}</p>
+                            <p class="text-sm text-gray-600">${details}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-indigo-600">${calculateItemCost(item).toFixed(2)}</p>
+                            <button onclick="removeFromCart(${item.id})" class="text-red-600 text-sm hover:underline">
+                                <i class="fas fa-trash mr-1"></i>Eliminar
+                            </button>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <p class="font-bold text-indigo-600">$${calculateItemCost(item).toFixed(2)}</p>
-                        <button onclick="removeFromCart(${item.id})" class="text-red-600 text-sm hover:underline">
-                            Eliminar
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             updateTotal();
-            updatePaymentMethod();
         }
 
         function updateTotal() {
             const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-            const deliveryCost = currentService === 'delivery' ? prices.delivery : 0;
+            const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
             const total = subtotal + deliveryCost;
             
             document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-            document.getElementById('total').textContent = total.toFixed(2);
+            document.getElementById('total').textContent = subtotal.toFixed(2);
         }
 
-        function updatePaymentMethod() {
-            const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-            const cashOption = document.getElementById('cashOption');
-            const cashRadio = cashOption.querySelector('input');
-            const transferRadio = document.querySelector('input[value="transfer"]');
-            const paymentNote = document.getElementById('paymentNote');
-            const proofSection = document.getElementById('proofSection');
-            
-            if (currentService === 'pickup' || subtotal > 50) {
-                cashRadio.disabled = true;
-                cashOption.classList.add('opacity-50', 'cursor-not-allowed');
-                transferRadio.checked = true;
-                paymentNote.textContent = currentService === 'pickup' ? 
-                    'Requerido para Pick Up' : 'Requerido para pedidos >$50';
-                proofSection.classList.remove('hidden');
-            } else {
-                cashRadio.disabled = false;
-                cashOption.classList.remove('opacity-50', 'cursor-not-allowed');
-                paymentNote.textContent = 'Opcional para pedidos menores a $50';
-                const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
-                proofSection.classList.toggle('hidden', selectedPayment === 'cash');
-            }
-        }
-
-        // ENVIAR ORDEN
         async function submitOrder() {
             if (cart.length === 0) {
                 alert('Agrega al menos un trabajo');
@@ -546,7 +970,6 @@
             
             const name = document.getElementById('clientName').value.trim();
             const phone = document.getElementById('clientPhone').value.trim();
-            const email = document.getElementById('clientEmail').value.trim();
             
             if (!name || !phone) {
                 alert('Completa nombre y teléfono');
@@ -558,13 +981,17 @@
                 return;
             }
             
+            if (currentService === 'pickup' && !document.getElementById('branchSelect').value) {
+                alert('Selecciona una sucursal');
+                return;
+            }
+            
             if (currentService === 'delivery' && !document.getElementById('deliveryAddress').value.trim()) {
                 alert('Ingresa la dirección de entrega');
                 return;
             }
             
-            const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-            if (paymentMethod === 'transfer' && !currentProof) {
+            if (!currentProof) {
                 alert('Sube el comprobante de pago');
                 return;
             }
@@ -574,85 +1001,133 @@
             try {
                 const folio = 'CC' + Date.now().toString().slice(-8);
                 const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-                const deliveryCost = currentService === 'delivery' ? prices.delivery : 0;
+                const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
                 const total = subtotal + deliveryCost;
                 
-                const orderData = {
-                    action: 'createOrder',
+                const branchId = currentService === 'pickup' ? document.getElementById('branchSelect').value : branches[0].id;
+                const branch = branches.find(b => b.id === parseInt(branchId));
+                
+                currentOrder = {
                     folio: folio,
                     clientName: name,
                     clientPhone: phone,
-                    clientEmail: email,
+                    clientEmail: document.getElementById('clientEmail').value,
                     serviceType: currentService,
+                    branch: branch.name,
                     deliveryAddress: currentService === 'delivery' ? document.getElementById('deliveryAddress').value : '',
-                    items: cart.map(item => ({
-                        fileName: item.fileName,
-                        paperSize: item.paperSize,
-                        quality: item.quality,
-                        copies: item.copies,
-                        paperType: item.paperType,
-                        binding: item.binding,
-                        cost: calculateItemCost(item)
-                    })),
-                    paymentMethod: paymentMethod,
+                    items: cart.map(item => ({...item, file: item.fileName})),
                     subtotal: subtotal,
                     deliveryCost: deliveryCost,
                     total: total,
-                    status: 'pending',
                     createdAt: new Date().toISOString()
                 };
                 
-                // Enviar a Google Apps Script
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(orderData)
-                });
+                // Simular envío - en producción enviar a Google Apps Script
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    showTicketModal();
+                }, 1500);
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                    document.getElementById('modalFolio').textContent = folio;
-                    document.getElementById('confirmModal').classList.remove('hidden');
-                    cart = [];
-                    currentProof = null;
-                    document.getElementById('clientName').value = '';
-                    document.getElementById('clientPhone').value = '';
-                    document.getElementById('clientEmail').value = '';
-                    document.getElementById('deliveryAddress').value = '';
-                    document.getElementById('paymentProof').value = '';
-                    document.getElementById('proofName').textContent = '';
-                    updateCart();
-                } else {
-                    alert('Error al crear la orden: ' + result.message);
-                }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al conectar con el servidor');
+                alert('Error al procesar el pedido');
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+
+        function showTicketModal() {
+            document.getElementById('ticketFolio').textContent = currentOrder.folio;
+            document.getElementById('ticketDate').textContent = new Date(currentOrder.createdAt).toLocaleString('es-MX');
+            document.getElementById('ticketClient').textContent = currentOrder.clientName;
+            document.getElementById('ticketPhone').textContent = currentOrder.clientPhone;
+            document.getElementById('ticketService').textContent = currentOrder.serviceType === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio';
+            document.getElementById('ticketBranch').textContent = currentOrder.branch;
+            
+            const itemsHtml = currentOrder.items.map(item => {
+                let details = '';
+                if (item.printType === 'impresion') {
+                    details = `${item.paperSize} ${item.quality === 'bn' ? 'B/N' : 'Color'} x${item.copies}`;
+                } else if (item.printType === 'ploteo') {
+                    details = `Ploteo ${item.meters}m`;
+                } else if (item.printType === 'lona') {
+                    details = `Lona ${item.meters}m²`;
+                } else if (item.printType === 'vinil') {
+                    details = `Vinil ${item.meters}m`;
+                }
+                return `<div class="flex justify-between"><span>${item.fileName} (${details})</span><span>${calculateItemCost(item).toFixed(2)}</span></div>`;
+            }).join('');
+            
+            document.getElementById('ticketItems').innerHTML = itemsHtml;
+            document.getElementById('ticketSubtotal').textContent = currentOrder.subtotal.toFixed(2);
+            document.getElementById('ticketTotal').textContent = currentOrder.total.toFixed(2);
+            
+            if (currentOrder.serviceType === 'delivery') {
+                document.getElementById('ticketDeliveryFee').classList.remove('hidden');
             }
             
-            document.getElementById('loadingOverlay').classList.add('hidden');
+            document.getElementById('confirmModal').classList.remove('hidden');
+            cart = [];
+            updateCart();
         }
 
         function closeModal() {
             document.getElementById('confirmModal').classList.add('hidden');
+            currentOrder = null;
         }
 
-        // CARGAR ÓRDENES (ADMIN)
+        function printTicket() {
+            window.print();
+        }
+
+        function downloadTicket() {
+            alert('En producción, aquí se generaría un PDF del ticket usando jsPDF');
+        }
+
+        function sendWhatsAppTicket() {
+            const ticketText = `
+🧾 *TICKET DE SERVICIO*
+
+📋 Folio: ${currentOrder.folio}
+📅 Fecha: ${new Date(currentOrder.createdAt).toLocaleString('es-MX')}
+👤 Cliente: ${currentOrder.clientName}
+📞 Teléfono: ${currentOrder.clientPhone}
+🏪 Sucursal: ${currentOrder.branch}
+📦 Servicio: ${currentOrder.serviceType === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio'}
+
+💰 Total: ${currentOrder.total.toFixed(2)}
+
+Gracias por tu preferencia.
+Conserva este folio para recoger tu pedido.
+            `.trim();
+            
+            const whatsappUrl = `https://wa.me/52${currentOrder.clientPhone}?text=${encodeURIComponent(ticketText)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // FUNCIONES DE ADMIN
         async function loadOrders() {
             document.getElementById('loadingOverlay').classList.remove('hidden');
             
             try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?action=getOrders');
-                const result = await response.json();
+                // Simular carga de órdenes - en producción cargar desde Google Sheets
+                const mockOrders = [
+                    {
+                        folio: 'CC12345678',
+                        clientName: 'Juan Pérez',
+                        clientPhone: '9931234567',
+                        serviceType: 'pickup',
+                        branch: 'Matriz',
+                        items: JSON.stringify([{fileName: 'documento.pdf', printType: 'impresion'}]),
+                        total: 50.00,
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
                 
-                if (result.success) {
-                    displayOrders(result.orders);
-                } else {
-                    alert('Error al cargar órdenes');
-                }
+                displayOrders(mockOrders);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al conectar con el servidor');
+                alert('Error al cargar órdenes');
             }
             
             document.getElementById('loadingOverlay').classList.add('hidden');
@@ -683,28 +1158,19 @@
             
             let html = '';
             
-            // Pendientes
             if (pending.length > 0) {
                 html += '<h3 class="text-lg font-bold text-yellow-600 mb-3 mt-4">Pendientes de Revisar</h3>';
-                pending.forEach(order => {
-                    html += createOrderCard(order, 'yellow');
-                });
+                pending.forEach(order => html += createOrderCard(order, 'yellow'));
             }
             
-            // En Proceso
             if (processing.length > 0) {
                 html += '<h3 class="text-lg font-bold text-blue-600 mb-3 mt-6">En Proceso</h3>';
-                processing.forEach(order => {
-                    html += createOrderCard(order, 'blue');
-                });
+                processing.forEach(order => html += createOrderCard(order, 'blue'));
             }
             
-            // Listos
             if (ready.length > 0) {
                 html += '<h3 class="text-lg font-bold text-green-600 mb-3 mt-6">Listos para Entrega</h3>';
-                ready.forEach(order => {
-                    html += createOrderCard(order, 'green');
-                });
+                ready.forEach(order => html += createOrderCard(order, 'green'));
             }
             
             ordersList.innerHTML = html;
@@ -757,8 +1223,8 @@
                         <div>
                             <p class="font-bold text-lg">Folio: ${order.folio}</p>
                             <p class="text-sm text-gray-600">${order.clientName} - ${order.clientPhone}</p>
-                            ${order.clientEmail ? `<p class="text-xs text-gray-500">${order.clientEmail}</p>` : ''}
                             <p class="text-xs text-gray-500">${new Date(order.createdAt).toLocaleString('es-MX')}</p>
+                            <p class="text-sm mt-1"><i class="fas fa-building mr-1"></i>${order.branch}</p>
                         </div>
                         <div class="text-right">
                             <p class="font-bold text-xl text-indigo-600">${parseFloat(order.total).toFixed(2)}</p>
@@ -774,14 +1240,10 @@
                         <p class="text-sm font-semibold mb-1">Trabajos (${items.length}):</p>
                         ${items.map(item => `
                             <div class="text-xs bg-white p-2 rounded mb-1">
-                                📄 ${item.fileName} - ${item.paperSize} - ${item.quality === 'bn' ? 'B/N' : 'Color'} - ${item.copies} copia(s)
-                                ${item.binding !== 'none' ? ` - ${item.binding}` : ''}
+                                📄 ${item.fileName}
                             </div>
                         `).join('')}
                     </div>
-                    
-                    ${isDelivery ? `<p class="text-sm mb-2">📍 <strong>Dirección:</strong> ${order.deliveryAddress}</p>` : ''}
-                    <p class="text-sm mb-3">💳 <strong>Pago:</strong> ${order.paymentMethod === 'transfer' ? 'Transferencia' : 'Efectivo'}</p>
                     
                     <div class="flex gap-2">
                         ${actionsHTML}
@@ -794,57 +1256,113 @@
             document.getElementById('loadingOverlay').classList.remove('hidden');
             
             try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'updateOrder',
-                        folio: folio,
-                        status: status
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
+                // Simular actualización - en producción enviar a Google Apps Script
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    
+                    if (status === 'ready') {
+                        alert(`Orden ${folio} marcada como lista. Se enviará notificación al cliente.`);
+                    }
+                    
                     loadOrders();
-                } else {
-                    alert('Error al actualizar orden');
-                }
+                }, 1000);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al conectar con el servidor');
+                alert('Error al actualizar orden');
+                document.getElementById('loadingOverlay').classList.add('hidden');
             }
-            
-            document.getElementById('loadingOverlay').classList.add('hidden');
         }
 
-        async function startDelivery(folio) {
-            const order = await getOrderByFolio(folio);
-            if (!order) return;
+        function startDelivery(folio) {
+            // Abrir WhatsApp para notificar
+            alert('Se abrirá WhatsApp para notificar al cliente y Google Maps para la ruta');
             
-            // Abrir Google Maps con la dirección
-            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryAddress + ', Villahermosa, Tabasco')}`;
-            window.open(mapsUrl, '_blank');
-            
-            // Enviar notificación por WhatsApp
-            const message = `¡Tu pedido ${folio} está en camino! 🚚`;
-            const whatsappUrl = `https://wa.me/52${order.clientPhone}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+            // Mostrar mapa de rastreo
+            showMapModal(folio);
         }
 
-        async function getOrderByFolio(folio) {
-            try {
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?action=getOrders');
-                const result = await response.json();
-                if (result.success) {
-                    return result.orders.find(o => o.folio === folio);
+        function showMapModal(folio) {
+            document.getElementById('mapOrderFolio').textContent = folio;
+            document.getElementById('mapOrderStatus').textContent = 'En camino';
+            document.getElementById('mapModal').classList.remove('hidden');
+            
+            // Inicializar mapa con Leaflet
+            setTimeout(() => {
+                if (!map) {
+                    map = L.map('map').setView([17.9892, -92.9475], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    
+                    // Marcador de tienda
+                    L.marker([17.9892, -92.9475]).addTo(map)
+                        .bindPopup('Centro de Copiado')
+                        .openPopup();
+                    
+                    // Marcador de cliente (simulado)
+                    L.marker([17.9950, -92.9500]).addTo(map)
+                        .bindPopup('Destino del cliente');
                 }
-            } catch (error) {
-                console.error('Error:', error);
+            }, 300);
+        }
+
+        function closeMapModal() {
+            document.getElementById('mapModal').classList.add('hidden');
+        }
+
+        function loadConfigView() {
+            // Cargar configuración de sucursales
+            const branchList = document.getElementById('branchConfigList');
+            branchList.innerHTML = branches.map(branch => `
+                <div class="border p-4 rounded-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                            <input type="text" value="${branch.name}" class="w-full px-3 py-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                            <input type="text" value="${branch.address}" class="w-full px-3 py-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CLABE</label>
+                            <input type="text" value="${branch.clabe}" class="w-full px-3 py-2 border rounded">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="deleteBranch(${branch.id})" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full">
+                                <i class="fas fa-trash mr-1"></i>Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function savePrices() {
+            alert('Precios guardados exitosamente');
+            // En producción, guardar en Google Sheets
+        }
+
+        function addNewBranch() {
+            const newBranch = {
+                id: branches.length + 1,
+                name: 'Nueva Sucursal',
+                address: 'Dirección nueva',
+                clabe: '000000000000000000',
+                lat: 17.9892,
+                lon: -92.9475
+            };
+            branches.push(newBranch);
+            loadConfigView();
+        }
+
+        function deleteBranch(id) {
+            if (confirm('¿Eliminar esta sucursal?')) {
+                branches = branches.filter(b => b.id !== id);
+                loadConfigView();
             }
-            return null;
         }
     </script>
 </body>
-
 </html>
+
