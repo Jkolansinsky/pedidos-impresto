@@ -26,7 +26,7 @@ body * { visibility: hidden; }
 <body class="bg-gray-50">
 <script>
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxk7MjQguGdB0_9tG8kQiwVf14Qq9GgiIgH-VfzTtkupCE0w7bEg64f0yBdlECLs6EYKw/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyYj6ed2heDTRhHn1CgjFyLZkUkojAD7yurLcHRgiZXxS9UNOha91gf2AXGUrUygLncjg/exec',
   ADMIN_PASSWORD: 'admin',
   EMPLOYEE_PASSWORD: '1234'
 };
@@ -897,75 +897,77 @@ function updateTotal() {
   document.getElementById('total').textContent = subtotal.toFixed(2);
 }
 
-async function submitOrder() {
+function submitOrder() {
+  if (cart.length === 0) {
+    alert('Agrega al menos un trabajo');
+    return;
+  }
   const name = document.getElementById('clientName').value.trim();
   const phone = document.getElementById('clientPhone').value.trim();
-  if (!name || !phone || phone.length !== 10) {
-    alert('Completa nombre y teléfono válido (10 dígitos)');
+  if (!name || !phone) {
+    alert('Completa nombre y teléfono');
+    return;
+  }
+  if (phone.length !== 10) {
+    alert('El teléfono debe tener 10 dígitos');
     return;
   }
   if (currentService === 'pickup' && !document.getElementById('branchSelect').value) {
-    alert('Selecciona sucursal');
+    alert('Selecciona una sucursal');
     return;
   }
   if (currentService === 'delivery' && !document.getElementById('deliveryAddress').value.trim()) {
-    alert('Ingresa dirección');
+    alert('Ingresa la dirección de entrega');
     return;
   }
   if (!currentProof) {
-    alert('Sube comprobante de pago');
+    alert('Sube el comprobante de pago');
     return;
   }
 
-  document.getElementById('loadingOverlay').classList.remove('hidden');
-  try {
-    const folio = 'CC' + Date.now().toString().slice(-8);
-    const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-    const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
-    const total = subtotal + deliveryCost;
-    const branchId = currentService === 'pickup' ? document.getElementById('branchSelect').value : branches[0].id;
-    const branch = branches.find(b => b.id === parseInt(branchId));
+  // Preparar datos
+  const folio = 'CC' + Date.now().toString().slice(-8);
+  const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
+  const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
+  const total = subtotal; // Solo transferencia → envío se paga en efectivo
+  const branchId = currentService === 'pickup' ? document.getElementById('branchSelect').value : branches[0].id;
+  const branch = branches.find(b => b.id === parseInt(branchId));
 
-    const orderData = {
-      action: 'createOrder',
-      folio,
-      clientName: name,
-      clientPhone: phone,
-      clientEmail: document.getElementById('clientEmail').value,
-      clientObservations: document.getElementById('clientObservations').value,
-      serviceType: currentService,
-      branch: branch.name,
-      deliveryAddress: currentService === 'delivery' ? document.getElementById('deliveryAddress').value : '',
-      items: cart.map(i => ({...i, file: i.fileName})),
-      subtotal,
-      deliveryCost,
-      total,
-      status: 'pending',
-      paymentMethod: 'transfer',
-      createdAt: new Date().toISOString()
-    };
+  const orderData = {
+    action: 'createOrder',
+    folio,
+    clientName: name,
+    clientPhone: phone,
+    clientEmail: document.getElementById('clientEmail').value,
+    clientObservations: document.getElementById('clientObservations')?.value || '',
+    serviceType: currentService,
+    branch: branch.name,
+    deliveryAddress: currentService === 'delivery' ? document.getElementById('deliveryAddress').value : '',
+    items: cart.map(i => ({...i, file: i.fileName})),
+    subtotal,
+    deliveryCost,
+    total,
+    status: 'pending',
+    paymentMethod: 'transfer',
+    createdAt: new Date().toISOString()
+  };
 
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(orderData)
-    });
+  // Crear formulario oculto y enviar
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = CONFIG.APPS_SCRIPT_URL;
+  form.target = '_self'; // o '_blank' si prefieres nueva pestaña
+  form.style.display = 'none';
 
-    const result = await response.json();
-    if (result.success) {
-      currentOrder = orderData;
-      cart = [];
-      showTicketModal();
-    } else {
-      throw new Error(result.message);
-    }
-  } catch (error) {
-    console.error(error);
-    alert('Error al enviar pedido: ' + error.message);
-  }
-  document.getElementById('loadingOverlay').classList.add('hidden');
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'data';
+  input.value = JSON.stringify(orderData);
+  form.appendChild(input);
+
+  document.body.appendChild(form);
+  form.submit();
 }
-
 function showTicketModal() {
   document.getElementById('ticketFolio').textContent = currentOrder.folio;
   document.getElementById('ticketDate').textContent = new Date(currentOrder.createdAt).toLocaleString('es-MX');
@@ -1219,3 +1221,4 @@ function deleteBranch(id) { alert('Eliminar sucursal (simulado)'); }
 </script>
 </body>
 </html>
+
