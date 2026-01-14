@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4F46E5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -16,73 +17,39 @@
 #map { height: 400px; width: 100%; border-radius: 8px; }
 .service-btn { transition: all 0.3s; }
 .service-btn:hover { transform: scale(1.02); }
+.print-only { display: none; }
 @media print {
-body * { visibility: hidden; }
-#printableTicket, #printableTicket * { visibility: visible; }
-#printableTicket { position: absolute; left: 0; top: 0; }
+  body * { visibility: hidden; }
+  .print-only, .print-only * { visibility: visible; }
+  .print-only { position: absolute; left: 0; top: 0; width: 100%; }
 }
 </style>
 </head>
 <body class="bg-gray-50">
 <script>
+// Configuración global
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyYj6ed2heDTRhHn1CgjFyLZkUkojAD7yurLcHRgiZXxS9UNOha91gf2AXGUrUygLncjg/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzZt4J7uDpclrDdp1LmgKGPc7F-MPXYErZH2PvZwMXiqHmdObbfpTMffVHRE3PAsG9POg/exec',
   ADMIN_PASSWORD: 'admin',
   EMPLOYEE_PASSWORD: '1234'
 };
 
-let branches = [
-  { id: 1, name: 'Matriz', address: 'Dirección Matriz', clabe: '012345678901234567', lat: 17.9892, lon: -92.9475 },
-  { id: 2, name: 'Tamulte', address: 'Dirección Tamulte', clabe: '012345678901234568', lat: 17.9800, lon: -92.9400 },
-  { id: 3, name: 'Ruiz Cortinez', address: 'Dirección Ruiz Cortinez', clabe: '012345678901234569', lat: 17.9950, lon: -92.9500 },
-  { id: 4, name: 'Cd. del Carmen', address: 'Dirección Carmen', clabe: '012345678901234570', lat: 18.6464, lon: -91.8320 }
-];
-
-let servicePrices = {
-  impresion: {
-    carta: { bn: 0.50, color: 3.00 },
-    oficio: { bn: 0.70, color: 4.00 },
-    doblecarta: { bn: 1.00, color: 5.00 },
-    tabloide: { bn: 2.00, color: 8.00 }
-  },
-  ploteo: {
-    metro: { normal: 50.00, urgente: 70.00 }
-  },
-  lona: {
-    metro: { normal: 80.00, hrs24: 90.00, urgente: 100.00 }
-  },
-  vinil: {
-    metro: {
-      transparente: 45.00,
-      normal: 40.00,
-      microperforado: 60.00,
-      trovisel3mm: 120.00,
-      trovisel6mm: 180.00,
-      magnetico: 90.00,
-      urgente: 55.00
-    }
-  },
-  papel: {
-    bond: 0,
-    kromecote: 2.00,
-    opalina: 1.50,
-    couchedelgado: 1.00,
-    couchegrueso: 2.50
-  },
-  acabado: {
-    none: 0,
-    engargolado: 20,
-    enmicado: 15,
-    engrapado: 5,
-    doblado: 3,
-    ojillos4: 10,
-    vulcanizado: 25
-  },
-  delivery: 30
-};
+// Variables globales
+let currentService = 'pickup';
+let cart = [];
+let currentFile = null;
+let currentProof = null;
+let userRole = null;
+let currentOrder = null;
+let map = null;
+let mapMarkers = [];
+let branches = [];
+let servicePrices = {};
 </script>
 
-<!-- LOGIN SCREEN -->
+<!-- ============================================ -->
+<!-- PANTALLA DE LOGIN -->
+<!-- ============================================ -->
 <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full fade-in">
     <div class="text-center mb-8">
@@ -113,7 +80,9 @@ let servicePrices = {
   </div>
 </div>
 
-<!-- CLIENT SCREEN -->
+<!-- ============================================ -->
+<!-- PANTALLA DEL CLIENTE -->
+<!-- ============================================ -->
 <div id="clientScreen" class="hidden">
   <nav class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 shadow-lg">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
@@ -129,25 +98,39 @@ let servicePrices = {
       </button>
     </div>
   </nav>
+  
   <div class="max-w-6xl mx-auto p-6">
-    <div class="bg-white rounded-xl shadow-lg p-6">
-      <!-- Datos del Cliente -->
+    <!-- Paso 1: Datos del Cliente -->
+    <div id="step1" class="bg-white rounded-xl shadow-lg p-6 mb-6 fade-in">
+      <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 1: Datos del Cliente</h2>
+      
       <div class="mb-6">
         <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
           <i class="fas fa-user-circle text-indigo-600"></i>
-          Datos del Cliente
+          Información Personal
         </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input type="text" id="clientName" placeholder="Nombre completo *" 
-            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          <input type="tel" id="clientPhone" placeholder="Teléfono WhatsApp (10 dígitos) *" maxlength="10"
-            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          <input type="email" id="clientEmail" placeholder="Email (opcional)"
-            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre completo *</label>
+            <input type="text" id="clientName" placeholder="Ej: Juan Pérez"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono WhatsApp *</label>
+            <input type="tel" id="clientPhone" placeholder="10 dígitos (ej: 9931234567)" maxlength="10"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono alternativo (opcional)</label>
+            <input type="tel" id="clientPhone2" placeholder="10 dígitos"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email (opcional)</label>
+            <input type="email" id="clientEmail" placeholder="ejemplo@email.com"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
         </div>
-        <textarea id="clientObservations" placeholder="Detalles u observaciones adicionales (opcional)"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none mt-3"
-          rows="2"></textarea>
       </div>
 
       <!-- Tipo de Servicio -->
@@ -167,40 +150,85 @@ let servicePrices = {
             class="service-btn p-6 border-2 border-gray-300 rounded-xl flex flex-col items-center gap-3">
             <i class="fas fa-truck text-4xl text-gray-500"></i>
             <span class="font-bold text-lg">Entrega a Domicilio</span>
-            <span class="text-sm text-gray-600">+$30.00</span>
+            <span class="text-sm text-gray-600">+$30.00 (pago en efectivo al recibir)</span>
           </button>
         </div>
       </div>
 
-      <!-- Sucursal / Dirección -->
+      <!-- Sucursal para Pick Up -->
       <div id="branchSection" class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Sucursal para Pick Up *</label>
-        <select id="branchSelect" onchange="updateBranchInfo()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-          <option value="">Selecciona una sucursal</option>
-        </select>
-        <div id="branchInfo" class="mt-3 p-4 bg-blue-50 rounded-lg hidden">
-          <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i><strong>Dirección:</strong> <span id="branchAddress"></span></p>
-          <p class="text-sm mt-1"><i class="fas fa-university mr-2"></i><strong>CLABE:</strong> <span id="branchClabe"></span></p>
-        </div>
-      </div>
-      <div id="addressSection" class="mb-6 hidden">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Dirección de Entrega *</label>
-        <input type="text" id="deliveryAddress" placeholder="Calle, número, colonia, Villahermosa, Tabasco"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        <div class="mt-2 p-3 bg-orange-50 rounded-lg text-sm text-orange-800">
-          <i class="fas fa-info-circle mr-1"></i>El costo de entrega ($30) se paga en efectivo al recibir
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-store text-indigo-600"></i>
+          Sucursal para Pick Up *
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <select id="branchSelect" onchange="updateBranchInfo()" 
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            <option value="">Selecciona una sucursal</option>
+          </select>
+          <div id="branchInfo" class="p-4 bg-blue-50 rounded-lg hidden">
+            <div class="flex items-start gap-3">
+              <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+              <div>
+                <p class="font-semibold text-blue-800 mb-1" id="branchName"></p>
+                <p class="text-sm text-gray-700 mb-1"><i class="fas fa-map-marker-alt mr-2"></i><span id="branchAddress"></span></p>
+                <p class="text-sm text-gray-700"><i class="fas fa-phone mr-2"></i><span id="branchPhone"></span></p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Agregar Trabajo -->
-      <div class="border-t pt-6 mb-6">
+      <!-- Dirección para Delivery -->
+      <div id="addressSection" class="mb-6 hidden">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-home text-indigo-600"></i>
+          Dirección de Entrega *
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" id="deliveryAddress" placeholder="Calle y número"
+            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <input type="text" id="deliveryColonia" placeholder="Colonia"
+            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div class="mt-2 p-3 bg-orange-50 rounded-lg text-sm text-orange-800">
+          <i class="fas fa-info-circle mr-1"></i>El costo de entrega ($30) se paga en efectivo al recibir el pedido
+        </div>
+      </div>
+
+      <!-- Observaciones -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          <i class="fas fa-sticky-note mr-2 text-indigo-600"></i>
+          Detalles u observaciones adicionales (opcional)
+        </label>
+        <textarea id="clientObservations" placeholder="Ej: Archivos muy importantes, urgencia, instrucciones especiales..."
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          rows="3"></textarea>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="nextStep(2)" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+          Siguiente <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Paso 2: Agregar Trabajos -->
+    <div id="step2" class="bg-white rounded-xl shadow-lg p-6 mb-6 hidden">
+      <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 2: Agregar Trabajos</h2>
+      
+      <div class="mb-6">
         <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
           <i class="fas fa-file-upload text-indigo-600"></i>
-          Agregar Trabajo
+          Detalles del Trabajo
         </h3>
+        
+        <!-- Tipo de Servicio -->
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Impresión/Servicio *</label>
-          <select id="printType" onchange="updatePrintOptions()" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+          <select id="printType" onchange="updatePrintOptions()" 
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
             <option value="">Selecciona tipo</option>
             <option value="impresion">Impresión (Carta, Oficio, Tabloide)</option>
             <option value="ploteo">Ploteo</option>
@@ -211,68 +239,107 @@ let servicePrices = {
 
         <!-- Archivo -->
         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Archivo (PDF, Word, JPG, PNG - Máx 10MB) *</label>
-          <div class="flex gap-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Archivo (PDF, Word, JPG, PNG - Máx 10MB) *
+          </label>
+          <div class="flex gap-2 items-center">
             <label class="flex-1 cursor-pointer">
               <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-indigo-500 transition text-center">
                 <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
                 <p class="text-sm text-gray-600" id="fileNameDisplay">Seleccionar archivo</p>
               </div>
-              <input type="file" id="fileUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(event)" class="hidden">
+              <input type="file" id="fileUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+                onchange="handleFileSelect(event)" class="hidden">
             </label>
-            <button onclick="clearFile()" id="clearFileBtn" class="hidden bg-red-500 text-white px-4 rounded-lg hover:bg-red-600">
-              <i class="fas fa-trash"></i>
+            <button onclick="clearFile()" id="clearFileBtn" 
+              class="hidden bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 transition">
+              <i class="fas fa-trash"></i> Eliminar
             </button>
           </div>
         </div>
 
-        <!-- Opciones por tipo -->
+        <!-- Opciones por tipo de impresión -->
         <div id="regularPrintOptions" class="hidden">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <select id="paperSize" class="px-4 py-3 border border-gray-300 rounded-lg">
-              <option value="carta">Carta</option>
-              <option value="oficio">Oficio</option>
-              <option value="doblecarta">Doble Carta</option>
-              <option value="tabloide">Tabloide</option>
-            </select>
-            <select id="quality" class="px-4 py-3 border border-gray-300 rounded-lg">
-              <option value="bn">Blanco y Negro</option>
-              <option value="color">Color</option>
-            </select>
-            <input type="number" id="copies" min="1" value="1" placeholder="Copias"
-              class="px-4 py-3 border border-gray-300 rounded-lg">
-            <select id="paperType" class="px-4 py-3 border border-gray-300 rounded-lg">
-              <option value="bond">Bond</option>
-              <option value="kromecote">Kromecote</option>
-              <option value="opalina">Opalina</option>
-              <option value="couchedelgado">Couché Delgado</option>
-              <option value="couchegrueso">Couché Grueso</option>
-            </select>
-          </div>
+          <!-- Tamaño de papel -->
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Acabado</label>
-            <select id="finishing" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
-              <option value="none">Sin acabado</option>
-              <option value="engargolado">Engargolado (+$20)</option>
-              <option value="enmicado">Enmicado (+$15)</option>
-              <option value="engrapado">Engrapado (+$5)</option>
-              <option value="doblado">Doblado (+$3)</option>
-              <option value="ojillos4">Con 4 Ojillos (+$10)</option>
-              <option value="vulcanizado">Vulcanizado (+$25)</option>
-            </select>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Tamaño *</label>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <button onclick="selectPaperSize('carta')" class="paper-size-btn p-3 border rounded-lg hover:bg-indigo-50">
+                Carta
+              </button>
+              <button onclick="selectPaperSize('oficio')" class="paper-size-btn p-3 border rounded-lg hover:bg-indigo-50">
+                Oficio
+              </button>
+              <button onclick="selectPaperSize('doblecarta')" class="paper-size-btn p-3 border rounded-lg hover:bg-indigo-50">
+                Doble Carta
+              </button>
+              <button onclick="selectPaperSize('tabloide')" class="paper-size-btn p-3 border rounded-lg hover:bg-indigo-50">
+                Tabloide
+              </button>
+            </div>
+          </div>
+
+          <!-- Calidad -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Calidad *</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="selectQuality('bn')" class="quality-btn p-4 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-print text-2xl mb-2"></i>
+                <p>Blanco y Negro</p>
+              </button>
+              <button onclick="selectQuality('color')" class="quality-btn p-4 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-print text-2xl mb-2 text-red-500"></i>
+                <p>Color</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cantidad y papel -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad de copias *</label>
+              <input type="number" id="copies" min="1" value="1"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg" onchange="calculateItemCost()">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Papel *</label>
+              <select id="paperType" onchange="calculateItemCost()" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <option value="bond">Bond</option>
+                <option value="kromecote">Kromecote</option>
+                <option value="opalina">Opalina</option>
+                <option value="couchedelgado">Couché Delgado</option>
+                <option value="couchegrueso">Couché Grueso</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Acabado</label>
+              <select id="finishing" onchange="calculateItemCost()" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <option value="none">Sin acabado</option>
+                <option value="engargolado">Engargolado</option>
+                <option value="enmicado">Enmicado</option>
+                <option value="engrapado">Engrapado</option>
+                <option value="doblado">Doblado</option>
+                <option value="ojillos4">Con 4 Ojillos</option>
+                <option value="vulcanizado">Vulcanizado</option>
+              </select>
+            </div>
           </div>
         </div>
 
+        <!-- Opciones para Ploteo -->
         <div id="ploteoOptions" class="hidden">
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Metros</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Metros *</label>
               <input type="number" id="ploteoMeters" min="0.1" step="0.1" value="1"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg" onchange="calculateItemCost()">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-              <select id="ploteoType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
+              <select id="ploteoType" onchange="calculateItemCost()" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                 <option value="normal">Normal</option>
                 <option value="urgente">Urgente</option>
               </select>
@@ -280,16 +347,18 @@ let servicePrices = {
           </div>
         </div>
 
+        <!-- Opciones para Lona -->
         <div id="lonaOptions" class="hidden">
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Metros Cuadrados</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Metros Cuadrados *</label>
               <input type="number" id="lonaMeters" min="0.1" step="0.1" value="1"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg" onchange="calculateItemCost()">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Entrega</label>
-              <select id="lonaType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Entrega *</label>
+              <select id="lonaType" onchange="calculateItemCost()" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                 <option value="normal">Normal</option>
                 <option value="hrs24">24 Horas</option>
                 <option value="urgente">Urgente</option>
@@ -298,18 +367,20 @@ let servicePrices = {
           </div>
         </div>
 
+        <!-- Opciones para Vinil -->
         <div id="vinilOptions" class="hidden">
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Metros</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Metros *</label>
               <input type="number" id="vinilMeters" min="0.1" step="0.1" value="1"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg" onchange="calculateItemCost()">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Material</label>
-              <select id="vinilType" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                <option value="normal">Normal</option>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Material *</label>
+              <select id="vinilType" onchange="calculateItemCost()" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                 <option value="transparente">Transparente</option>
+                <option value="normal">Normal</option>
                 <option value="microperforado">Microperforado</option>
                 <option value="trovisel3mm">Trovisel 3mm</option>
                 <option value="trovisel6mm">Trovisel 6mm</option>
@@ -325,45 +396,165 @@ let servicePrices = {
           Costo estimado: $<span id="estimatedCost">0.00</span>
         </div>
 
+        <!-- Botones de acción -->
         <div class="flex gap-2">
-          <button onclick="addToCart(false)" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
+          <button onclick="addToCart(false)" 
+            class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
             <i class="fas fa-plus mr-2"></i>Agregar y seguir
           </button>
-          <button onclick="addToCart(true)" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+          <button onclick="addToCart(true)" 
+            class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
             <i class="fas fa-shopping-cart mr-2"></i>Agregar y ver carrito
+          </button>
+          <button onclick="prevStep(1)" 
+            class="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+            <i class="fas fa-arrow-left"></i>
           </button>
         </div>
       </div>
 
-      <!-- Carrito -->
-      <div id="cartSection" class="hidden border-t pt-6">
+      <!-- Carrito temporal -->
+      <div id="cartPreview" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+        <h4 class="font-bold mb-3 text-gray-700">Trabajos agregados: <span id="previewCartCount">0</span></h4>
+        <div id="previewCartItems" class="space-y-2"></div>
+        <div class="mt-3 text-right">
+          <span class="font-semibold">Subtotal: $<span id="previewSubtotal">0.00</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paso 3: Resumen y Pago -->
+    <div id="step3" class="bg-white rounded-xl shadow-lg p-6 hidden">
+      <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 3: Resumen y Pago</h2>
+      
+      <!-- Resumen del pedido -->
+      <div class="mb-6">
         <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-          <i class="fas fa-shopping-cart text-indigo-600"></i>
-          Carrito (<span id="cartCount">0</span> trabajos)
+          <i class="fas fa-clipboard-list text-indigo-600"></i>
+          Resumen de tu Pedido
         </h3>
-        <div id="cartItems" class="space-y-3 mb-4"></div>
-        <div class="bg-indigo-50 p-4 rounded-lg space-y-2 mb-4">
-          <div class="flex justify-between">
-            <span>Subtotal trabajos:</span>
-            <span class="font-semibold">$<span id="subtotal">0.00</span></span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-bold mb-3 text-gray-700">Datos del Cliente</h4>
+            <p><strong>Nombre:</strong> <span id="summaryClientName"></span></p>
+            <p><strong>Teléfono:</strong> <span id="summaryClientPhone"></span></p>
+            <p><strong>Email:</strong> <span id="summaryClientEmail"></span></p>
+            <p><strong>Servicio:</strong> <span id="summaryServiceType"></span></p>
+            <p><strong>Sucursal:</strong> <span id="summaryBranch"></span></p>
+            <p><strong>Observaciones:</strong> <span id="summaryObservations"></span></p>
           </div>
-          <div id="deliveryFee" class="hidden flex justify-between text-orange-600">
-            <span>Entrega a domicilio (efectivo):</span>
-            <span class="font-semibold">$30.00</span>
-          </div>
-          <div class="flex justify-between text-lg font-bold border-t pt-2">
-            <span>Total a pagar por transferencia:</span>
-            <span class="text-indigo-600">$<span id="total">0.00</span></span>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-bold mb-3 text-gray-700">Resumen de Costos</h4>
+            <div id="cartItems" class="mb-3 space-y-2"></div>
+            <div class="border-t pt-3 space-y-2">
+              <div class="flex justify-between">
+                <span>Subtotal trabajos:</span>
+                <span class="font-semibold">$<span id="subtotal">0.00</span></span>
+              </div>
+              <div id="deliveryFee" class="hidden flex justify-between text-orange-600">
+                <span>Entrega a domicilio (efectivo):</span>
+                <span class="font-semibold">$30.00</span>
+              </div>
+              <div class="flex justify-between text-lg font-bold border-t pt-2">
+                <span>Total a pagar:</span>
+                <span class="text-indigo-600">$<span id="total">0.00</span></span>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+
+      <!-- Datos de transferencia -->
+      <div class="mb-6" id="transferInfo">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-university text-indigo-600"></i>
+          Datos para Transferencia
+        </h3>
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-600">Nombre del banco:</p>
+              <p class="font-bold">BBVA</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Titular:</p>
+              <p class="font-bold">Centro de Copiado</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">CLABE:</p>
+              <p class="font-bold" id="transferClabe">012345678901234567</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Sucursal:</p>
+              <p class="font-bold" id="transferBranch">Matriz</p>
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
+            <p class="text-sm text-yellow-800">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              Realiza la transferencia y sube el comprobante en el siguiente paso
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between">
+        <button onclick="prevStep(2)" 
+          class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+          <i class="fas fa-arrow-left mr-2"></i>Regresar
+        </button>
+        <button onclick="nextStep(4)" 
+          class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+          Continuar al Pago <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Paso 4: Comprobante de Pago -->
+    <div id="step4" class="bg-white rounded-xl shadow-lg p-6 hidden">
+      <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 4: Comprobante de Pago</h2>
+      
+      <div class="mb-6">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-receipt text-indigo-600"></i>
+          Subir Comprobante
+        </h3>
         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Comprobante de Pago (Transferencia) *</label>
-          <input type="file" id="paymentProof" accept="image/*,.pdf" onchange="handleProofUpload(event)"
-            class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg">
-          <p id="proofName" class="text-sm text-gray-500 mt-1"></p>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Comprobante de Transferencia (imagen o PDF) *
+          </label>
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition">
+            <i class="fas fa-file-upload text-4xl text-gray-400 mb-3"></i>
+            <p class="text-gray-600 mb-2" id="proofFileName">Arrastra o haz clic para seleccionar</p>
+            <p class="text-xs text-gray-500 mb-4">Formatos: JPG, PNG, PDF (Máx 5MB)</p>
+            <label class="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">
+              <i class="fas fa-folder-open mr-2"></i>Seleccionar archivo
+              <input type="file" id="paymentProof" accept="image/*,.pdf" 
+                onchange="handleProofUpload(event)" class="hidden">
+            </label>
+          </div>
+          <p id="proofStatus" class="text-sm text-gray-500 mt-2"></p>
         </div>
+        
+        <div class="bg-green-50 p-4 rounded-lg mb-6">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-check-circle text-green-600 mt-1"></i>
+            <div>
+              <p class="font-semibold text-green-800">Resumen de pago</p>
+              <p class="text-sm text-gray-700">Total a pagar: <span class="font-bold" id="paymentTotal">$0.00</span></p>
+              <p class="text-sm text-gray-700">CLABE: <span class="font-bold" id="paymentClabe">012345678901234567</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between">
+        <button onclick="prevStep(3)" 
+          class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+          <i class="fas fa-arrow-left mr-2"></i>Regresar
+        </button>
         <button id="submitOrderBtn" onclick="submitOrder()" disabled
-          class="w-full bg-indigo-600 text-white py-4 rounded-lg hover:bg-indigo-700 transition font-semibold text-lg opacity-70 cursor-not-allowed">
+          class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold opacity-70 cursor-not-allowed">
           <i class="fas fa-paper-plane mr-2"></i>Enviar Pedido
         </button>
       </div>
@@ -371,7 +562,9 @@ let servicePrices = {
   </div>
 </div>
 
-<!-- ADMIN SCREEN -->
+<!-- ============================================ -->
+<!-- PANEL DE ADMINISTRACIÓN -->
+<!-- ============================================ -->
 <div id="adminScreen" class="hidden">
   <nav class="bg-gray-800 text-white p-4 shadow-lg">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -379,22 +572,37 @@ let servicePrices = {
         <i class="fas fa-shield-alt text-2xl"></i>
         <h1 class="text-xl font-bold">Panel de Administración</h1>
         <div class="flex gap-2">
-          <button onclick="showAdminView('orders')" id="btnAdminOrders" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+          <button onclick="showAdminView('dashboard')" id="btnAdminDashboard" 
+            class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+            <i class="fas fa-tachometer-alt mr-1"></i>Dashboard
+          </button>
+          <button onclick="showAdminView('orders')" id="btnAdminOrders" 
+            class="px-4 py-2 rounded hover:bg-gray-700">
             <i class="fas fa-list mr-1"></i>Órdenes
           </button>
-          <button onclick="showAdminView('config')" id="btnAdminConfig" class="px-4 py-2 rounded hover:bg-gray-700">
+          <button onclick="showAdminView('config')" id="btnAdminConfig" 
+            class="px-4 py-2 rounded hover:bg-gray-700">
             <i class="fas fa-cog mr-1"></i>Configuración
+          </button>
+          <button onclick="showAdminView('branches')" id="btnAdminBranches" 
+            class="px-4 py-2 rounded hover:bg-gray-700">
+            <i class="fas fa-store mr-1"></i>Sucursales
           </button>
         </div>
       </div>
-      <button onclick="logout()" class="hover:bg-gray-700 px-4 py-2 rounded-lg transition">
-        <i class="fas fa-sign-out-alt mr-2"></i>Salir
-      </button>
+      <div class="flex items-center gap-3">
+        <span class="text-sm bg-gray-700 px-3 py-1 rounded-full">
+          <i class="fas fa-user mr-1"></i><span id="adminRole"></span>
+        </span>
+        <button onclick="logout()" class="hover:bg-gray-700 px-4 py-2 rounded-lg transition">
+          <i class="fas fa-sign-out-alt mr-2"></i>Salir
+        </button>
+      </div>
     </div>
   </nav>
 
-  <!-- Vista Órdenes -->
-  <div id="adminOrdersView" class="max-w-7xl mx-auto p-6">
+  <!-- Dashboard -->
+  <div id="adminDashboardView" class="max-w-7xl mx-auto p-6">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-yellow-500 text-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-start">
@@ -414,70 +622,309 @@ let servicePrices = {
           <i class="fas fa-check-circle text-3xl opacity-50"></i>
         </div>
       </div>
-      <div class="bg-gray-500 text-white p-6 rounded-lg shadow">
+      <div class="bg-purple-500 text-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-start">
-          <div><p class="text-gray-100 text-sm">Completados</p><p class="text-3xl font-bold" id="statCompleted">0</p></div>
-          <i class="fas fa-chart-bar text-3xl opacity-50"></i>
+          <div><p class="text-purple-100 text-sm">Hoy</p><p class="text-3xl font-bold" id="statToday">0</p></div>
+          <i class="fas fa-calendar-day text-3xl opacity-50"></i>
         </div>
       </div>
     </div>
-    <div class="bg-white rounded-lg shadow-lg p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-bold">Órdenes Activas</h2>
-        <button onclick="loadOrders()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
-          <i class="fas fa-sync mr-2"></i>Actualizar
-        </button>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Órdenes Recientes</h2>
+          <button onclick="loadOrders()" class="text-sm bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">
+            <i class="fas fa-sync"></i>
+          </button>
+        </div>
+        <div id="recentOrders" class="space-y-3 max-h-96 overflow-y-auto"></div>
       </div>
-      <div id="ordersList"></div>
+      
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold mb-4">Estadísticas Rápidas</h2>
+        <div class="space-y-4">
+          <div>
+            <p class="text-sm text-gray-600">Total de órdenes este mes</p>
+            <p class="text-2xl font-bold" id="statMonth">0</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Ingresos del mes</p>
+            <p class="text-2xl font-bold text-green-600" id="statRevenue">$0.00</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Órdenes de entrega a domicilio</p>
+            <p class="text-2xl font-bold" id="statDelivery">0</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Configuración (solo admin) -->
+  <!-- Vista Órdenes -->
+  <div id="adminOrdersView" class="hidden max-w-7xl mx-auto p-6">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Gestión de Órdenes</h2>
+        <div class="flex gap-2">
+          <button onclick="exportOrders()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+            <i class="fas fa-file-export mr-2"></i>Exportar
+          </button>
+          <button onclick="loadOrders()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+            <i class="fas fa-sync mr-2"></i>Actualizar
+          </button>
+        </div>
+      </div>
+      
+      <div class="mb-6">
+        <div class="flex gap-2 mb-4">
+          <input type="text" id="searchOrder" placeholder="Buscar por folio o cliente" 
+            class="flex-1 px-4 py-2 border rounded-lg">
+          <select id="filterStatus" class="px-4 py-2 border rounded-lg">
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendientes</option>
+            <option value="processing">En proceso</option>
+            <option value="ready">Listos</option>
+            <option value="completed">Completados</option>
+          </select>
+          <button onclick="filterOrders()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+            <i class="fas fa-filter"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div id="ordersList" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- Configuración de Precios -->
   <div id="adminConfigView" class="hidden max-w-7xl mx-auto p-6">
     <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
       <h2 class="text-2xl font-bold mb-6">Configuración de Precios</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Impresión -->
         <div class="border p-4 rounded-lg">
-          <h3 class="font-bold mb-3">Impresión</h3>
-          <div class="space-y-2 text-sm">
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <span>Carta B/N:</span>
-              <input type="number" step="0.01" id="priceCartaBN" value="0.50" class="border rounded px-2 py-1">
-              <span class="text-xs">MXN</span>
+          <h3 class="font-bold mb-3 text-indigo-600">Impresión</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Carta B/N</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceCartaBN" value="0.50" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
             </div>
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <span>Carta Color:</span>
-              <input type="number" step="0.01" id="priceCartaColor" value="3.00" class="border rounded px-2 py-1">
-              <span class="text-xs">MXN</span>
+            <div>
+              <label class="text-sm font-medium">Carta Color</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceCartaColor" value="3.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Oficio B/N</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceOficioBN" value="0.70" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Oficio Color</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceOficioColor" value="4.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
             </div>
           </div>
         </div>
+        
+        <!-- Papel Especial -->
         <div class="border p-4 rounded-lg">
-          <h3 class="font-bold mb-3">Acabados</h3>
-          <div class="space-y-2 text-sm">
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <span>Engargolado:</span>
-              <input type="number" step="0.01" id="priceEngargolado" value="20.00" class="border rounded px-2 py-1">
-              <span class="text-xs">MXN</span>
+          <h3 class="font-bold mb-3 text-indigo-600">Papel Especial</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Kromecote</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceKromecote" value="2.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Opalina</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceOpalina" value="1.50" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Couché Delgado</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceCoucheDelgado" value="1.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Couché Grueso</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceCoucheGrueso" value="2.50" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Acabados -->
+        <div class="border p-4 rounded-lg">
+          <h3 class="font-bold mb-3 text-indigo-600">Acabados</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Engargolado</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceEngargolado" value="20.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Enmicado</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceEnmicado" value="15.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Engrapado</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceEngrapado" value="5.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Vulcanizado</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceVulcanizado" value="25.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Ploteo -->
+        <div class="border p-4 rounded-lg">
+          <h3 class="font-bold mb-3 text-indigo-600">Ploteo</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Normal (por metro)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="pricePloteoNormal" value="50.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Urgente (por metro)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="pricePloteoUrgente" value="70.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Lona -->
+        <div class="border p-4 rounded-lg">
+          <h3 class="font-bold mb-3 text-indigo-600">Lona</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Normal (por m²)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceLonaNormal" value="80.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">24 Horas (por m²)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceLona24hrs" value="90.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Urgente (por m²)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceLonaUrgente" value="100.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Vinil -->
+        <div class="border p-4 rounded-lg">
+          <h3 class="font-bold mb-3 text-indigo-600">Vinil</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium">Transparente (por metro)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceVinilTransparente" value="45.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Normal (por metro)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceVinilNormal" value="40.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Trovisel 3mm (por metro)</label>
+              <div class="flex gap-2">
+                <input type="number" step="0.01" id="priceVinilTrovisel3" value="120.00" class="flex-1 border rounded px-2 py-1">
+                <span class="text-sm">MXN</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      
+      <div class="border-t pt-6">
+        <h3 class="font-bold mb-3 text-indigo-600">Otros Servicios</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label class="text-sm font-medium">Entrega a domicilio</label>
+            <div class="flex gap-2">
+              <input type="number" step="0.01" id="priceDelivery" value="30.00" class="flex-1 border rounded px-2 py-1">
+              <span class="text-sm">MXN</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <button onclick="savePrices()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
         <i class="fas fa-save mr-2"></i>Guardar Precios
       </button>
     </div>
+  </div>
+
+  <!-- Sucursales -->
+  <div id="adminBranchesView" class="hidden max-w-7xl mx-auto p-6">
     <div class="bg-white rounded-lg shadow-lg p-6">
-      <h2 class="text-2xl font-bold mb-6">Sucursales</h2>
-      <div id="branchConfigList" class="space-y-4 mb-4"></div>
-      <button onclick="addNewBranch()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
-        <i class="fas fa-plus mr-2"></i>Agregar Nueva Sucursal
-      </button>
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Gestión de Sucursales</h2>
+        <button onclick="addNewBranch()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+          <i class="fas fa-plus mr-2"></i>Agregar Sucursal
+        </button>
+      </div>
+      
+      <div id="branchList" class="space-y-4"></div>
     </div>
   </div>
 </div>
 
-<!-- MODAL TICKET -->
+<!-- ============================================ -->
+<!-- MODALES -->
+<!-- ============================================ -->
+
+<!-- Modal de Confirmación de Orden -->
 <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full fade-in">
     <div class="text-center mb-6">
@@ -485,176 +932,365 @@ let servicePrices = {
         <i class="fas fa-check-circle text-green-600 text-4xl"></i>
       </div>
       <h2 class="text-2xl font-bold mb-2">¡Pedido Confirmado!</h2>
-      <p class="text-gray-600">Tu orden ha sido recibida exitosamente</p>
+      <p class="text-gray-600" id="confirmMessage">Tu orden ha sido recibida exitosamente</p>
     </div>
-    <div id="printableTicket" class="border-2 border-gray-300 rounded-lg p-6 mb-6 bg-white">
+    
+    <div id="printableTicket" class="border-2 border-gray-300 rounded-lg p-6 mb-6 bg-white print-only">
       <div class="text-center border-b pb-4 mb-4">
         <h3 class="text-xl font-bold">CENTRO DE COPIADO</h3>
         <p class="text-sm text-gray-600">Ticket de Servicio</p>
       </div>
-      <div class="space-y-2 mb-4">
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Folio:</span>
-          <span id="ticketFolio" class="font-bold text-indigo-600"></span>
+      
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p class="text-xs text-gray-500">Folio:</p>
+          <p class="font-bold text-lg" id="ticketFolio"></p>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Fecha:</span>
-          <span id="ticketDate"></span>
+        <div>
+          <p class="text-xs text-gray-500">Fecha:</p>
+          <p class="font-bold" id="ticketDate"></p>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Cliente:</span>
-          <span id="ticketClient"></span>
+        <div>
+          <p class="text-xs text-gray-500">Cliente:</p>
+          <p class="font-bold" id="ticketClient"></p>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Teléfono:</span>
-          <span id="ticketPhone"></span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Servicio:</span>
-          <span id="ticketService"></span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Sucursal:</span>
-          <span id="ticketBranch"></span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="font-semibold">Observaciones:</span>
-          <span id="ticketObservations"></span>
+        <div>
+          <p class="text-xs text-gray-500">Teléfono:</p>
+          <p class="font-bold" id="ticketPhone"></p>
         </div>
       </div>
+      
+      <div class="mb-4">
+        <p class="text-xs text-gray-500">Servicio:</p>
+        <p class="font-bold" id="ticketService"></p>
+        <p class="text-sm" id="ticketBranch"></p>
+        <p class="text-sm mt-1" id="ticketAddress"></p>
+      </div>
+      
+      <div class="mb-4">
+        <p class="text-xs text-gray-500">Observaciones:</p>
+        <p class="text-sm" id="ticketObservations"></p>
+      </div>
+      
+      <div class="border-t pt-4 mb-4">
+        <p class="font-bold mb-2">Detalle de Trabajos:</p>
+        <div id="ticketItems" class="space-y-3 text-sm"></div>
+      </div>
+      
       <div class="border-t pt-4">
-        <div id="ticketItems" class="space-y-3 mb-4 text-sm"></div>
-        <div class="border-t pt-3 space-y-1">
-          <div class="flex justify-between">
-            <span>Subtotal:</span>
-            <span>$<span id="ticketSubtotal"></span></span>
-          </div>
-          <div id="ticketDeliveryFee" class="hidden flex justify-between text-orange-600">
-            <span>Entrega a domicilio:</span>
-            <span>$30.00</span>
-          </div>
-          <div class="flex justify-between font-bold text-lg">
-            <span>Total:</span>
-            <span class="text-indigo-600">$<span id="ticketTotal"></span></span>
-          </div>
+        <div class="flex justify-between mb-1">
+          <span>Subtotal:</span>
+          <span>$<span id="ticketSubtotal"></span></span>
+        </div>
+        <div id="ticketDeliveryFee" class="hidden flex justify-between mb-1 text-orange-600">
+          <span>Entrega a domicilio:</span>
+          <span>$30.00</span>
+        </div>
+        <div class="flex justify-between font-bold text-lg border-t pt-2">
+          <span>Total:</span>
+          <span class="text-indigo-600">$<span id="ticketTotal"></span></span>
         </div>
       </div>
-      <div class="border-t mt-4 pt-4 text-center text-xs text-gray-500">
-        <p>Gracias por su preferencia</p>
+      
+      <div class="mt-6 pt-4 border-t text-center text-xs text-gray-500">
         <p>Conserve este ticket para recoger su pedido</p>
+        <p>Gracias por su preferencia</p>
       </div>
     </div>
+    
     <div class="grid grid-cols-2 gap-3 mb-4">
       <button onclick="printTicket()" class="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold">
         <i class="fas fa-print mr-2"></i>Imprimir Ticket
       </button>
-      <button onclick="downloadTicket()" class="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+      <button onclick="downloadTicketPDF()" class="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
         <i class="fas fa-download mr-2"></i>Descargar PDF
       </button>
     </div>
-    <button onclick="sendWhatsAppTicket()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold mb-3">
-      <i class="fab fa-whatsapp mr-2"></i>Enviar Ticket por WhatsApp
-    </button>
+    
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button onclick="sendWhatsAppTicket()" class="bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">
+        <i class="fab fa-whatsapp mr-2"></i>Enviar por WhatsApp
+      </button>
+      <button onclick="startTracking()" class="bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-semibold">
+        <i class="fas fa-map-marker-alt mr-2"></i>Seguir Pedido
+      </button>
+    </div>
+    
     <button onclick="closeModal()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition font-semibold">
-      Cerrar
+      Cerrar y Finalizar
     </button>
   </div>
 </div>
 
-<!-- MODAL RASTREO -->
-<div id="mapModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-  <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-3xl w-full fade-in">
+<!-- Modal de Rastreo -->
+<div id="trackingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-4xl w-full fade-in">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl font-bold">Rastreo de Pedido</h3>
-      <button onclick="closeMapModal()" class="text-gray-500 hover:text-gray-700">
+      <button onclick="closeTrackingModal()" class="text-gray-500 hover:text-gray-700">
         <i class="fas fa-times text-2xl"></i>
       </button>
     </div>
+    
     <div class="mb-4 p-4 bg-blue-50 rounded-lg">
-      <p class="text-sm"><strong>Folio:</strong> <span id="mapOrderFolio"></span></p>
-      <p class="text-sm"><strong>Estado:</strong> <span id="mapOrderStatus"></span></p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <p class="text-sm text-gray-600">Folio:</p>
+          <p class="font-bold" id="trackingFolio"></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Estado:</p>
+          <p class="font-bold" id="trackingStatus"></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Última actualización:</p>
+          <p class="font-bold" id="trackingUpdated"></p>
+        </div>
+      </div>
     </div>
-    <div id="map" class="mb-4"></div>
+    
+    <!-- Mapa -->
+    <div id="map" class="mb-4" style="height: 400px;"></div>
+    
+    <!-- Timeline de estados -->
+    <div class="mb-6">
+      <h4 class="font-bold mb-3">Progreso del Pedido</h4>
+      <div class="flex items-center justify-between">
+        <div class="text-center">
+          <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <i class="fas fa-check text-white"></i>
+          </div>
+          <p class="text-xs">Recibido</p>
+        </div>
+        <div class="flex-1 h-1 bg-gray-300"></div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <i class="fas fa-cog text-white"></i>
+          </div>
+          <p class="text-xs">En Proceso</p>
+        </div>
+        <div class="flex-1 h-1 bg-gray-300"></div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <i class="fas fa-box text-white"></i>
+          </div>
+          <p class="text-xs">Listo</p>
+        </div>
+        <div class="flex-1 h-1 bg-gray-300"></div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <i class="fas fa-truck text-white"></i>
+          </div>
+          <p class="text-xs">En Camino</p>
+        </div>
+        <div class="flex-1 h-1 bg-gray-300"></div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <i class="fas fa-flag-checkered text-white"></i>
+          </div>
+          <p class="text-xs">Completado</p>
+        </div>
+      </div>
+    </div>
+    
     <div class="text-sm text-gray-600 text-center">
       <i class="fas fa-info-circle mr-1"></i>
-      El repartidor se encuentra en camino a tu ubicación
+      Para actualizar la ubicación en tiempo real, recarga la página cada 30 segundos
     </div>
   </div>
 </div>
 
-<!-- FOOTER TRACKING INPUT -->
-<div id="clientScreen" class="hidden">
-  <!-- ... contenido anterior ... -->
+<!-- Modal para buscar folio de rastreo -->
+<div id="folioModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full fade-in">
+    <div class="text-center mb-6">
+      <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-search text-indigo-600 text-2xl"></i>
+      </div>
+      <h2 class="text-xl font-bold mb-2">Rastrear Pedido</h2>
+      <p class="text-gray-600">Ingresa el folio de tu pedido</p>
+    </div>
+    
+    <div class="mb-6">
+      <input type="text" id="folioInput" placeholder="Ej: CC231201123456" 
+        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-center font-mono">
+    </div>
+    
+    <div class="grid grid-cols-2 gap-3">
+      <button onclick="trackOrderByFolio()" class="bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+        <i class="fas fa-search mr-2"></i>Buscar
+      </button>
+      <button onclick="closeFolioModal()" class="bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition font-semibold">
+        Cancelar
+      </button>
+    </div>
+  </div>
 </div>
+
+<!-- Botón flotante para rastreo -->
 <div class="fixed bottom-4 right-4 z-40">
-  <button onclick="manualTrack()" class="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700">
+  <button onclick="openFolioModal()" class="bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
     <i class="fas fa-map-marked-alt"></i>
+    <span class="hidden md:inline">Rastrear Pedido</span>
   </button>
 </div>
 
-<!-- LOADING -->
+<!-- Loading Overlay -->
 <div id="loadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
   <div class="bg-white p-6 rounded-lg">
     <div class="loader mx-auto mb-3"></div>
-    <p class="text-gray-700 font-semibold">Procesando...</p>
+    <p class="text-gray-700 font-semibold" id="loadingMessage">Procesando...</p>
   </div>
 </div>
 
+<!-- ============================================ -->
+<!-- SCRIPTS PRINCIPALES -->
+<!-- ============================================ -->
 <script>
-let currentService = 'pickup';
-let cart = [];
-let currentFile = null;
-let currentProof = null;
-let userRole = null;
-let currentOrder = null;
-let map = null;
+// ============================================
+// FUNCIONES DE INICIO Y AUTENTICACIÓN
+// ============================================
 
-// UTILIDADES
+async function initializeApp() {
+  try {
+    showLoading('Cargando configuración...');
+    
+    // Cargar sucursales
+    const branchesRes = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getBranches`);
+    const branchesData = await branchesRes.json();
+    if (branchesData.success) {
+      branches = branchesData.branches;
+    }
+    
+    // Cargar precios
+    const pricesRes = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getPrices`);
+    const pricesData = await pricesRes.json();
+    if (pricesData.success) {
+      servicePrices = pricesData.prices;
+    }
+    
+    hideLoading();
+  } catch (error) {
+    console.error('Error inicializando:', error);
+    hideLoading();
+  }
+}
+
 function loginAsClient() {
   userRole = 'client';
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('clientScreen').classList.remove('hidden');
   loadBranches();
+  initializeApp();
 }
 
-function loginAsStaff() {
+async function loginAsStaff() {
   const password = document.getElementById('adminPassword').value;
   if (password === CONFIG.ADMIN_PASSWORD) {
     userRole = 'admin';
-    showStaffScreen();
+    await showStaffScreen();
   } else if (password === CONFIG.EMPLOYEE_PASSWORD) {
     userRole = 'employee';
-    showStaffScreen();
+    await showStaffScreen();
   } else {
     alert('Contraseña incorrecta');
   }
 }
 
-function showStaffScreen() {
+async function showStaffScreen() {
+  showLoading('Cargando panel...');
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('adminScreen').classList.remove('hidden');
-  showAdminView('orders');
-  loadOrders();
+  document.getElementById('adminRole').textContent = userRole === 'admin' ? 'Administrador' : 'Empleado';
+  
+  await initializeApp();
+  await showAdminView('dashboard');
+  await loadOrders();
+  
+  hideLoading();
 }
 
-function logout() { location.reload(); }
-
-function showAdminView(view) {
-  if (view === 'config' && userRole !== 'admin') {
-    alert('Solo el administrador puede acceder a la configuración');
-    return;
+function logout() {
+  if (confirm('¿Estás seguro de que quieres salir?')) {
+    location.reload();
   }
-  document.getElementById('adminOrdersView').classList.toggle('hidden', view !== 'orders');
-  document.getElementById('adminConfigView').classList.toggle('hidden', view !== 'config');
-  document.getElementById('btnAdminOrders').classList.toggle('bg-gray-700', view === 'orders');
-  document.getElementById('btnAdminConfig').classList.toggle('bg-gray-700', view === 'config');
-  if (view === 'config') loadConfigView();
 }
 
-// CLIENTE
+// ============================================
+// FUNCIONES DE NAVEGACIÓN (CLIENTE)
+// ============================================
+
+function showStep(step) {
+  // Ocultar todos los pasos
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`step${i}`).classList.add('hidden');
+  }
+  // Mostrar el paso solicitado
+  document.getElementById(`step${step}`).classList.remove('hidden');
+}
+
+function nextStep(step) {
+  // Validar datos antes de avanzar
+  if (step === 2) {
+    if (!validateStep1()) return;
+    updateSummary();
+  } else if (step === 3) {
+    if (cart.length === 0) {
+      alert('Debes agregar al menos un trabajo al carrito');
+      return;
+    }
+    updateCartDisplay();
+    updateTransferInfo();
+  } else if (step === 4) {
+    updatePaymentSummary();
+  }
+  
+  showStep(step);
+}
+
+function prevStep(step) {
+  showStep(step);
+}
+
+function validateStep1() {
+  const name = document.getElementById('clientName').value.trim();
+  const phone = document.getElementById('clientPhone').value.trim();
+  
+  if (!name) {
+    alert('Por favor ingresa tu nombre completo');
+    return false;
+  }
+  
+  if (!phone || phone.length !== 10) {
+    alert('Por favor ingresa un número de teléfono válido (10 dígitos)');
+    return false;
+  }
+  
+  if (currentService === 'pickup' && !document.getElementById('branchSelect').value) {
+    alert('Por favor selecciona una sucursal para recoger');
+    return false;
+  }
+  
+  if (currentService === 'delivery') {
+    const address = document.getElementById('deliveryAddress').value.trim();
+    const colonia = document.getElementById('deliveryColonia').value.trim();
+    if (!address || !colonia) {
+      alert('Por favor completa la dirección de entrega');
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// ============================================
+// FUNCIONES DE SUCURSALES Y SERVICIOS
+// ============================================
+
 function loadBranches() {
   const select = document.getElementById('branchSelect');
   select.innerHTML = '<option value="">Selecciona una sucursal</option>';
+  
   branches.forEach(branch => {
     select.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
   });
@@ -663,10 +1299,13 @@ function loadBranches() {
 function updateBranchInfo() {
   const branchId = parseInt(document.getElementById('branchSelect').value);
   const branch = branches.find(b => b.id === branchId);
+  
   if (branch) {
-    document.getElementById('branchInfo').classList.remove('hidden');
+    const branchInfo = document.getElementById('branchInfo');
+    branchInfo.classList.remove('hidden');
+    document.getElementById('branchName').textContent = branch.name;
     document.getElementById('branchAddress').textContent = branch.address;
-    document.getElementById('branchClabe').textContent = branch.clabe;
+    document.getElementById('branchPhone').textContent = branch.phone;
   } else {
     document.getElementById('branchInfo').classList.add('hidden');
   }
@@ -674,52 +1313,51 @@ function updateBranchInfo() {
 
 function selectService(type) {
   currentService = type;
-  document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-indigo-600', 'bg-indigo-50');
-    btn.classList.add('border-gray-300');
-  });
-  const selectedBtn = type === 'pickup' ? 'btnPickup' : 'btnDelivery';
-  document.getElementById(selectedBtn).classList.add('border-indigo-600', 'bg-indigo-50');
-  document.getElementById(selectedBtn).classList.remove('border-gray-300');
+  
+  // Actualizar botones
+  document.getElementById('btnPickup').classList.toggle('border-indigo-600', type === 'pickup');
+  document.getElementById('btnPickup').classList.toggle('bg-indigo-50', type === 'pickup');
+  document.getElementById('btnPickup').classList.toggle('border-gray-300', type !== 'pickup');
+  
+  document.getElementById('btnDelivery').classList.toggle('border-indigo-600', type === 'delivery');
+  document.getElementById('btnDelivery').classList.toggle('bg-indigo-50', type === 'delivery');
+  document.getElementById('btnDelivery').classList.toggle('border-gray-300', type !== 'delivery');
+  
+  // Mostrar/ocultar secciones
   document.getElementById('branchSection').classList.toggle('hidden', type !== 'pickup');
   document.getElementById('addressSection').classList.toggle('hidden', type !== 'delivery');
-  document.getElementById('deliveryFee').classList.toggle('hidden', type !== 'delivery');
+  
+  // Actualizar resumen
   if (type === 'delivery') {
-    const matrizBranch = branches.find(b => b.name === 'Matriz');
+    const matrizBranch = branches.find(b => b.name.includes('Matriz'));
     if (matrizBranch) {
       document.getElementById('branchInfo').classList.remove('hidden');
+      document.getElementById('branchName').textContent = matrizBranch.name;
       document.getElementById('branchAddress').textContent = matrizBranch.address;
-      document.getElementById('branchClabe').textContent = matrizBranch.clabe;
+      document.getElementById('branchPhone').textContent = matrizBranch.phone;
     }
   }
-  updateTotal();
 }
 
-function updatePrintOptions() {
-  const type = document.getElementById('printType').value;
-  ['regularPrintOptions','ploteoOptions','lonaOptions','vinilOptions'].forEach(id =>
-    document.getElementById(id).classList.add('hidden')
-  );
-  if (type === 'impresion') document.getElementById('regularPrintOptions').classList.remove('hidden');
-  else if (type === 'ploteo') document.getElementById('ploteoOptions').classList.remove('hidden');
-  else if (type === 'lona') document.getElementById('lonaOptions').classList.remove('hidden');
-  else if (type === 'vinil') document.getElementById('vinilOptions').classList.remove('hidden');
-  
-  calculateEstimatedCost();
-}
+// ============================================
+// FUNCIONES DE ARCHIVOS
+// ============================================
 
 function handleFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
+  
+  // Validar tamaño
   if (file.size > 10 * 1024 * 1024) {
     alert('Archivo muy grande. Máximo 10MB');
     event.target.value = '';
     return;
   }
+  
   currentFile = file;
   document.getElementById('fileNameDisplay').textContent = `✓ ${file.name}`;
   document.getElementById('clearFileBtn').classList.remove('hidden');
-  calculateEstimatedCost();
+  calculateItemCost();
 }
 
 function clearFile() {
@@ -733,44 +1371,120 @@ function clearFile() {
 function handleProofUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
+  
+  // Validar tamaño
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Archivo muy grande. Máximo 5MB');
+    event.target.value = '';
+    return;
+  }
+  
   currentProof = file;
-  document.getElementById('proofName').textContent = `✓ ${file.name}`;
+  document.getElementById('proofFileName').textContent = `✓ ${file.name}`;
+  document.getElementById('proofStatus').textContent = 'Archivo seleccionado correctamente';
+  document.getElementById('proofStatus').className = 'text-sm text-green-600 mt-2';
   document.getElementById('submitOrderBtn').disabled = false;
+  document.getElementById('submitOrderBtn').classList.remove('opacity-70', 'cursor-not-allowed');
 }
 
-function calculateEstimatedCost() {
+// ============================================
+// FUNCIONES DE IMPRESIÓN Y COSTOS
+// ============================================
+
+function updatePrintOptions() {
+  const type = document.getElementById('printType').value;
+  
+  // Ocultar todas las opciones
+  ['regularPrintOptions', 'ploteoOptions', 'lonaOptions', 'vinilOptions'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+  
+  // Mostrar opciones según tipo
+  if (type === 'impresion') {
+    document.getElementById('regularPrintOptions').classList.remove('hidden');
+  } else if (type === 'ploteo') {
+    document.getElementById('ploteoOptions').classList.remove('hidden');
+  } else if (type === 'lona') {
+    document.getElementById('lonaOptions').classList.remove('hidden');
+  } else if (type === 'vinil') {
+    document.getElementById('vinilOptions').classList.remove('hidden');
+  }
+  
+  calculateItemCost();
+}
+
+function selectPaperSize(size) {
+  // Actualizar botones
+  document.querySelectorAll('.paper-size-btn').forEach(btn => {
+    btn.classList.remove('bg-indigo-100', 'border-indigo-500');
+  });
+  event.target.classList.add('bg-indigo-100', 'border-indigo-500');
+  
+  calculateItemCost();
+}
+
+function selectQuality(quality) {
+  // Actualizar botones
+  document.querySelectorAll('.quality-btn').forEach(btn => {
+    btn.classList.remove('bg-indigo-100', 'border-indigo-500');
+  });
+  event.target.classList.add('bg-indigo-100', 'border-indigo-500');
+  
+  calculateItemCost();
+}
+
+function calculateItemCost() {
   const printType = document.getElementById('printType').value;
   if (!printType || !currentFile) {
     document.getElementById('workCostPreview').classList.add('hidden');
     return;
   }
-
-  let item = { printType };
+  
+  let cost = 0;
   let valid = true;
-
+  
   if (printType === 'impresion') {
-    item.paperSize = document.getElementById('paperSize').value;
-    item.quality = document.getElementById('quality').value;
-    item.copies = parseInt(document.getElementById('copies').value) || 1;
-    item.paperType = document.getElementById('paperType').value;
-    item.finishing = document.getElementById('finishing').value;
-    valid = item.paperSize && item.quality && item.paperType;
+    // Obtener valores
+    const paperSize = document.querySelector('.paper-size-btn.bg-indigo-100')?.innerText?.toLowerCase() || 'carta';
+    const quality = document.querySelector('.quality-btn.bg-indigo-100')?.innerText?.includes('Color') ? 'color' : 'bn';
+    const copies = parseInt(document.getElementById('copies').value) || 1;
+    const paperType = document.getElementById('paperType').value;
+    const finishing = document.getElementById('finishing').value;
+    
+    // Calcular costo
+    const basePrice = servicePrices.impresion?.impresion?.[paperSize]?.[quality]?.price || 0;
+    const paperPrice = servicePrices.papel?.especial?.[paperType]?.price || 0;
+    const finishPrice = servicePrices.acabado?.[finishing]?.price || 0;
+    
+    cost = (basePrice + paperPrice) * copies + finishPrice;
+    valid = basePrice > 0 && copies > 0;
+    
   } else if (printType === 'ploteo') {
-    item.meters = parseFloat(document.getElementById('ploteoMeters').value) || 0;
-    item.ploteoType = document.getElementById('ploteoType').value;
-    valid = item.meters > 0 && item.ploteoType;
+    const meters = parseFloat(document.getElementById('ploteoMeters').value) || 0;
+    const ploteoType = document.getElementById('ploteoType').value;
+    const pricePerMeter = servicePrices.ploteo?.metro?.[ploteoType]?.price || 0;
+    
+    cost = pricePerMeter * meters;
+    valid = meters > 0 && pricePerMeter > 0;
+    
   } else if (printType === 'lona') {
-    item.meters = parseFloat(document.getElementById('lonaMeters').value) || 0;
-    item.lonaType = document.getElementById('lonaType').value;
-    valid = item.meters > 0 && item.lonaType;
+    const meters = parseFloat(document.getElementById('lonaMeters').value) || 0;
+    const lonaType = document.getElementById('lonaType').value;
+    const pricePerM2 = servicePrices.lona?.metro?.[lonaType]?.price || 0;
+    
+    cost = pricePerM2 * meters;
+    valid = meters > 0 && pricePerM2 > 0;
+    
   } else if (printType === 'vinil') {
-    item.meters = parseFloat(document.getElementById('vinilMeters').value) || 0;
-    item.vinilType = document.getElementById('vinilType').value;
-    valid = item.meters > 0 && item.vinilType;
+    const meters = parseFloat(document.getElementById('vinilMeters').value) || 0;
+    const vinilType = document.getElementById('vinilType').value;
+    const pricePerMeter = servicePrices.vinil?.metro?.[vinilType]?.price || 0;
+    
+    cost = pricePerMeter * meters;
+    valid = meters > 0 && pricePerMeter > 0;
   }
-
-  if (valid) {
-    const cost = calculateItemCost(item);
+  
+  if (valid && cost > 0) {
     document.getElementById('estimatedCost').textContent = cost.toFixed(2);
     document.getElementById('workCostPreview').classList.remove('hidden');
   } else {
@@ -778,245 +1492,413 @@ function calculateEstimatedCost() {
   }
 }
 
-function calculateItemCost(item) {
-  let cost = 0;
-  if (item.printType === 'impresion') {
-    const base = servicePrices.impresion[item.paperSize][item.quality] || 0;
-    const paper = servicePrices.papel[item.paperType] || 0;
-    const finish = servicePrices.acabado[item.finishing] || 0;
-    cost = (base + paper) * item.copies + finish;
-  } else if (item.printType === 'ploteo') {
-    cost = (servicePrices.ploteo.metro[item.ploteoType] || 0) * item.meters;
-  } else if (item.printType === 'lona') {
-    cost = (servicePrices.lona.metro[item.lonaType] || 0) * item.meters;
-  } else if (item.printType === 'vinil') {
-    cost = (servicePrices.vinil.metro[item.vinilType] || 0) * item.meters;
-  }
-  return cost;
-}
+// ============================================
+// FUNCIONES DEL CARRITO
+// ============================================
 
 function addToCart(goToCart = false) {
   const printType = document.getElementById('printType').value;
-  if (!printType) { alert('Selecciona tipo'); return; }
-  if (!currentFile) { alert('Selecciona archivo'); return; }
-
-  let item = { id: Date.now(), fileName: currentFile.name, printType };
-
+  if (!printType) {
+    alert('Selecciona el tipo de impresión/servicio');
+    return;
+  }
+  
+  if (!currentFile) {
+    alert('Selecciona un archivo');
+    return;
+  }
+  
+  // Crear item del carrito
+  let item = {
+    id: Date.now() + Math.random(),
+    fileName: currentFile.name,
+    printType: printType,
+    cost: parseFloat(document.getElementById('estimatedCost').textContent) || 0
+  };
+  
+  // Agregar detalles específicos
   if (printType === 'impresion') {
-    item = {
-      ...item,
-      paperSize: document.getElementById('paperSize').value,
-      quality: document.getElementById('quality').value,
-      copies: parseInt(document.getElementById('copies').value),
-      paperType: document.getElementById('paperType').value,
-      finishing: document.getElementById('finishing').value
+    item.details = {
+      paperSize: document.querySelector('.paper-size-btn.bg-indigo-100')?.innerText || 'Carta',
+      quality: document.querySelector('.quality-btn.bg-indigo-100')?.innerText.includes('Color') ? 'Color' : 'Blanco y Negro',
+      copies: parseInt(document.getElementById('copies').value) || 1,
+      paperType: document.getElementById('paperType').options[document.getElementById('paperType').selectedIndex].text,
+      finishing: document.getElementById('finishing').value !== 'none' ? 
+        document.getElementById('finishing').options[document.getElementById('finishing').selectedIndex].text : 'Sin acabado'
     };
   } else if (printType === 'ploteo') {
-    item = {
-      ...item,
-      meters: parseFloat(document.getElementById('ploteoMeters').value),
-      ploteoType: document.getElementById('ploteoType').value
+    item.details = {
+      meters: parseFloat(document.getElementById('ploteoMeters').value) || 0,
+      type: document.getElementById('ploteoType').options[document.getElementById('ploteoType').selectedIndex].text
     };
   } else if (printType === 'lona') {
-    item = {
-      ...item,
-      meters: parseFloat(document.getElementById('lonaMeters').value),
-      lonaType: document.getElementById('lonaType').value
+    item.details = {
+      meters: parseFloat(document.getElementById('lonaMeters').value) || 0,
+      type: document.getElementById('lonaType').options[document.getElementById('lonaType').selectedIndex].text
     };
   } else if (printType === 'vinil') {
-    item = {
-      ...item,
-      meters: parseFloat(document.getElementById('vinilMeters').value),
-      vinilType: document.getElementById('vinilType').value
+    item.details = {
+      meters: parseFloat(document.getElementById('vinilMeters').value) || 0,
+      type: document.getElementById('vinilType').options[document.getElementById('vinilType').selectedIndex].text
     };
   }
-
+  
+  // Agregar al carrito
   cart.push(item);
+  
+  // Limpiar formulario
   clearFile();
   document.getElementById('printType').value = '';
   updatePrintOptions();
-  updateCart();
-
+  
+  // Actualizar vista
+  updateCartPreview();
+  
   if (goToCart) {
-    document.getElementById('cartSection').classList.remove('hidden');
+    nextStep(3);
   }
+}
+
+function updateCartPreview() {
+  const previewSection = document.getElementById('cartPreview');
+  const previewItems = document.getElementById('previewCartItems');
+  const previewCount = document.getElementById('previewCartCount');
+  const previewSubtotal = document.getElementById('previewSubtotal');
+  
+  if (cart.length === 0) {
+    previewSection.classList.add('hidden');
+    return;
+  }
+  
+  previewSection.classList.remove('hidden');
+  previewCount.textContent = cart.length;
+  
+  // Calcular subtotal
+  const subtotal = cart.reduce((sum, item) => sum + item.cost, 0);
+  previewSubtotal.textContent = subtotal.toFixed(2);
+  
+  // Mostrar items
+  previewItems.innerHTML = cart.map(item => `
+    <div class="flex justify-between items-center p-2 bg-white rounded border">
+      <div class="flex-1">
+        <p class="text-sm font-medium truncate">${item.fileName}</p>
+        <p class="text-xs text-gray-600">${item.printType === 'impresion' ? 'Impresión' : 
+          item.printType === 'ploteo' ? 'Ploteo' : 
+          item.printType === 'lona' ? 'Lona' : 'Vinil'}</p>
+      </div>
+      <div class="text-right">
+        <p class="text-sm font-bold">$${item.cost.toFixed(2)}</p>
+        <button onclick="removeFromCart(${item.id})" class="text-xs text-red-600 hover:underline">
+          Eliminar
+        </button>
+      </div>
+    </div>
+  `).join('');
 }
 
 function removeFromCart(id) {
-  cart = cart.filter(i => i.id !== id);
-  updateCart();
+  cart = cart.filter(item => item.id !== id);
+  updateCartPreview();
+  updateCartDisplay();
 }
 
-function updateCart() {
-  const section = document.getElementById('cartSection');
-  const itemsDiv = document.getElementById('cartItems');
-  const count = document.getElementById('cartCount');
-
+function updateCartDisplay() {
+  const cartItems = document.getElementById('cartItems');
+  const cartCount = document.getElementById('cartCount');
+  const subtotalElem = document.getElementById('subtotal');
+  const totalElem = document.getElementById('total');
+  const deliveryFee = document.getElementById('deliveryFee');
+  
   if (cart.length === 0) {
-    section.classList.add('hidden');
+    cartItems.innerHTML = '<p class="text-gray-500 text-center py-4">No hay trabajos en el carrito</p>';
+    cartCount.textContent = '0';
+    subtotalElem.textContent = '0.00';
+    totalElem.textContent = '0.00';
     return;
   }
-  section.classList.remove('hidden');
-  count.textContent = cart.length;
-
-  itemsDiv.innerHTML = cart.map(item => {
+  
+  cartCount.textContent = cart.length;
+  
+  // Mostrar items con detalles
+  cartItems.innerHTML = cart.map(item => {
     let details = '';
     if (item.printType === 'impresion') {
-      details = `${item.paperSize} • ${item.quality === 'bn' ? 'B/N' : 'Color'} • ${item.copies} copias • ${item.paperType}`;
-      if (item.finishing !== 'none') details += ` • ${item.finishing}`;
+      details = `
+        <p class="text-xs text-gray-600">• ${item.details.copies} copias</p>
+        <p class="text-xs text-gray-600">• Tamaño: ${item.details.paperSize}</p>
+        <p class="text-xs text-gray-600">• Calidad: ${item.details.quality}</p>
+        <p class="text-xs text-gray-600">• Papel: ${item.details.paperType}</p>
+        ${item.details.finishing !== 'Sin acabado' ? `<p class="text-xs text-gray-600">• Acabado: ${item.details.finishing}</p>` : ''}
+      `;
     } else if (item.printType === 'ploteo') {
-      details = `${item.meters}m • ${item.ploteoType}`;
+      details = `
+        <p class="text-xs text-gray-600">• ${item.details.meters}m</p>
+        <p class="text-xs text-gray-600">• Tipo: ${item.details.type}</p>
+      `;
     } else if (item.printType === 'lona') {
-      details = `${item.meters}m² • ${item.lonaType}`;
+      details = `
+        <p class="text-xs text-gray-600">• ${item.details.meters}m²</p>
+        <p class="text-xs text-gray-600">• Entrega: ${item.details.type}</p>
+      `;
     } else if (item.printType === 'vinil') {
-      details = `${item.meters}m • ${item.vinilType}`;
+      details = `
+        <p class="text-xs text-gray-600">• ${item.details.meters}m</p>
+        <p class="text-xs text-gray-600">• Material: ${item.details.type}</p>
+      `;
     }
+    
     return `
-      <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-        <div class="flex-1">
-          <p class="font-medium">${item.fileName}</p>
-          <p class="text-sm text-gray-600">${details}</p>
-        </div>
-        <div class="text-right">
-          <p class="font-bold text-indigo-600">${calculateItemCost(item).toFixed(2)}</p>
-          <button onclick="removeFromCart(${item.id})" class="text-red-600 text-sm hover:underline">
-            <i class="fas fa-trash mr-1"></i>Eliminar
-          </button>
+      <div class="border-b pb-3 mb-3">
+        <div class="flex justify-between items-start mb-1">
+          <div class="flex-1">
+            <p class="font-medium text-sm">${item.fileName}</p>
+            ${details}
+          </div>
+          <div class="text-right">
+            <p class="font-bold">$${item.cost.toFixed(2)}</p>
+            <button onclick="removeFromCart(${item.id})" class="text-xs text-red-600 hover:underline">
+              Eliminar
+            </button>
+          </div>
         </div>
       </div>
     `;
   }).join('');
-
-  updateTotal();
+  
+  // Calcular totales
+  const subtotal = cart.reduce((sum, item) => sum + item.cost, 0);
+  const deliveryCost = currentService === 'delivery' ? 30 : 0;
+  const total = subtotal;
+  
+  subtotalElem.textContent = subtotal.toFixed(2);
+  totalElem.textContent = total.toFixed(2);
+  
+  // Mostrar/ocultar costo de entrega
+  if (currentService === 'delivery') {
+    deliveryFee.classList.remove('hidden');
+  } else {
+    deliveryFee.classList.add('hidden');
+  }
 }
 
-function updateTotal() {
-  const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-  const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
-  document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-  document.getElementById('total').textContent = subtotal.toFixed(2);
+// ============================================
+// FUNCIONES DE RESUMEN Y PAGO
+// ============================================
+
+function updateSummary() {
+  // Datos del cliente
+  document.getElementById('summaryClientName').textContent = document.getElementById('clientName').value;
+  document.getElementById('summaryClientPhone').textContent = document.getElementById('clientPhone').value;
+  document.getElementById('summaryClientEmail').textContent = document.getElementById('clientEmail').value || 'No proporcionado';
+  document.getElementById('summaryServiceType').textContent = currentService === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio';
+  document.getElementById('summaryObservations').textContent = document.getElementById('clientObservations').value || 'Ninguna';
+  
+  // Sucursal
+  if (currentService === 'pickup') {
+    const branchId = document.getElementById('branchSelect').value;
+    const branch = branches.find(b => b.id == branchId);
+    document.getElementById('summaryBranch').textContent = branch ? branch.name : 'No seleccionada';
+  } else {
+    document.getElementById('summaryBranch').textContent = 'Entrega a domicilio';
+  }
 }
 
-function submitOrder() {
+function updateTransferInfo() {
+  let branchName = 'Matriz';
+  let branchClabe = '012345678901234567';
+  
+  if (currentService === 'pickup') {
+    const branchId = document.getElementById('branchSelect').value;
+    const branch = branches.find(b => b.id == branchId);
+    if (branch) {
+      branchName = branch.name;
+      branchClabe = branch.clabe;
+    }
+  } else {
+    // Para delivery, usar matriz
+    const matrizBranch = branches.find(b => b.name.includes('Matriz'));
+    if (matrizBranch) {
+      branchClabe = matrizBranch.clabe;
+    }
+  }
+  
+  document.getElementById('transferBranch').textContent = branchName;
+  document.getElementById('transferClabe').textContent = branchClabe;
+}
+
+function updatePaymentSummary() {
+  const total = document.getElementById('total').textContent;
+  const clabe = document.getElementById('transferClabe').textContent;
+  
+  document.getElementById('paymentTotal').textContent = '$' + total;
+  document.getElementById('paymentClabe').textContent = clabe;
+}
+
+// ============================================
+// FUNCIONES DE ENVÍO DE ORDEN
+// ============================================
+
+async function submitOrder() {
   if (cart.length === 0) {
-    alert('Agrega al menos un trabajo');
+    alert('Agrega al menos un trabajo al carrito');
     return;
   }
-  const name = document.getElementById('clientName').value.trim();
-  const phone = document.getElementById('clientPhone').value.trim();
-  if (!name || !phone) {
-    alert('Completa nombre y teléfono');
-    return;
-  }
-  if (phone.length !== 10) {
-    alert('El teléfono debe tener 10 dígitos');
-    return;
-  }
-  if (currentService === 'pickup' && !document.getElementById('branchSelect').value) {
-    alert('Selecciona una sucursal');
-    return;
-  }
-  if (currentService === 'delivery' && !document.getElementById('deliveryAddress').value.trim()) {
-    alert('Ingresa la dirección de entrega');
-    return;
-  }
+  
   if (!currentProof) {
-    alert('Sube el comprobante de pago');
+    alert('Debes subir el comprobante de pago');
     return;
   }
-
-  // Preparar datos
-  const folio = 'CC' + Date.now().toString().slice(-8);
-  const subtotal = cart.reduce((sum, item) => sum + calculateItemCost(item), 0);
-  const deliveryCost = currentService === 'delivery' ? servicePrices.delivery : 0;
-  const total = subtotal; // Solo transferencia → envío se paga en efectivo
-  const branchId = currentService === 'pickup' ? document.getElementById('branchSelect').value : branches[0].id;
-  const branch = branches.find(b => b.id === parseInt(branchId));
-
-  const orderData = {
-    action: 'createOrder',
-    folio,
-    clientName: name,
-    clientPhone: phone,
-    clientEmail: document.getElementById('clientEmail').value,
-    clientObservations: document.getElementById('clientObservations')?.value || '',
-    serviceType: currentService,
-    branch: branch.name,
-    deliveryAddress: currentService === 'delivery' ? document.getElementById('deliveryAddress').value : '',
-    items: cart.map(i => ({...i, file: i.fileName})),
-    subtotal,
-    deliveryCost,
-    total,
-    status: 'pending',
-    paymentMethod: 'transfer',
-    createdAt: new Date().toISOString()
-  };
-
-  // Crear formulario oculto y enviar
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = CONFIG.APPS_SCRIPT_URL;
-  form.target = '_self'; // o '_blank' si prefieres nueva pestaña
-  form.style.display = 'none';
-
-  const input = document.createElement('input');
-  input.type = 'hidden';
-  input.name = 'data';
-  input.value = JSON.stringify(orderData);
-  form.appendChild(input);
-
-  document.body.appendChild(form);
-  form.submit();
+  
+  showLoading('Procesando tu pedido...');
+  
+  try {
+    // Preparar datos de la orden
+    const branchId = currentService === 'pickup' ? document.getElementById('branchSelect').value : null;
+    const branch = branches.find(b => b.id == branchId);
+    
+    const orderData = {
+      action: 'createOrder',
+      clientName: document.getElementById('clientName').value.trim(),
+      clientPhone: document.getElementById('clientPhone').value.trim(),
+      clientPhone2: document.getElementById('clientPhone2').value.trim() || '',
+      clientEmail: document.getElementById('clientEmail').value.trim() || '',
+      clientObservations: document.getElementById('clientObservations').value.trim() || '',
+      serviceType: currentService,
+      branchId: branchId,
+      branch: branch ? branch.name : 'Matriz',
+      deliveryAddress: currentService === 'delivery' ? 
+        `${document.getElementById('deliveryAddress').value}, ${document.getElementById('deliveryColonia').value}` : '',
+      items: cart,
+      subtotal: cart.reduce((sum, item) => sum + item.cost, 0),
+      paymentMethod: 'transfer',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    
+    // Enviar a Google Apps Script
+    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(orderData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      currentOrder = {
+        ...orderData,
+        folio: result.folio,
+        total: result.total,
+        branchClabe: result.branchClabe,
+        branchName: result.branchName
+      };
+      
+      // Subir comprobante (simulado - en producción usarías Google Drive API)
+      await uploadProof(result.folio);
+      
+      // Mostrar confirmación
+      showTicketModal(result.folio);
+      hideLoading();
+      
+      // Limpiar formulario
+      resetForm();
+      
+    } else {
+      hideLoading();
+      alert('Error: ' + result.message);
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('Error al enviar orden:', error);
+    alert('Error al procesar tu pedido. Por favor intenta nuevamente.');
+  }
 }
-function showTicketModal() {
-  document.getElementById('ticketFolio').textContent = currentOrder.folio;
-  document.getElementById('ticketDate').textContent = new Date(currentOrder.createdAt).toLocaleString('es-MX');
+
+async function uploadProof(folio) {
+  // Simulación de subida de archivo
+  // En producción, usarías Google Drive API para subir el archivo
+  return new Promise(resolve => {
+    setTimeout(() => {
+      console.log(`Comprobante subido para folio ${folio}`);
+      resolve(true);
+    }, 1000);
+  });
+}
+
+function resetForm() {
+  // Limpiar formulario
+  document.getElementById('clientName').value = '';
+  document.getElementById('clientPhone').value = '';
+  document.getElementById('clientPhone2').value = '';
+  document.getElementById('clientEmail').value = '';
+  document.getElementById('clientObservations').value = '';
+  document.getElementById('deliveryAddress').value = '';
+  document.getElementById('deliveryColonia').value = '';
+  document.getElementById('paymentProof').value = '';
+  document.getElementById('proofFileName').textContent = 'Arrastra o haz clic para seleccionar';
+  document.getElementById('proofStatus').textContent = '';
+  
+  // Resetear carrito
+  cart = [];
+  currentFile = null;
+  currentProof = null;
+  
+  // Volver al paso 1
+  showStep(1);
+}
+
+// ============================================
+// FUNCIONES DE TICKET Y CONFIRMACIÓN
+// ============================================
+
+function showTicketModal(folio) {
+  // Actualizar datos del ticket
+  document.getElementById('ticketFolio').textContent = folio;
+  document.getElementById('ticketDate').textContent = new Date().toLocaleString('es-MX');
   document.getElementById('ticketClient').textContent = currentOrder.clientName;
   document.getElementById('ticketPhone').textContent = currentOrder.clientPhone;
   document.getElementById('ticketService').textContent = currentOrder.serviceType === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio';
   document.getElementById('ticketBranch').textContent = currentOrder.branch;
-  document.getElementById('ticketObservations').textContent = currentOrder.clientObservations || '—';
-
-  const itemsHtml = currentOrder.items.map(item => {
-    let detailsLines = [];
-    let cost = calculateItemCost(item);
-
-    if (item.printType === 'impresion') {
-      detailsLines.push(`Copias: ${item.copies}`);
-      detailsLines.push(`Tamaño: ${item.paperSize}`);
-      detailsLines.push(`Calidad: ${item.quality === 'bn' ? 'Blanco y Negro' : 'Color'}`);
-      detailsLines.push(`Papel: ${item.paperType}`);
-      if (item.finishing !== 'none') detailsLines.push(`Acabado: ${item.finishing}`);
-    } else if (item.printType === 'ploteo') {
-      detailsLines.push(`Metros: ${item.meters}`);
-      detailsLines.push(`Tipo: ${item.ploteoType}`);
-    } else if (item.printType === 'lona') {
-      detailsLines.push(`M²: ${item.meters}`);
-      detailsLines.push(`Entrega: ${item.lonaType}`);
-    } else if (item.printType === 'vinil') {
-      detailsLines.push(`Metros: ${item.meters}`);
-      detailsLines.push(`Material: ${item.vinilType}`);
-    }
-
-    return `
-      <div class="mb-3 pb-2 border-b">
-        <p class="font-medium">${item.fileName}</p>
-        <div class="text-sm text-gray-600 space-y-1 mt-1">
-          ${detailsLines.map(d => `<div>${d}</div>`).join('')}
-        </div>
-        <div class="text-right mt-1 font-bold">$${cost.toFixed(2)}</div>
-      </div>
-    `;
-  }).join('');
-
-  document.getElementById('ticketItems').innerHTML = itemsHtml;
+  document.getElementById('ticketAddress').textContent = currentOrder.deliveryAddress || 'Recoger en sucursal';
+  document.getElementById('ticketObservations').textContent = currentOrder.clientObservations || 'Ninguna';
   document.getElementById('ticketSubtotal').textContent = currentOrder.subtotal.toFixed(2);
   document.getElementById('ticketTotal').textContent = currentOrder.total.toFixed(2);
+  
   if (currentOrder.serviceType === 'delivery') {
     document.getElementById('ticketDeliveryFee').classList.remove('hidden');
+  } else {
+    document.getElementById('ticketDeliveryFee').classList.add('hidden');
   }
-
+  
+  // Detalles de trabajos
+  const ticketItems = document.getElementById('ticketItems');
+  ticketItems.innerHTML = currentOrder.items.map(item => `
+    <div class="mb-2 pb-2 border-b">
+      <p class="font-medium">${item.fileName}</p>
+      ${item.printType === 'impresion' ? `
+        <p class="text-xs">• ${item.details.copies} copias - ${item.details.paperSize} - ${item.details.quality}</p>
+        <p class="text-xs">• Papel: ${item.details.paperType}</p>
+        ${item.details.finishing !== 'Sin acabado' ? `<p class="text-xs">• Acabado: ${item.details.finishing}</p>` : ''}
+      ` : ''}
+      ${item.printType === 'ploteo' ? `
+        <p class="text-xs">• ${item.details.meters}m - ${item.details.type}</p>
+      ` : ''}
+      ${item.printType === 'lona' ? `
+        <p class="text-xs">• ${item.details.meters}m² - ${item.details.type}</p>
+      ` : ''}
+      ${item.printType === 'vinil' ? `
+        <p class="text-xs">• ${item.details.meters}m - ${item.details.type}</p>
+      ` : ''}
+      <p class="text-right text-sm font-bold">$${item.cost.toFixed(2)}</p>
+    </div>
+  `).join('');
+  
+  // Mostrar modal
   document.getElementById('confirmModal').classList.remove('hidden');
+  document.getElementById('confirmMessage').textContent = `Tu orden ${folio} ha sido recibida exitosamente`;
 }
 
 function closeModal() {
@@ -1024,201 +1906,704 @@ function closeModal() {
   currentOrder = null;
 }
 
-function printTicket() { window.print(); }
-function downloadTicket() { alert('Función de descarga no implementada en demo'); }
-
-function sendWhatsAppTicket() {
-  const text = `
-🧾 *TICKET DE SERVICIO*
-📋 Folio: ${currentOrder.folio}
-📅 Fecha: ${new Date(currentOrder.createdAt).toLocaleString('es-MX')}
-👤 Cliente: ${currentOrder.clientName}
-📞 Teléfono: ${currentOrder.clientPhone}
-🏪 Sucursal: ${currentOrder.branch}
-📦 Servicio: ${currentOrder.serviceType === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio'}
-💰 Total: $${currentOrder.total.toFixed(2)}
-📝 Observaciones: ${currentOrder.clientObservations || 'Ninguna'}
-Gracias por tu preferencia.
-`.trim();
-  window.open(`https://wa.me/52${currentOrder.clientPhone}?text=${encodeURIComponent(text)}`, '_blank');
+function printTicket() {
+  // Activar clase de impresión
+  const ticket = document.getElementById('printableTicket');
+  ticket.classList.remove('print-only');
+  
+  // Imprimir
+  window.print();
+  
+  // Restaurar
+  setTimeout(() => {
+    ticket.classList.add('print-only');
+  }, 100);
 }
 
-// ADMIN
-async function loadOrders() {
-  document.getElementById('loadingOverlay').classList.remove('hidden');
-  try {
-    const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getOrders`);
-    const data = await res.json();
-    if (data.success) {
-      displayOrders(data.orders);
-    } else {
-      alert('Error: ' + data.message);
-    }
-  } catch (err) {
-    console.error(err);
-    alert('Error de red');
+function downloadTicketPDF() {
+  alert('Función de descarga PDF en desarrollo. Por ahora usa la opción de impresión.');
+}
+
+function sendWhatsAppTicket() {
+  if (!currentOrder || !currentOrder.clientPhone) {
+    alert('No hay información de contacto disponible');
+    return;
   }
-  document.getElementById('loadingOverlay').classList.add('hidden');
+  
+  const message = `📋 *TICKET DE SERVICIO - Centro de Copiado*
+
+🆔 *Folio:* ${currentOrder.folio}
+📅 *Fecha:* ${new Date().toLocaleString('es-MX')}
+👤 *Cliente:* ${currentOrder.clientName}
+📞 *Teléfono:* ${currentOrder.clientPhone}
+🏪 *Servicio:* ${currentOrder.serviceType === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio'}
+📍 *Sucursal:* ${currentOrder.branch}
+${currentOrder.deliveryAddress ? `🏠 *Dirección:* ${currentOrder.deliveryAddress}` : ''}
+📝 *Observaciones:* ${currentOrder.clientObservations || 'Ninguna'}
+
+💵 *Total:* $${currentOrder.total}
+🏦 *CLABE para depósito:* ${currentOrder.branchClabe}
+
+Gracias por tu preferencia. Te notificaremos cuando tu pedido esté listo.`;
+  
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/52${currentOrder.clientPhone}?text=${encodedMessage}`;
+  
+  window.open(whatsappUrl, '_blank');
+}
+
+// ============================================
+// FUNCIONES DE RASTREO
+// ============================================
+
+function openFolioModal() {
+  document.getElementById('folioModal').classList.remove('hidden');
+}
+
+function closeFolioModal() {
+  document.getElementById('folioModal').classList.add('hidden');
+}
+
+async function trackOrderByFolio() {
+  const folio = document.getElementById('folioInput').value.trim();
+  if (!folio) {
+    alert('Por favor ingresa un folio');
+    return;
+  }
+  
+  showLoading('Buscando pedido...');
+  
+  try {
+    const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getOrderByFolio&folio=${folio}`);
+    const result = await response.json();
+    
+    hideLoading();
+    closeFolioModal();
+    
+    if (result.success && result.order) {
+      showTrackingModal(result.order);
+    } else {
+      alert('Pedido no encontrado. Verifica el folio e intenta nuevamente.');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('Error al buscar pedido:', error);
+    alert('Error al buscar el pedido. Intenta nuevamente.');
+  }
+}
+
+function startTracking() {
+  if (currentOrder && currentOrder.folio) {
+    showTrackingModal(currentOrder);
+  } else {
+    openFolioModal();
+  }
+}
+
+function showTrackingModal(order) {
+  // Actualizar información
+  document.getElementById('trackingFolio').textContent = order.folio;
+  document.getElementById('trackingStatus').textContent = 
+    order.status === 'pending' ? 'Pendiente' :
+    order.status === 'processing' ? 'En Proceso' :
+    order.status === 'ready' ? 'Listo' :
+    order.status === 'completed' ? 'Completado' : order.status;
+  
+  document.getElementById('trackingUpdated').textContent = 
+    order.updatedAt ? new Date(order.updatedAt).toLocaleString('es-MX') : 'Recién creado';
+  
+  // Inicializar mapa si no existe
+  if (!map) {
+    map = L.map('map').setView([17.9892, -92.9475], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+  } else {
+    map.setView([17.9892, -92.9475], 13);
+  }
+  
+  // Limpiar marcadores anteriores
+  mapMarkers.forEach(marker => map.removeLayer(marker));
+  mapMarkers = [];
+  
+  // Agregar marcador de sucursal
+  const branch = branches.find(b => b.name === order.branch);
+  if (branch && branch.lat && branch.lon) {
+    const branchMarker = L.marker([branch.lat, branch.lon])
+      .addTo(map)
+      .bindPopup(`<b>${branch.name}</b><br>${branch.address}`);
+    mapMarkers.push(branchMarker);
+  }
+  
+  // Agregar marcador de cliente (si es delivery y hay coordenadas)
+  if (order.serviceType === 'delivery' && order.lat && order.lon) {
+    const clientMarker = L.marker([order.lat, order.lon])
+      .addTo(map)
+      .bindPopup('<b>Dirección de Entrega</b>')
+      .openPopup();
+    mapMarkers.push(clientMarker);
+    
+    // Ajustar vista para mostrar ambos marcadores
+    if (branch && branch.lat && branch.lon) {
+      const bounds = L.latLngBounds(
+        [branch.lat, branch.lon],
+        [order.lat, order.lon]
+      );
+      map.fitBounds(bounds);
+    }
+  }
+  
+  // Mostrar modal
+  document.getElementById('trackingModal').classList.remove('hidden');
+}
+
+function closeTrackingModal() {
+  document.getElementById('trackingModal').classList.add('hidden');
+}
+
+// ============================================
+// FUNCIONES DE ADMINISTRACIÓN
+// ============================================
+
+function showAdminView(view) {
+  if (view === 'config' && userRole !== 'admin') {
+    alert('Solo el administrador puede acceder a la configuración');
+    return;
+  }
+  
+  if (view === 'branches' && userRole !== 'admin') {
+    alert('Solo el administrador puede gestionar sucursales');
+    return;
+  }
+  
+  // Ocultar todas las vistas
+  const views = ['dashboard', 'orders', 'config', 'branches'];
+  views.forEach(v => {
+    document.getElementById(`admin${v.charAt(0).toUpperCase() + v.slice(1)}View`).classList.add('hidden');
+    document.getElementById(`btnAdmin${v.charAt(0).toUpperCase() + v.slice(1)}`).classList.remove('bg-gray-700');
+  });
+  
+  // Mostrar vista seleccionada
+  document.getElementById(`admin${view.charAt(0).toUpperCase() + view.slice(1)}View`).classList.remove('hidden');
+  document.getElementById(`btnAdmin${view.charAt(0).toUpperCase() + view.slice(1)}`).classList.add('bg-gray-700');
+  
+  // Cargar datos específicos
+  if (view === 'dashboard') {
+    loadDashboard();
+  } else if (view === 'orders') {
+    loadOrders();
+  } else if (view === 'config') {
+    loadConfigView();
+  } else if (view === 'branches') {
+    loadBranchesView();
+  }
+}
+
+async function loadDashboard() {
+  try {
+    const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getOrders`);
+    const result = await response.json();
+    
+    if (result.success) {
+      const orders = result.orders;
+      const today = new Date().toLocaleDateString('es-MX');
+      
+      // Estadísticas
+      const pending = orders.filter(o => o.status === 'pending').length;
+      const processing = orders.filter(o => o.status === 'processing').length;
+      const ready = orders.filter(o => o.status === 'ready').length;
+      const todayOrders = orders.filter(o => 
+        new Date(o.createdAt).toLocaleDateString('es-MX') === today
+      ).length;
+      
+      // Actualizar estadísticas
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statProcessing').textContent = processing;
+      document.getElementById('statReady').textContent = ready;
+      document.getElementById('statToday').textContent = todayOrders;
+      
+      // Estadísticas mensuales
+      const thisMonth = new Date().getMonth();
+      const monthOrders = orders.filter(o => new Date(o.createdAt).getMonth() === thisMonth);
+      const monthRevenue = monthOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+      const deliveryOrders = monthOrders.filter(o => o.serviceType === 'delivery').length;
+      
+      document.getElementById('statMonth').textContent = monthOrders.length;
+      document.getElementById('statRevenue').textContent = `$${monthRevenue.toFixed(2)}`;
+      document.getElementById('statDelivery').textContent = deliveryOrders;
+      
+      // Órdenes recientes
+      const recentOrders = document.getElementById('recentOrders');
+      recentOrders.innerHTML = orders.slice(0, 5).map(order => `
+        <div class="border-b pb-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="font-medium">${order.folio}</p>
+              <p class="text-sm text-gray-600">${order.clientName}</p>
+              <p class="text-xs text-gray-500">${new Date(order.createdAt).toLocaleDateString('es-MX')}</p>
+            </div>
+            <div class="text-right">
+              <p class="font-bold">$${parseFloat(order.total).toFixed(2)}</p>
+              <span class="text-xs px-2 py-1 rounded-full ${
+                order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                order.status === 'ready' ? 'bg-green-100 text-green-800' :
+                'bg-gray-100 text-gray-800'
+              }">
+                ${order.status === 'pending' ? 'Pendiente' :
+                  order.status === 'processing' ? 'En Proceso' :
+                  order.status === 'ready' ? 'Listo' : 'Completado'}
+              </span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      
+      if (orders.length === 0) {
+        recentOrders.innerHTML = '<p class="text-gray-500 text-center py-4">No hay órdenes recientes</p>';
+      }
+    }
+  } catch (error) {
+    console.error('Error cargando dashboard:', error);
+  }
+}
+
+async function loadOrders() {
+  showLoading('Cargando órdenes...');
+  
+  try {
+    const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getOrders`);
+    const result = await response.json();
+    
+    if (result.success) {
+      displayOrders(result.orders);
+    } else {
+      alert('Error: ' + result.message);
+    }
+  } catch (error) {
+    console.error('Error cargando órdenes:', error);
+    alert('Error de conexión');
+  }
+  
+  hideLoading();
 }
 
 function displayOrders(orders) {
-  const pending = orders.filter(o => o.status === 'pending');
-  const processing = orders.filter(o => o.status === 'processing');
-  const ready = orders.filter(o => o.status === 'ready');
-  const completed = orders.filter(o => o.status === 'completed');
-
-  document.getElementById('statPending').textContent = pending.length;
-  document.getElementById('statProcessing').textContent = processing.length;
-  document.getElementById('statReady').textContent = ready.length;
-  document.getElementById('statCompleted').textContent = completed.length;
-
-  const list = document.getElementById('ordersList');
+  const ordersList = document.getElementById('ordersList');
+  
   if (orders.length === 0) {
-    list.innerHTML = `<div class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-6xl mb-4 opacity-50"></i><p>No hay órdenes activas</p></div>`;
+    ordersList.innerHTML = `
+      <div class="text-center py-12 text-gray-500">
+        <i class="fas fa-inbox text-6xl mb-4 opacity-50"></i>
+        <p>No hay órdenes activas</p>
+      </div>
+    `;
     return;
   }
-
-  let html = '';
-  if (pending.length > 0) {
-    html += '<h3 class="text-lg font-bold text-yellow-600 mb-3 mt-4">Pendientes</h3>';
-    pending.forEach(o => html += createOrderCard(o, 'yellow'));
+  
+  // Filtrar si hay filtros activos
+  const searchText = document.getElementById('searchOrder')?.value.toLowerCase() || '';
+  const filterStatus = document.getElementById('filterStatus')?.value || '';
+  
+  let filteredOrders = orders;
+  
+  if (searchText) {
+    filteredOrders = filteredOrders.filter(order => 
+      order.folio.toLowerCase().includes(searchText) ||
+      order.clientName.toLowerCase().includes(searchText) ||
+      order.clientPhone.includes(searchText)
+    );
   }
-  if (processing.length > 0) {
-    html += '<h3 class="text-lg font-bold text-blue-600 mb-3 mt-6">En Proceso</h3>';
-    processing.forEach(o => html += createOrderCard(o, 'blue'));
+  
+  if (filterStatus) {
+    filteredOrders = filteredOrders.filter(order => order.status === filterStatus);
   }
-  if (ready.length > 0) {
-    html += '<h3 class="text-lg font-bold text-green-600 mb-3 mt-6">Listos</h3>';
-    ready.forEach(o => html += createOrderCard(o, 'green'));
-  }
-  list.innerHTML = html;
+  
+  ordersList.innerHTML = filteredOrders.map(order => createOrderCard(order)).join('');
 }
 
-function createOrderCard(order, color) {
-  const items = Array.isArray(order.items) ? order.items : JSON.parse(order.items);
-  const isDelivery = order.serviceType === 'delivery';
-  let actions = '';
-
-  if (order.status === 'pending') {
-    actions = `<button onclick="updateOrderStatus('${order.folio}', 'processing')" class="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Iniciar</button>`;
-  } else if (order.status === 'processing') {
-    actions = `<button onclick="updateOrderStatus('${order.folio}', 'ready')" class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Listo</button>`;
-  } else if (order.status === 'ready') {
-    if (isDelivery) {
-      actions = `
-        <button onclick="startDelivery('${order.folio}')" class="flex-1 bg-orange-600 text-white py-2 rounded hover:bg-orange-700">Entregar</button>
-        <button onclick="updateOrderStatus('${order.folio}', 'completed')" class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Completar</button>
-      `;
-    } else {
-      actions = `<button onclick="updateOrderStatus('${order.folio}', 'completed')" class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Recogido</button>`;
-    }
-  }
-
+function createOrderCard(order) {
+  const statusColors = {
+    pending: 'yellow',
+    processing: 'blue',
+    ready: 'green',
+    completed: 'gray'
+  };
+  
+  const statusText = {
+    pending: 'Pendiente',
+    processing: 'En Proceso',
+    ready: 'Listo',
+    completed: 'Completado'
+  };
+  
+  const color = statusColors[order.status] || 'gray';
+  
   return `
-    <div class="border-l-4 border-${color}-500 bg-${color}-50 p-4 rounded-r-lg mb-3">
-      <div class="flex justify-between items-start mb-3">
-        <div>
-          <p class="font-bold">Folio: ${order.folio}</p>
-          <p class="text-sm">${order.clientName} • ${order.clientPhone}</p>
-          <p class="text-xs text-gray-600">${new Date(order.createdAt).toLocaleString('es-MX')}</p>
-          <p class="text-sm mt-1"><i class="fas fa-building mr-1"></i>${order.branch}</p>
-        </div>
-        <div class="text-right">
-          <p class="font-bold text-lg text-indigo-600">$${parseFloat(order.total).toFixed(2)}</p>
-          <span class="inline-block px-2 py-1 rounded-full text-xs ${
-            isDelivery ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'
-          }">${isDelivery ? 'Domicilio' : 'Pick Up'}</span>
+    <div class="border rounded-lg overflow-hidden">
+      <div class="bg-${color}-50 p-4 border-b">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-bold text-lg">${order.folio}</h3>
+            <p class="text-sm text-gray-600">${order.clientName} • ${order.clientPhone}</p>
+            <p class="text-xs text-gray-500">${new Date(order.createdAt).toLocaleString('es-MX')}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-xl text-indigo-600">$${parseFloat(order.total).toFixed(2)}</p>
+            <span class="inline-block px-3 py-1 rounded-full text-sm ${
+              order.serviceType === 'delivery' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'
+            }">
+              ${order.serviceType === 'delivery' ? 'Domicilio' : 'Pick Up'}
+            </span>
+          </div>
         </div>
       </div>
-      <div class="mb-3">
-        <p class="text-sm font-semibold">Trabajos (${items.length}):</p>
-        ${items.map(i => `<div class="text-xs bg-white p-2 rounded mb-1">📄 ${i.fileName}</div>`).join('')}
+      
+      <div class="p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Sucursal</p>
+            <p>${order.branch}</p>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-600">Estado</p>
+            <span class="inline-block px-3 py-1 rounded-full bg-${color}-100 text-${color}-800">
+              ${statusText[order.status]}
+            </span>
+          </div>
+          ${order.deliveryAddress ? `
+            <div class="col-span-2">
+              <p class="text-sm font-medium text-gray-600">Dirección de entrega</p>
+              <p>${order.deliveryAddress}</p>
+            </div>
+          ` : ''}
+          ${order.observations ? `
+            <div class="col-span-2">
+              <p class="text-sm font-medium text-gray-600">Observaciones</p>
+              <p class="text-sm">${order.observations}</p>
+            </div>
+          ` : ''}
+        </div>
+        
+        <div class="mb-4">
+          <p class="text-sm font-medium text-gray-600 mb-2">Trabajos (${order.items.length})</p>
+          <div class="space-y-2">
+            ${order.items.map(item => `
+              <div class="bg-gray-50 p-2 rounded text-sm">
+                <p class="font-medium">${item.fileName}</p>
+                <p class="text-gray-600">${item.printType === 'impresion' ? 'Impresión' : 
+                  item.printType === 'ploteo' ? 'Ploteo' : 
+                  item.printType === 'lona' ? 'Lona' : 'Vinil'} • $${item.cost?.toFixed(2) || '0.00'}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="flex gap-2">
+          ${order.status === 'pending' ? `
+            <button onclick="updateOrderStatus('${order.folio}', 'processing')" 
+              class="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+              <i class="fas fa-play mr-2"></i>Iniciar
+            </button>
+          ` : ''}
+          
+          ${order.status === 'processing' ? `
+            <button onclick="updateOrderStatus('${order.folio}', 'ready')" 
+              class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">
+              <i class="fas fa-check mr-2"></i>Marcar como Listo
+            </button>
+          ` : ''}
+          
+          ${order.status === 'ready' ? `
+            ${order.serviceType === 'delivery' ? `
+              <button onclick="startDelivery('${order.folio}')" 
+                class="flex-1 bg-orange-600 text-white py-2 rounded hover:bg-orange-700 transition">
+                <i class="fas fa-truck mr-2"></i>Iniciar Entrega
+              </button>
+            ` : ''}
+            <button onclick="updateOrderStatus('${order.folio}', 'completed')" 
+              class="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition">
+              <i class="fas fa-flag-checkered mr-2"></i>Completar
+            </button>
+          ` : ''}
+          
+          <button onclick="viewOrderDetails('${order.folio}')" 
+            class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
       </div>
-      <div class="flex gap-2">${actions}</div>
     </div>
   `;
 }
 
 async function updateOrderStatus(folio, status) {
-  document.getElementById('loadingOverlay').classList.remove('hidden');
+  if (!confirm(`¿Cambiar estado a "${status}"?`)) return;
+  
+  showLoading('Actualizando estado...');
+  
   try {
-    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ action: 'updateOrder', folio, status })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'updateOrderStatus',
+        folio: folio,
+        status: status
+      })
     });
-    const data = await res.json();
-    if (data.success) {
-      loadOrders();
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      await loadOrders();
+      await loadDashboard();
     } else {
-      alert('Error: ' + data.message);
+      alert('Error: ' + result.message);
     }
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error('Error actualizando estado:', error);
     alert('Error al actualizar');
   }
-  document.getElementById('loadingOverlay').classList.add('hidden');
+  
+  hideLoading();
 }
 
 function startDelivery(folio) {
-  showMapModal(folio);
+  // En producción, aquí integrarías con Google Maps API
+  alert(`Iniciando entrega para folio ${folio}. En producción, esto abriría el sistema de ruteo.`);
+  updateOrderStatus(folio, 'processing');
 }
 
-function showMapModal(folio) {
-  document.getElementById('mapOrderFolio').textContent = folio;
-  document.getElementById('mapOrderStatus').textContent = 'En camino';
-  document.getElementById('mapModal').classList.remove('hidden');
-  setTimeout(() => {
-    if (!map) {
-      map = L.map('map').setView([17.9892, -92.9475], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-      L.marker([17.9892, -92.9475]).addTo(map).bindPopup('Centro de Copiado');
-      L.marker([17.9950, -92.9500]).addTo(map).bindPopup('Cliente');
-    }
-  }, 300);
+function viewOrderDetails(folio) {
+  alert(`Detalles de orden ${folio}. En producción, mostrarías un modal con todos los detalles.`);
 }
 
-function closeMapModal() {
-  document.getElementById('mapModal').classList.add('hidden');
+function filterOrders() {
+  loadOrders();
 }
 
-function manualTrack() {
-  const folio = prompt("Ingresa tu folio (ej. CC12345678):");
-  if (folio && folio.trim()) {
-    openTrackingFromFolio(folio.trim());
-  }
+function exportOrders() {
+  alert('Función de exportación en desarrollo. Por ahora usa copiar/pegar desde la tabla.');
 }
 
-function openTrackingFromFolio(folio) {
-  document.getElementById('mapOrderFolio').textContent = folio;
-  document.getElementById('mapOrderStatus').textContent = 'Buscando estado...';
-  document.getElementById('mapModal').classList.remove('hidden');
-  // En producción, harías fetch al backend para obtener estado real
-  setTimeout(() => {
-    document.getElementById('mapOrderStatus').textContent = 'En proceso';
-    showMapModal(folio);
-  }, 500);
-}
+// ============================================
+// FUNCIONES DE CONFIGURACIÓN (ADMIN)
+// ============================================
 
-// CONFIG
 function loadConfigView() {
-  const list = document.getElementById('branchConfigList');
-  list.innerHTML = branches.map(b => `
-    <div class="border p-4 rounded-lg">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <input type="text" value="${b.name}" placeholder="Nombre" class="border rounded px-2 py-1">
-        <input type="text" value="${b.address}" placeholder="Dirección" class="border rounded px-2 py-1">
-        <input type="text" value="${b.clabe}" placeholder="CLABE" class="border rounded px-2 py-1">
-        <button onclick="deleteBranch(${b.id})" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Eliminar</button>
+  // Cargar valores actuales en los inputs
+  // (Esto sería dinámico en producción)
+  console.log('Cargando configuración de precios');
+}
+
+async function savePrices() {
+  if (!confirm('¿Guardar cambios en los precios?')) return;
+  
+  showLoading('Guardando precios...');
+  
+  try {
+    // Recopilar precios del formulario
+    const prices = {
+      impresion: {
+        carta: {
+          bn: parseFloat(document.getElementById('priceCartaBN').value) || 0.50,
+          color: parseFloat(document.getElementById('priceCartaColor').value) || 3.00
+        },
+        oficio: {
+          bn: parseFloat(document.getElementById('priceOficioBN').value) || 0.70,
+          color: parseFloat(document.getElementById('priceOficioColor').value) || 4.00
+        },
+        doblecarta: {
+          bn: 1.00,
+          color: 5.00
+        },
+        tabloide: {
+          bn: 2.00,
+          color: 8.00
+        }
+      },
+      papel: {
+        bond: 0,
+        kromecote: parseFloat(document.getElementById('priceKromecote').value) || 2.00,
+        opalina: parseFloat(document.getElementById('priceOpalina').value) || 1.50,
+        couchedelgado: parseFloat(document.getElementById('priceCoucheDelgado').value) || 1.00,
+        couchegrueso: parseFloat(document.getElementById('priceCoucheGrueso').value) || 2.50
+      },
+      acabado: {
+        engargolado: parseFloat(document.getElementById('priceEngargolado').value) || 20.00,
+        enmicado: parseFloat(document.getElementById('priceEnmicado').value) || 15.00,
+        engrapado: parseFloat(document.getElementById('priceEngrapado').value) || 5.00,
+        vulcanizado: parseFloat(document.getElementById('priceVulcanizado').value) || 25.00
+      },
+      ploteo: {
+        metro: {
+          normal: parseFloat(document.getElementById('pricePloteoNormal').value) || 50.00,
+          urgente: parseFloat(document.getElementById('pricePloteoUrgente').value) || 70.00
+        }
+      },
+      lona: {
+        metro: {
+          normal: parseFloat(document.getElementById('priceLonaNormal').value) || 80.00,
+          hrs24: parseFloat(document.getElementById('priceLona24hrs').value) || 90.00,
+          urgente: parseFloat(document.getElementById('priceLonaUrgente').value) || 100.00
+        }
+      },
+      vinil: {
+        metro: {
+          transparente: parseFloat(document.getElementById('priceVinilTransparente').value) || 45.00,
+          normal: parseFloat(document.getElementById('priceVinilNormal').value) || 40.00,
+          trovisel3mm: parseFloat(document.getElementById('priceVinilTrovisel3').value) || 120.00,
+          trovisel6mm: 180.00,
+          magnetico: 90.00,
+          urgente: 55.00
+        }
+      },
+      delivery: parseFloat(document.getElementById('priceDelivery').value) || 30.00
+    };
+    
+    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'updatePrices',
+        prices: prices
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('Precios guardados exitosamente');
+      servicePrices = prices; // Actualizar cache local
+    } else {
+      alert('Error: ' + result.message);
+    }
+    
+  } catch (error) {
+    console.error('Error guardando precios:', error);
+    alert('Error al guardar los precios');
+  }
+  
+  hideLoading();
+}
+
+function loadBranchesView() {
+  const branchList = document.getElementById('branchList');
+  
+  branchList.innerHTML = branches.map(branch => `
+    <div class="border rounded-lg p-4">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h3 class="font-bold text-lg">${branch.name}</h3>
+          <p class="text-sm text-gray-600">${branch.address}</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="editBranch(${branch.id})" class="text-blue-600 hover:text-blue-800">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button onclick="deleteBranch(${branch.id})" class="text-red-600 hover:text-red-800">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <p class="text-gray-600">CLABE:</p>
+          <p class="font-mono">${branch.clabe}</p>
+        </div>
+        <div>
+          <p class="text-gray-600">Teléfono:</p>
+          <p>${branch.phone}</p>
+        </div>
       </div>
     </div>
   `).join('');
 }
 
-function savePrices() { alert('Guardado (simulado)'); }
-function addNewBranch() { alert('Agregar sucursal (simulado)'); }
-function deleteBranch(id) { alert('Eliminar sucursal (simulado)'); }
+function addNewBranch() {
+  const name = prompt('Nombre de la sucursal:');
+  if (!name) return;
+  
+  const address = prompt('Dirección:');
+  if (!address) return;
+  
+  const clabe = prompt('CLABE para transferencias:');
+  if (!clabe) return;
+  
+  const phone = prompt('Teléfono de contacto:');
+  
+  // En producción, enviarías esto al backend
+  alert('Sucursal agregada (simulado). En producción, se guardaría en la base de datos.');
+  
+  // Actualizar lista
+  const newBranch = {
+    id: branches.length + 1,
+    name: name,
+    address: address,
+    clabe: clabe,
+    phone: phone || '',
+    lat: '',
+    lon: ''
+  };
+  
+  branches.push(newBranch);
+  loadBranchesView();
+}
+
+function editBranch(id) {
+  const branch = branches.find(b => b.id === id);
+  if (!branch) return;
+  
+  const name = prompt('Nombre de la sucursal:', branch.name);
+  if (!name) return;
+  
+  const address = prompt('Dirección:', branch.address);
+  if (!address) return;
+  
+  const clabe = prompt('CLABE:', branch.clabe);
+  if (!clabe) return;
+  
+  const phone = prompt('Teléfono:', branch.phone);
+  
+  // Actualizar en array local
+  branch.name = name;
+  branch.address = address;
+  branch.clabe = clabe;
+  branch.phone = phone;
+  
+  loadBranchesView();
+  alert('Cambios guardados (simulado). En producción, se guardaría en la base de datos.');
+}
+
+function deleteBranch(id) {
+  if (!confirm('¿Eliminar esta sucursal? Esta acción no se puede deshacer.')) return;
+  
+  branches = branches.filter(b => b.id !== id);
+  loadBranchesView();
+  alert('Sucursal eliminada (simulado). En producción, se eliminaría de la base de datos.');
+}
+
+// ============================================
+// FUNCIONES DE UTILIDAD
+// ============================================
+
+function showLoading(message = 'Cargando...') {
+  document.getElementById('loadingMessage').textContent = message;
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+// Inicializar aplicación al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  // Inicializar valores por defecto
+  selectService('pickup');
+  updatePrintOptions();
+});
 </script>
 </body>
 </html>
-
