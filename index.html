@@ -29,7 +29,7 @@
 <script>
 // Configuración global
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzZt4J7uDpclrDdp1LmgKGPc7F-MPXYErZH2PvZwMXiqHmdObbfpTMffVHRE3PAsG9POg/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwrFFi72gjjKNLHWSPFL0fcH8NXpk7C6eanGRWSVyrZ_C9UBi5ax68-q6jECmqagOKEFg/exec',
   ADMIN_PASSWORD: 'admin',
   EMPLOYEE_PASSWORD: '1234'
 };
@@ -45,6 +45,58 @@ let map = null;
 let mapMarkers = [];
 let branches = [];
 let servicePrices = {};
+
+  // ============================================
+// FUNCIONES DE CARGA DE SUCURSALES
+// ============================================
+
+async function loadBranchesFromServer() {
+  try {
+    showLoading('Cargando sucursales...');
+    const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getBranches`);
+    const data = await response.json();
+    
+    if (data.success) {
+      branches = data.branches;
+      updateBranchesDropdown();
+      hideLoading();
+    } else {
+      console.error('Error cargando sucursales:', data.message);
+      // Usar sucursales por defecto si hay error
+      branches = getDefaultBranches();
+      updateBranchesDropdown();
+      hideLoading();
+    }
+  } catch (error) {
+    console.error('Error cargando sucursales:', error);
+    branches = getDefaultBranches();
+    updateBranchesDropdown();
+    hideLoading();
+  }
+}
+
+function getDefaultBranches() {
+  return [
+    { id: 1, name: 'Matriz', address: 'Dirección Matriz, Villahermosa', clabe: '012345678901234567', phone: '9932222657', lat: 17.9892, lon: -92.9475, active: true },
+    { id: 2, name: 'Tamulte', address: 'Calle Tamulte 123, Villahermosa', clabe: '012345678901234568', phone: '9932222658', lat: 17.9800, lon: -92.9400, active: true },
+    { id: 3, name: 'Ruiz Cortinez', address: 'Blvd. Ruiz Cortinez 456, Villahermosa', clabe: '012345678901234569', phone: '9932222659', lat: 17.9950, lon: -92.9500, active: true },
+    { id: 4, name: 'Cd. del Carmen', address: 'Av. Principal 789, Cd. del Carmen', clabe: '012345678901234570', phone: '9381234567', lat: 18.6464, lon: -91.8320, active: true }
+  ];
+}
+
+function updateBranchesDropdown() {
+  const select = document.getElementById('branchSelect');
+  if (!select) return;
+  
+  select.innerHTML = '<option value="">Selecciona una sucursal *</option>';
+  
+  branches.forEach(branch => {
+    if (branch.active) {
+      select.innerHTML += `<option value="${branch.id}">${branch.name} - ${branch.address}</option>`;
+    }
+  });
+}
+  
 </script>
 
 <!-- ============================================ -->
@@ -510,55 +562,143 @@ let servicePrices = {};
       </div>
     </div>
 
-    <!-- Paso 4: Comprobante de Pago -->
-    <div id="step4" class="bg-white rounded-xl shadow-lg p-6 hidden">
-      <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 4: Comprobante de Pago</h2>
-      
-      <div class="mb-6">
-        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-          <i class="fas fa-receipt text-indigo-600"></i>
-          Subir Comprobante
-        </h3>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Comprobante de Transferencia (imagen o PDF) *
-          </label>
-          <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition">
-            <i class="fas fa-file-upload text-4xl text-gray-400 mb-3"></i>
-            <p class="text-gray-600 mb-2" id="proofFileName">Arrastra o haz clic para seleccionar</p>
-            <p class="text-xs text-gray-500 mb-4">Formatos: JPG, PNG, PDF (Máx 5MB)</p>
-            <label class="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer">
-              <i class="fas fa-folder-open mr-2"></i>Seleccionar archivo
-              <input type="file" id="paymentProof" accept="image/*,.pdf" 
-                onchange="handleProofUpload(event)" class="hidden">
-            </label>
-          </div>
-          <p id="proofStatus" class="text-sm text-gray-500 mt-2"></p>
+    <!-- ============================================ -->
+<!-- PASO 4: COMPROBANTE DE PAGO -->
+<!-- ============================================ -->
+<div id="step4" class="bg-white rounded-xl shadow-lg p-6 hidden">
+  <h2 class="text-2xl font-bold mb-6 text-indigo-600">Paso 4: Comprobante de Pago</h2>
+  
+  <!-- Resumen del pedido -->
+  <div class="mb-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+      <i class="fas fa-clipboard-check text-indigo-600"></i>
+      Resumen Final del Pedido
+    </h3>
+    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <p class="text-sm font-medium text-gray-600">Folio:</p>
+          <p class="font-bold" id="finalFolio">Se generará al enviar</p>
         </div>
-        
-        <div class="bg-green-50 p-4 rounded-lg mb-6">
-          <div class="flex items-start gap-3">
-            <i class="fas fa-check-circle text-green-600 mt-1"></i>
-            <div>
-              <p class="font-semibold text-green-800">Resumen de pago</p>
-              <p class="text-sm text-gray-700">Total a pagar: <span class="font-bold" id="paymentTotal">$0.00</span></p>
-              <p class="text-sm text-gray-700">CLABE: <span class="font-bold" id="paymentClabe">012345678901234567</span></p>
-            </div>
-          </div>
+        <div>
+          <p class="text-sm font-medium text-gray-600">Cliente:</p>
+          <p class="font-bold" id="finalClientName"></p>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-gray-600">Total a pagar:</p>
+          <p class="font-bold text-xl text-indigo-600" id="finalTotal"></p>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-gray-600">Sucursal/Entrega:</p>
+          <p class="font-bold" id="finalServiceType"></p>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="flex justify-between">
-        <button onclick="prevStep(3)" 
-          class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
-          <i class="fas fa-arrow-left mr-2"></i>Regresar
-        </button>
-        <button id="submitOrderBtn" onclick="submitOrder()" disabled
-          class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold opacity-70 cursor-not-allowed">
-          <i class="fas fa-paper-plane mr-2"></i>Enviar Pedido
+  <!-- Datos de transferencia -->
+  <div class="mb-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+      <i class="fas fa-university text-indigo-600"></i>
+      Datos para Transferencia
+    </h3>
+    <div class="bg-blue-50 p-4 rounded-lg">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+        <div>
+          <p class="text-sm text-gray-600">Nombre del banco:</p>
+          <p class="font-bold">BBVA</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Titular:</p>
+          <p class="font-bold">Centro de Copiado</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">CLABE:</p>
+          <p class="font-bold font-mono" id="finalClabe"></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Sucursal:</p>
+          <p class="font-bold" id="finalBranch"></p>
+        </div>
+      </div>
+      <div class="p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+        <p class="text-sm text-yellow-800">
+          <i class="fas fa-exclamation-triangle mr-2"></i>
+          <strong>Importante:</strong> Realiza la transferencia antes de subir el comprobante. 
+          El pedido se procesará únicamente después de verificar el pago.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subir comprobante -->
+  <div class="mb-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+      <i class="fas fa-file-upload text-indigo-600"></i>
+      Subir Comprobante de Pago *
+    </h3>
+    
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition mb-4">
+      <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+      <p class="text-gray-600 mb-2" id="proofFileName">Arrastra o haz clic para seleccionar archivo</p>
+      <p class="text-xs text-gray-500 mb-4">Formatos aceptados: JPG, PNG, PDF (Máximo 5MB)</p>
+      
+      <label class="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 cursor-pointer transition">
+        <i class="fas fa-folder-open mr-2"></i>Seleccionar archivo
+        <input type="file" id="paymentProof" accept="image/*,.pdf" 
+          onchange="handleProofUpload(event)" class="hidden">
+      </label>
+    </div>
+    
+    <!-- Vista previa del comprobante -->
+    <div id="proofPreview" class="hidden mt-4">
+      <p class="text-sm font-medium text-gray-700 mb-2">Comprobante seleccionado:</p>
+      <div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-file-invoice text-green-600 text-xl"></i>
+          <div>
+            <p class="font-medium" id="proofName"></p>
+            <p class="text-xs text-green-600">
+              <i class="fas fa-check-circle mr-1"></i>Archivo listo para enviar
+            </p>
+          </div>
+        </div>
+        <button onclick="removeProof()" class="text-red-600 hover:text-red-800">
+          <i class="fas fa-times"></i>
         </button>
       </div>
     </div>
+    
+    <!-- Validaciones -->
+    <div class="mt-4 space-y-2">
+      <div class="flex items-center gap-2">
+        <div id="proofSizeCheck" class="w-5 h-5 rounded-full bg-gray-200"></div>
+        <span class="text-sm">Archivo menor a 5MB</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="proofFormatCheck" class="w-5 h-5 rounded-full bg-gray-200"></div>
+        <span class="text-sm">Formato válido (JPG, PNG, PDF)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="proofUploadedCheck" class="w-5 h-5 rounded-full bg-gray-200"></div>
+        <span class="text-sm">Comprobante subido</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de navegación -->
+  <div class="flex justify-between pt-4 border-t">
+    <button onclick="prevStep(3)" 
+      class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+      <i class="fas fa-arrow-left mr-2"></i>Regresar al Carrito
+    </button>
+    
+    <button id="submitOrderBtn" onclick="submitOrder()" disabled
+      class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold opacity-70 cursor-not-allowed">
+      <i class="fas fa-paper-plane mr-2"></i>Enviar Pedido
+    </button>
+  </div>
+</div>
   </div>
 </div>
 
@@ -1155,12 +1295,8 @@ async function initializeApp() {
   try {
     showLoading('Cargando configuración...');
     
-    // Cargar sucursales
-    const branchesRes = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getBranches`);
-    const branchesData = await branchesRes.json();
-    if (branchesData.success) {
-      branches = branchesData.branches;
-    }
+    // Cargar sucursales desde servidor
+    await loadBranchesFromServer();
     
     // Cargar precios
     const pricesRes = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getPrices`);
@@ -1180,7 +1316,9 @@ function loginAsClient() {
   userRole = 'client';
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('clientScreen').classList.remove('hidden');
-  loadBranches();
+  
+  // Cargar sucursales inmediatamente
+  updateBranchesDropdown();
   initializeApp();
 }
 
@@ -1242,11 +1380,52 @@ function nextStep(step) {
     updateCartDisplay();
     updateTransferInfo();
   } else if (step === 4) {
-    updatePaymentSummary();
+    if (!validateCart()) return;
+    updateFinalSummary();
   }
   
   showStep(step);
 }
+  function validateCart() {
+  if (cart.length === 0) {
+    alert('El carrito está vacío. Agrega al menos un trabajo.');
+    return false;
+  }
+  
+  // Verificar que todos los trabajos tengan costo válido
+  for (const item of cart) {
+    if (!item.cost || item.cost <= 0) {
+      alert(`El trabajo "${item.fileName}" no tiene un costo válido.`);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+function updateFinalSummary() {
+  // Actualizar datos del cliente
+  document.getElementById('finalClientName').textContent = document.getElementById('clientName').value;
+  document.getElementById('finalTotal').textContent = '$' + document.getElementById('total').textContent;
+  
+  // Actualizar tipo de servicio
+  const serviceType = currentService === 'pickup' ? 'Pick Up' : 'Entrega a Domicilio';
+  const branchInfo = currentService === 'pickup' 
+    ? document.getElementById('branchSelect').options[document.getElementById('branchSelect').selectedIndex].text
+    : 'Entrega a domicilio';
+  
+  document.getElementById('finalServiceType').textContent = `${serviceType} - ${branchInfo}`;
+  
+  // Actualizar datos de transferencia
+  document.getElementById('finalClabe').textContent = document.getElementById('transferClabe').textContent;
+  document.getElementById('finalBranch').textContent = document.getElementById('transferBranch').textContent;
+  
+  // Resetear estado del botón de enviar y comprobante
+  disableSubmitButton();
+  currentProof = null;
+  resetProofValidation();
+}
+  
 
 function prevStep(step) {
   showStep(step);
@@ -1373,19 +1552,100 @@ function handleProofUpload(event) {
   if (!file) return;
   
   // Validar tamaño
-  if (file.size > 5 * 1024 * 1024) {
+  if (file.size > 5 * 1024 * 1024) { // 5MB máximo
     alert('Archivo muy grande. Máximo 5MB');
     event.target.value = '';
+    resetProofValidation();
+    return;
+  }
+  
+  // Validar formato
+  const validExtensions = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+  if (!validExtensions.includes(file.type)) {
+    alert('Formato no válido. Solo se aceptan JPG, PNG o PDF');
+    event.target.value = '';
+    resetProofValidation();
     return;
   }
   
   currentProof = file;
-  document.getElementById('proofFileName').textContent = `✓ ${file.name}`;
-  document.getElementById('proofStatus').textContent = 'Archivo seleccionado correctamente';
-  document.getElementById('proofStatus').className = 'text-sm text-green-600 mt-2';
-  document.getElementById('submitOrderBtn').disabled = false;
-  document.getElementById('submitOrderBtn').classList.remove('opacity-70', 'cursor-not-allowed');
+  
+  // Actualizar UI
+  document.getElementById('proofFileName').textContent = 'Archivo seleccionado ✓';
+  document.getElementById('proofName').textContent = file.name;
+  document.getElementById('proofPreview').classList.remove('hidden');
+  
+  // Actualizar validaciones
+  updateProofValidation(true, true, true);
+  
+  // Habilitar botón de enviar
+  enableSubmitButton();
 }
+
+  function removeProof() {
+  currentProof = null;
+  document.getElementById('paymentProof').value = '';
+  document.getElementById('proofFileName').textContent = 'Arrastra o haz clic para seleccionar archivo';
+  document.getElementById('proofPreview').classList.add('hidden');
+  
+  // Deshabilitar botón de enviar
+  disableSubmitButton();
+  
+  resetProofValidation();
+}
+
+function updateProofValidation(sizeValid, formatValid, uploaded) {
+  const sizeCheck = document.getElementById('proofSizeCheck');
+  const formatCheck = document.getElementById('proofFormatCheck');
+  const uploadedCheck = document.getElementById('proofUploadedCheck');
+  
+  sizeCheck.className = sizeValid 
+    ? 'w-5 h-5 rounded-full bg-green-500 flex items-center justify-center' 
+    : 'w-5 h-5 rounded-full bg-red-500 flex items-center justify-center';
+    
+  if (sizeValid) {
+    sizeCheck.innerHTML = '<i class="fas fa-check text-white text-xs"></i>';
+  }
+  
+  formatCheck.className = formatValid 
+    ? 'w-5 h-5 rounded-full bg-green-500 flex items-center justify-center' 
+    : 'w-5 h-5 rounded-full bg-red-500 flex items-center justify-center';
+    
+  if (formatValid) {
+    formatCheck.innerHTML = '<i class="fas fa-check text-white text-xs"></i>';
+  }
+  
+  uploadedCheck.className = uploaded 
+    ? 'w-5 h-5 rounded-full bg-green-500 flex items-center justify-center' 
+    : 'w-5 h-5 rounded-full bg-gray-200';
+    
+  if (uploaded) {
+    uploadedCheck.innerHTML = '<i class="fas fa-check text-white text-xs"></i>';
+  }
+}
+
+function resetProofValidation() {
+  updateProofValidation(false, false, false);
+}
+
+function enableSubmitButton() {
+  const submitBtn = document.getElementById('submitOrderBtn');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+    submitBtn.classList.add('opacity-100', 'cursor-pointer');
+  }
+}
+
+function disableSubmitButton() {
+  const submitBtn = document.getElementById('submitOrderBtn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+    submitBtn.classList.remove('opacity-100', 'cursor-pointer');
+  }
+}
+  
 
 // ============================================
 // FUNCIONES DE IMPRESIÓN Y COSTOS
@@ -1508,19 +1768,29 @@ function addToCart(goToCart = false) {
     return;
   }
   
+  // Calcular costo
+  const estimatedCost = parseFloat(document.getElementById('estimatedCost').textContent);
+  if (!estimatedCost || estimatedCost <= 0) {
+    alert('Error al calcular el costo. Verifica los datos del trabajo.');
+    return;
+  }
+  
   // Crear item del carrito
   let item = {
     id: Date.now() + Math.random(),
     fileName: currentFile.name,
     printType: printType,
-    cost: parseFloat(document.getElementById('estimatedCost').textContent) || 0
+    cost: estimatedCost
   };
   
   // Agregar detalles específicos
   if (printType === 'impresion') {
+    const paperSizeBtn = document.querySelector('.paper-size-btn.bg-indigo-100');
+    const qualityBtn = document.querySelector('.quality-btn.bg-indigo-100');
+    
     item.details = {
-      paperSize: document.querySelector('.paper-size-btn.bg-indigo-100')?.innerText || 'Carta',
-      quality: document.querySelector('.quality-btn.bg-indigo-100')?.innerText.includes('Color') ? 'Color' : 'Blanco y Negro',
+      paperSize: paperSizeBtn ? paperSizeBtn.innerText : 'Carta',
+      quality: qualityBtn ? (qualityBtn.innerText.includes('Color') ? 'Color' : 'Blanco y Negro') : 'Blanco y Negro',
       copies: parseInt(document.getElementById('copies').value) || 1,
       paperType: document.getElementById('paperType').options[document.getElementById('paperType').selectedIndex].text,
       finishing: document.getElementById('finishing').value !== 'none' ? 
@@ -1555,10 +1825,10 @@ function addToCart(goToCart = false) {
   updateCartPreview();
   
   if (goToCart) {
-    nextStep(3);
+    nextStep(3); // Ir al paso 3 (Carrito)
   }
 }
-
+  
 function updateCartPreview() {
   const previewSection = document.getElementById('cartPreview');
   const previewItems = document.getElementById('previewCartItems');
@@ -2604,7 +2874,14 @@ document.addEventListener('DOMContentLoaded', () => {
   selectService('pickup');
   updatePrintOptions();
 });
+
+  // Inicializar botón deshabilitado al cargar
+document.addEventListener('DOMContentLoaded', function() {
+  disableSubmitButton();
+});
+  
 </script>
 </body>
 </html>
+
 
