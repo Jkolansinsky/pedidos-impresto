@@ -424,28 +424,166 @@
                 padding: 12px 5px;
             }
         }
+    
+        /* Estilos adicionales para el nuevo header */
+        .top-header {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top-header .logo {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .access-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .access-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .access-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 25px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -29px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #e0e0e0;
+        }
+
+        .timeline-item.completed::before {
+            background: #28a745;
+            border-color: #28a745;
+        }
+
+        .timeline-item.active::before {
+            background: #ffc107;
+            border-color: #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .timeline-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #e0e0e0;
+        }
+
+        .timeline-item.completed .timeline-content {
+            border-left-color: #28a745;
+        }
+
+        .timeline-item.active .timeline-content {
+            border-left-color: #ffc107;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .timeline-meta {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .timeline-employee {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
     </style>
+   
 </head>
 <body>
+     <!-- Nuevo header con accesos -->
+    <div class="top-header">
+        <div class="logo">
+            <i class="fas fa-print"></i> Centro de Copiado
+        </div>
+        <div class="access-buttons">
+            <button class="access-btn" onclick="showLoginModal('usuario')">
+                <i class="fas fa-user-tie"></i> Usuario
+            </button>
+            <button class="access-btn" onclick="showLoginModal('admin')">
+                <i class="fas fa-user-shield"></i> Admin
+            </button>
+        </div>
+    </div>
+    
   <div class="container">
         <div class="header">
             <h1><i class="fas fa-print"></i> Centro de Copiado</h1>
             <p>Sistema de Pedidos Pick-up y Entrega a Domicilio</p>
         </div>
-
-        <!-- Navegación -->
+      
+        <!-- Navegación Principal -->
         <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showTab('cliente')">
-                <i class="fas fa-user"></i> Cliente
+            <button class="nav-tab active" onclick="showMainTab('cliente')">
+                <i class="fas fa-shopping-cart"></i> Hacer Pedido
             </button>
-            <button class="nav-tab" onclick="showTab('usuario')">
-                <i class="fas fa-briefcase"></i> Usuario
-            </button>
-            <button class="nav-tab" onclick="showTab('tracking')">
+            <button class="nav-tab" onclick="showMainTab('tracking')">
                 <i class="fas fa-map-marked-alt"></i> Rastrear Pedido
             </button>
         </div>
-
+      
         <div class="content">
             <!-- TAB CLIENTE -->
             <div id="cliente-tab" class="tab-content active">
@@ -678,148 +816,7 @@
                 </div>
             </div>
 
-            <!-- TAB USUARIO -->
-            <div id="usuario-tab" class="tab-content">
-                <div id="usuario-login">
-                    <div class="login-container">
-                        <h2><i class="fas fa-lock"></i> Login de Usuario</h2>
-                        <div class="form-group">
-                            <label>Usuario</label>
-                            <input type="text" id="username" placeholder="usuario">
-                        </div>
-                        <div class="form-group">
-                            <label>Contraseña</label>
-                            <input type="password" id="password" placeholder="••••••••">
-                        </div>
-                        <button class="btn btn-primary" onclick="login()">
-                            <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                        </button>
-                    </div>
-                </div>
-
-                <div id="usuario-dashboard" class="hidden">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2><i class="fas fa-tachometer-alt"></i> Panel de Usuario</h2>
-                        <button class="btn btn-danger" onclick="logout()">
-                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                        </button>
-                    </div>
-
-                    <div class="nav-tabs" style="margin-bottom: 20px;">
-                        <button class="nav-tab active" onclick="showUserTab('orders')">
-                            <i class="fas fa-list"></i> Pedidos
-                        </button>
-                        <button class="nav-tab" onclick="showUserTab('reports')">
-                            <i class="fas fa-chart-bar"></i> Reportes
-                        </button>
-                        <button id="adminTabBtn" class="nav-tab hidden" onclick="showUserTab('admin')">
-                            <i class="fas fa-cog"></i> Admin
-                        </button>
-                    </div>
-
-                    <!-- Pedidos -->
-                    <div id="user-orders-tab" class="user-tab-content">
-                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                            <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
-                            <button class="btn btn-warning" onclick="filterOrders('new')">Nuevos</button>
-                            <button class="btn btn-success" onclick="filterOrders('processing')">En Proceso</button>
-                            <button class="btn btn-secondary" onclick="filterOrders('ready')">Listos</button>
-                        </div>
-                        <div id="ordersList"></div>
-                    </div>
-
-                    <!-- Reportes -->
-                    <div id="user-reports-tab" class="user-tab-content hidden">
-                        <h3>Reportes</h3>
-                        <div class="form-group">
-                            <label>Tipo de Reporte</label>
-                            <select id="reportType">
-                                <option value="daily">Por Día</option>
-                                <option value="client">Por Cliente</option>
-                                <option value="service">Por Tipo de Servicio</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha Inicio</label>
-                            <input type="date" id="reportStartDate">
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha Fin</label>
-                            <input type="date" id="reportEndDate">
-                        </div>
-                        <button class="btn btn-primary" onclick="generateReport()">
-                            <i class="fas fa-file-export"></i> Generar Reporte
-                        </button>
-                        <div id="reportResults" style="margin-top: 20px;"></div>
-                    </div>
-
-                    <!-- Admin -->
-                    <div id="user-admin-tab" class="user-tab-content hidden">
-                        <h3><i class="fas fa-tools"></i> Administración</h3>
-                        
-                        <div style="margin-bottom: 30px;">
-                            <h4>Gestión de Precios</h4>
-                            <div class="form-group">
-                                <label>Categoría</label>
-                                <select id="priceCategory">
-                                    <option value="CARTA">Carta</option>
-                                    <option value="OFICIO">Oficio</option>
-                                    <option value="DOBLE_CARTA">Doble Carta</option>
-                                    <option value="TABLOIDE">Tabloide</option>
-                                    <option value="PLOTEO">Ploteo</option>
-                                    <option value="LONAS">Lonas</option>
-                                    <option value="VINIL">Vinil</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Subcategoría</label>
-                                <input type="text" id="priceSubcategory" placeholder="Ej: BN, COLOR, KROMECOTE">
-                            </div>
-                            <div class="form-group">
-                                <label>Precio</label>
-                                <input type="number" id="priceValue" step="0.01" placeholder="0.00">
-                            </div>
-                            <button class="btn btn-success" onclick="updatePrice()">
-                                <i class="fas fa-save"></i> Actualizar Precio
-                            </button>
-                        </div>
-
-                        <div style="margin-bottom: 30px;">
-                            <h4>Gestión de Sucursales</h4>
-                            <div class="form-group">
-                                <label>Nombre de Sucursal</label>
-                                <input type="text" id="branchName" placeholder="Ej: Tamulte">
-                            </div>
-                            <div class="form-group">
-                                <label>Dirección</label>
-                                <input type="text" id="branchAddress" placeholder="Dirección completa">
-                            </div>
-                            <div class="form-group">
-                                <label>Teléfono</label>
-                                <input type="text" id="branchPhone" placeholder="9931234567">
-                            </div>
-                            <div class="form-group">
-                                <label>Datos Bancarios</label>
-                                <textarea id="branchBankData" rows="4" placeholder="Banco, Cuenta, CLABE, Titular"></textarea>
-                            </div>
-                            <button class="btn btn-success" onclick="saveBranch()">
-                                <i class="fas fa-save"></i> Guardar Sucursal
-                            </button>
-                        </div>
-
-                        <div>
-                            <h4>Configuración de Entrega</h4>
-                            <div class="form-group">
-                                <label>Costo de Entrega a Domicilio</label>
-                                <input type="number" id="deliveryFee" step="0.01" placeholder="0.00">
-                            </div>
-                            <button class="btn btn-success" onclick="updateDeliveryFee()">
-                                <i class="fas fa-save"></i> Actualizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             <!-- TAB TRACKING -->
             <div id="tracking-tab" class="tab-content">
@@ -863,32 +860,188 @@
     </div>
 
     <!-- Modal de Detalle de Pedido -->
+  <!-- Modal de Detalle de Pedido -->
     <div id="orderDetailModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h3>Detalle del Pedido</h3>
                 <button class="close-modal" onclick="closeOrderDetail()">×</button>
             </div>
             <div id="orderDetailContent"></div>
-            <div style="margin-top: 20px;">
+            
+            <!-- Timeline del Pedido -->
+            <div style="margin-top: 30px;">
+                <h4><i class="fas fa-history"></i> Historial del Pedido</h4>
+                <div id="orderTimeline" class="timeline"></div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
                 <h4>Actualizar Estado</h4>
-                <select id="orderStatus">
-                    <option value="new">Nuevo</option>
-                    <option value="processing">En Proceso</option>
-                    <option value="ready">Listo</option>
-                    <option value="delivering">En Camino</option>
-                    <option value="delivered">Entregado</option>
-                </select>
-                <button class="btn btn-success" onclick="updateOrderStatus()">
-                    <i class="fas fa-save"></i> Actualizar
-                </button>
-                <button class="btn btn-primary" onclick="notifyClient()">
-                    <i class="fas fa-bell"></i> Notificar Cliente
-                </button>
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select id="orderStatus">
+                        <option value="new">Nuevo (Recibido)</option>
+                        <option value="assigned">Asignado a Empleado</option>
+                        <option value="processing">En Elaboración</option>
+                        <option value="ready">Listo para Entrega</option>
+                        <option value="delivering">En Camino</option>
+                        <option value="delivered">Entregado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notas adicionales</label>
+                    <textarea id="statusNotes" rows="2" placeholder="Agregar nota..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-success" onclick="updateOrderStatus()">
+                        <i class="fas fa-save"></i> Actualizar Estado
+                    </button>
+                    <button class="btn btn-primary" onclick="notifyClient()">
+                        <i class="fas fa-bell"></i> Notificar Cliente
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Panel de Usuario (antes era tab) -->
+    <div id="usuarioPanel" class="modal">
+        <div class="modal-content" style="max-width: 95%; max-height: 95vh;">
+            <div class="modal-header">
+                <h3><i class="fas fa-tachometer-alt"></i> Panel de Usuario - <span id="currentUserName"></span></h3>
+                <div>
+                    <button class="btn btn-danger" onclick="closeUsuarioPanel()">
+                        <i class="fas fa-times"></i> Cerrar
+                    </button>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
+                <button class="btn btn-warning" onclick="filterOrders('new')">Nuevos</button>
+                <button class="btn btn-success" onclick="filterOrders('processing')">En Proceso</button>
+                <button class="btn btn-secondary" onclick="filterOrders('ready')">Listos</button>
+            </div>
+            
+            <div id="usuarioOrdersList"></div>
+        </div>
+    </div>
+
+    <!-- Panel de Admin -->
+    <div id="adminPanel" class="modal">
+        <div class="modal-content" style="max-width: 95%; max-height: 95vh;">
+            <div class="modal-header">
+                <h3><i class="fas fa-tools"></i> Panel de Administración</h3>
+                <button class="btn btn-danger" onclick="closeAdminPanel()">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+
+            <div class="nav-tabs" style="margin-bottom: 20px;">
+                <button class="nav-tab active" onclick="showAdminTab('orders')">
+                    <i class="fas fa-list"></i> Pedidos
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('prices')">
+                    <i class="fas fa-dollar-sign"></i> Precios
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('branches')">
+                    <i class="fas fa-store"></i> Sucursales
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('reports')">
+                    <i class="fas fa-chart-bar"></i> Reportes
+                </button>
+            </div>
+
+            <!-- Tab Pedidos Admin -->
+            <div id="admin-orders-tab" class="admin-tab-content">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="filterAdminOrders('all')">Todos</button>
+                    <button class="btn btn-warning" onclick="filterAdminOrders('new')">Nuevos</button>
+                    <button class="btn btn-success" onclick="filterAdminOrders('processing')">En Proceso</button>
+                    <button class="btn btn-secondary" onclick="filterAdminOrders('ready')">Listos</button>
+                    <button class="btn" style="background: #17a2b8; color: white;" onclick="filterAdminOrders('delivered')">Entregados</button>
+                </div>
+                <div id="adminOrdersList"></div>
+            </div>
+
+            <!-- Tab Precios -->
+            <div id="admin-prices-tab" class="admin-tab-content hidden">
+                <h4>Gestión de Precios</h4>
+                <div id="pricesTable" style="overflow-x: auto;"></div>
+                <hr>
+                <h4>Agregar/Editar Precio</h4>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <input type="text" id="priceCategory" placeholder="Ej: CARTA, VINIL, ACABADO">
+                </div>
+                <div class="form-group">
+                    <label>Subcategoría</label>
+                    <input type="text" id="priceSubcategory" placeholder="Ej: BN_BOND, COLOR_BOND, ENGARGOLADO">
+                </div>
+                <div class="form-group">
+                    <label>Precio</label>
+                    <input type="number" id="priceValue" step="0.01" placeholder="0.00">
+                </div>
+                <button class="btn btn-success" onclick="savePrice()">
+                    <i class="fas fa-save"></i> Guardar Precio
+                </button>
+            </div>
+
+            <!-- Tab Sucursales -->
+            <div id="admin-branches-tab" class="admin-tab-content hidden">
+                <h4>Gestión de Sucursales</h4>
+                <div id="branchesTable" style="overflow-x: auto; margin-bottom: 20px;"></div>
+                <hr>
+                <h4>Agregar Nueva Sucursal</h4>
+                <div class="form-group">
+                    <label>Nombre de Sucursal</label>
+                    <input type="text" id="branchName" placeholder="Ej: Tamulte">
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="branchAddress" placeholder="Dirección completa">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="text" id="branchPhone" placeholder="9931234567">
+                </div>
+                <div class="form-group">
+                    <label>Datos Bancarios</label>
+                    <textarea id="branchBankData" rows="4" placeholder="Banco, Cuenta, CLABE, Titular"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="saveBranch()">
+                    <i class="fas fa-save"></i> Guardar Sucursal
+                </button>
+            </div>
+
+            <!-- Tab Reportes -->
+            <div id="admin-reports-tab" class="admin-tab-content hidden">
+                <h4>Reportes</h4>
+                <div class="form-group">
+                    <label>Tipo de Reporte</label>
+                    <select id="reportType">
+                        <option value="daily">Por Día</option>
+                        <option value="client">Por Cliente</option>
+                        <option value="service">Por Tipo de Servicio</option>
+                        <option value="employee">Por Empleado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha Inicio</label>
+                    <input type="date" id="reportStartDate">
+                </div>
+                <div class="form-group">
+                    <label>Fecha Fin</label>
+                    <input type="date" id="reportEndDate">
+                </div>
+                <button class="btn btn-primary" onclick="generateReport()">
+                    <i class="fas fa-file-export"></i> Generar Reporte
+                </button>
+                <div id="reportResults" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Loading -->
     <div id="loading" class="loading">
         <div class="spinner"></div>
@@ -912,6 +1065,8 @@
         let prices = {};
         let branches = [];
         let currentOrder = null;
+        let currentLoginType = null; // 'usuario' o 'admin'
+        let allOrders = []; // Cache de todas las órdenes
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
@@ -920,26 +1075,111 @@
         });
 
         // FUNCIONES DE NAVEGACIÓN
-        function showTab(tabName) {
+        // FUNCIONES DE NAVEGACIÓN
+        function showMainTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tabs .nav-tab').forEach(t => t.classList.remove('active'));
             
             document.getElementById(tabName + '-tab').classList.add('active');
             event.target.classList.add('active');
         }
 
-        function showUserTab(tabName) {
-            document.querySelectorAll('.user-tab-content').forEach(t => t.classList.add('hidden'));
-            document.querySelectorAll('#usuario-dashboard .nav-tab').forEach(t => t.classList.remove('active'));
-            
-            document.getElementById('user-' + tabName + '-tab').classList.remove('hidden');
-            event.target.classList.add('active');
+        function showLoginModal(type) {
+            currentLoginType = type;
+            document.getElementById('loginModalTitle').textContent = type === 'admin' ? 'Admin - Iniciar Sesión' : 'Usuario - Iniciar Sesión';
+            document.getElementById('loginModal').classList.add('active');
+            document.getElementById('modalUsername').value = '';
+            document.getElementById('modalPassword').value = '';
+            document.getElementById('loginModalAlert').classList.add('hidden');
+        }
 
-            if(tabName === 'orders') {
-                loadOrders();
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.remove('active');
+            currentLoginType = null;
+        }
+
+        async function processLogin() {
+            const username = document.getElementById('modalUsername').value.trim();
+            const password = document.getElementById('modalPassword').value.trim();
+            const alertDiv = document.getElementById('loginModalAlert');
+
+            if(!username || !password) {
+                alertDiv.textContent = 'Completa todos los campos';
+                alertDiv.classList.remove('hidden');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=' + currentLoginType);
+                const result = await response.json();
+                
+                if(result.success) {
+                    if(currentLoginType === 'admin' && result.user.role !== 'admin') {
+                        alertDiv.textContent = 'No tienes permisos de administrador';
+                        alertDiv.classList.remove('hidden');
+                        return;
+                    }
+
+                    currentUser = result.user;
+                    closeLoginModal();
+                    
+                    if(currentLoginType === 'admin') {
+                        openAdminPanel();
+                    } else {
+                        openUsuarioPanel();
+                    }
+                } else {
+                    alertDiv.textContent = result.message || 'Credenciales incorrectas';
+                    alertDiv.classList.remove('hidden');
+                }
+            } catch(error) {
+                alertDiv.textContent = 'Error de conexión: ' + error.message;
+                alertDiv.classList.remove('hidden');
+            } finally {
+                showLoading(false);
             }
         }
 
+        function openUsuarioPanel() {
+            document.getElementById('currentUserName').textContent = currentUser.username;
+            document.getElementById('usuarioPanel').classList.add('active');
+            loadUsuarioOrders();
+        }
+
+        function closeUsuarioPanel() {
+            document.getElementById('usuarioPanel').classList.remove('active');
+            currentUser = null;
+        }
+
+        function openAdminPanel() {
+            document.getElementById('adminPanel').classList.add('active');
+            showAdminTab('orders');
+            loadAdminOrders();
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('adminPanel').classList.remove('active');
+            currentUser = null;
+        }
+
+        function showAdminTab(tabName) {
+            document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden'));
+            document.querySelectorAll('#adminPanel .nav-tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById('admin-' + tabName + '-tab').classList.remove('hidden');
+            event.target.classList.add('active');
+
+            if(tabName === 'orders') {
+                loadAdminOrders();
+            } else if(tabName === 'prices') {
+                loadPricesTable();
+            } else if(tabName === 'branches') {
+                loadBranchesTable();
+            }
+        }
+      
+        
         // CLIENTE - PASO 1: Guardar información
         function saveClientInfo() {
             const name = document.getElementById('clientName').value.trim();
@@ -1407,58 +1647,16 @@
             document.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
         }
 
-        // USUARIO - Login
-        async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            if(!username || !password) {
-                alert('Completa usuario y contraseña');
-                return;
-            }
-
+       // Cargar pedidos para USUARIO
+        async function loadUsuarioOrders() {
             showLoading(true);
             try {
-                const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password);
+                const response = await fetch(SCRIPT_URL + '?action=getOrders&employee=' + currentUser.username);
                 const result = await response.json();
                 
                 if(result.success) {
-                    currentUser = result.user;
-                    document.getElementById('usuario-login').classList.add('hidden');
-                    document.getElementById('usuario-dashboard').classList.remove('hidden');
-                    
-                    if(result.user.role === 'admin') {
-                        document.getElementById('adminTabBtn').classList.remove('hidden');
-                    }
-                    
-                    loadOrders();
-                } else {
-                    alert('Usuario o contraseña incorrectos');
-                }
-            } catch(error) {
-                alert('Error: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        function logout() {
-            currentUser = null;
-            document.getElementById('usuario-login').classList.remove('hidden');
-            document.getElementById('usuario-dashboard').classList.add('hidden');
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-        }
-
-        // Cargar pedidos
-        async function loadOrders() {
-            showLoading(true);
-            try {
-                const response = await fetch(SCRIPT_URL + '?action=getOrders');
-                const result = await response.json();
-                
-                if(result.success) {
-                    displayOrders(result.orders);
+                    allOrders = result.orders;
+                    displayUsuarioOrders(result.orders);
                 }
             } catch(error) {
                 console.error(error);
@@ -1467,28 +1665,131 @@
             }
         }
 
-        function displayOrders(orders) {
-            const container = document.getElementById('ordersList');
+        function displayUsuarioOrders(orders) {
+            const container = document.getElementById('usuarioOrdersList');
             container.innerHTML = '';
+            
+            if(orders.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No hay pedidos asignados</p>';
+                return;
+            }
             
             orders.forEach(order => {
                 const div = document.createElement('div');
                 div.className = 'work-item';
+                
+                const statusText = getStatusText(order.status);
+                const statusClass = 'status-' + order.status;
+                
                 div.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h4>${order.folio}</h4>
-                            <p>${order.client.name} - ${order.client.phone}</p>
-                            <p>Total: $${order.total} | ${order.serviceType === 'pickup' ? 'Pick-up' : 'Entrega'}</p>
-                            <span class="order-status status-${order.status}">${order.status.toUpperCase()}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+                        <div style="flex: 1;">
+                            <h4><i class="fas fa-file-alt"></i> ${order.folio}</h4>
+                            <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
+                            <p style="margin: 5px 0;">Total: <strong>$${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                                <i class="far fa-clock"></i> ${new Date(order.date).toLocaleString('es-MX')}
+                            </p>
+                            <span class="order-status ${statusClass}">${statusText}</span>
                         </div>
-                        <button class="btn btn-primary" onclick='viewOrder(${JSON.stringify(order)})'>Ver</button>
+                        <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-eye"></i> Ver Detalle
+                        </button>
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
+        function filterOrders(status) {
+            if(status === 'all') {
+                displayUsuarioOrders(allOrders);
+            } else {
+                const filtered = allOrders.filter(o => o.status === status);
+                displayUsuarioOrders(filtered);
+            }
+        }
+
+        // Cargar pedidos para ADMIN
+        async function loadAdminOrders() {
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getAllOrders');
+                const result = await response.json();
+                
+                if(result.success) {
+                    allOrders = result.orders;
+                    displayAdminOrders(result.orders);
+                }
+            } catch(error) {
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayAdminOrders(orders) {
+            const container = document.getElementById('adminOrdersList');
+            container.innerHTML = '';
+            
+            if(orders.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No hay pedidos</p>';
+                return;
+            }
+            
+            orders.forEach(order => {
+                const div = document.createElement('div');
+                div.className = 'work-item';
+                
+                const statusText = getStatusText(order.status);
+                const statusClass = 'status-' + order.status;
+                const employeeName = order.employee || 'Sin asignar';
+                
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+                        <div style="flex: 1;">
+                            <h4><i class="fas fa-file-alt"></i> ${order.folio}</h4>
+                            <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
+                            <p style="margin: 5px 0;">Total: <strong>$${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                                <i class="far fa-clock"></i> ${new Date(order.date).toLocaleString('es-MX')}
+                            </p>
+                            <p style="margin: 5px 0;">
+                                <i class="fas fa-user"></i> Empleado: <strong>${employeeName}</strong>
+                            </p>
+                            <span class="order-status ${statusClass}">${statusText}</span>
+                        </div>
+                        <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-eye"></i> Ver Detalle
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filterAdminOrders(status) {
+            if(status === 'all') {
+                displayAdminOrders(allOrders);
+            } else {
+                const filtered = allOrders.filter(o => o.status === status);
+                displayAdminOrders(filtered);
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'new': 'Nuevo (Recibido)',
+                'assigned': 'Asignado',
+                'processing': 'En Elaboración',
+                'ready': 'Listo para Entrega',
+                'delivering': 'En Camino',
+                'delivered': 'Entregado'
+            };
+            return statusMap[status] || status;
+        }
+       
+        
         function filterOrders(status) {
             loadOrders();
         }
@@ -1580,21 +1881,170 @@
             document.getElementById('loading').classList.toggle('active', show);
         }
 
-        function viewOrder(order) {
+        function viewOrderDetail(order) {
             currentOrder = order;
-            document.getElementById('orderDetailContent').innerHTML = JSON.stringify(order, null, 2);
+            
+            // Mostrar información del pedido
+            const detailContent = document.getElementById('orderDetailContent');
+            detailContent.innerHTML = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3><i class="fas fa-receipt"></i> ${order.folio}</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                        <div>
+                            <p><strong>Cliente:</strong> ${order.client.name}</p>
+                            <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+                            <p><strong>Email:</strong> ${order.client.email || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p><strong>Fecha:</strong> ${new Date(order.date).toLocaleString('es-MX')}</p>
+                            <p><strong>Servicio:</strong> ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                            <p><strong>Método de Pago:</strong> ${order.paymentMethod}</p>
+                        </div>
+                        <div>
+                            <p><strong>Subtotal:</strong> $${order.subtotal}</p>
+                            <p><strong>Entrega:</strong> $${order.deliveryCost || 0}</p>
+                            <p><strong>Total:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <h4><i class="fas fa-list"></i> Trabajos Solicitados</h4>
+                <div style="margin-bottom: 20px;">
+                    ${order.works.map((work, idx) => `
+                        <div class="cart-item" style="margin-bottom: 10px;">
+                            <p><strong>${idx + 1}. ${work.fileName}</strong></p>
+                            <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
+                            ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
+                            ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
+                            ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
+                            ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
+                            <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Construir timeline
+            buildTimeline(order);
+
+            // Establecer estado actual en select
+            document.getElementById('orderStatus').value = order.status;
+            document.getElementById('statusNotes').value = '';
+
             document.getElementById('orderDetailModal').classList.add('active');
+        }
+
+        function buildTimeline(order) {
+            const timeline = document.getElementById('orderTimeline');
+            const history = order.history || [];
+            
+            // Estados del proceso
+            const states = [
+                { key: 'new', label: 'Pedido Recibido', icon: 'fa-inbox' },
+                { key: 'assigned', label: 'Asignado a Empleado', icon: 'fa-user-check' },
+                { key: 'processing', label: 'En Elaboración', icon: 'fa-cogs' },
+                { key: 'ready', label: 'Listo para Entrega', icon: 'fa-check-circle' },
+                { key: 'delivering', label: 'En Camino', icon: 'fa-shipping-fast' },
+                { key: 'delivered', label: 'Entregado al Cliente', icon: 'fa-handshake' }
+            ];
+
+            const currentStateIndex = states.findIndex(s => s.key === order.status);
+            
+            timeline.innerHTML = states.map((state, index) => {
+                const historyItem = history.find(h => h.status === state.key);
+                const isCompleted = index <= currentStateIndex;
+                const isActive = index === currentStateIndex;
+                
+                let itemClass = 'timeline-item';
+                if(isCompleted && !isActive) itemClass += ' completed';
+                if(isActive) itemClass += ' active';
+                
+                return `
+                    <div class="${itemClass}">
+                        <div class="timeline-content">
+                            <div class="timeline-title">
+                                <i class="fas ${state.icon}"></i> ${state.label}
+                            </div>
+                            ${historyItem ? `
+                                <div class="timeline-meta">
+                                    <i class="far fa-clock"></i> ${new Date(historyItem.timestamp).toLocaleString('es-MX')}
+                                </div>
+                                ${historyItem.employee ? `
+                                    <span class="timeline-employee">
+                                        <i class="fas fa-user"></i> ${historyItem.employee}
+                                    </span>
+                                ` : ''}
+                                ${historyItem.notes ? `
+                                    <div style="margin-top: 5px; font-size: 0.9em; font-style: italic; color: #555;">
+                                        "${historyItem.notes}"
+                                    </div>
+                                ` : ''}
+                            ` : (isActive ? `
+                                <div class="timeline-meta" style="color: #ffc107;">
+                                    <i class="fas fa-hourglass-half"></i> En proceso...
+                                </div>
+                            ` : '')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function closeOrderDetail() {
             document.getElementById('orderDetailModal').classList.remove('active');
+            currentOrder = null;
         }
 
         async function updateOrderStatus() {
-            // Implementar actualización de estado
-            alert('Estado actualizado');
-            closeOrderDetail();
-            loadOrders();
+            const newStatus = document.getElementById('orderStatus').value;
+            const notes = document.getElementById('statusNotes').value.trim();
+
+            if(!currentOrder) {
+                alert('No hay pedido seleccionado');
+                return;
+            }
+
+            if(newStatus === currentOrder.status && !notes) {
+                alert('No hay cambios para guardar');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const updateData = {
+                    action: 'updateOrderStatus',
+                    folio: currentOrder.folio,
+                    status: newStatus,
+                    employee: currentUser.username,
+                    notes: notes,
+                    timestamp: new Date().toISOString()
+                };
+
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(updateData)
+                });
+
+                const result = await response.json();
+                
+                if(result.success) {
+                    alert('Estado actualizado correctamente');
+                    closeOrderDetail();
+                    
+                    // Recargar según el panel activo
+                    if(document.getElementById('usuarioPanel').classList.contains('active')) {
+                        loadUsuarioOrders();
+                    } else if(document.getElementById('adminPanel').classList.contains('active')) {
+                        loadAdminOrders();
+                    }
+                } else {
+                    alert('Error al actualizar: ' + result.message);
+                }
+            } catch(error) {
+                alert('Error: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
         }
 
         function notifyClient() {
@@ -1605,19 +2055,192 @@
         }
 
         // ADMIN
-        async function updatePrice() {
-            // Implementar actualización de precios
-            alert('Precio actualizado');
+        // ADMIN - Gestión de Precios
+        async function loadPricesTable() {
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getPrices');
+                const result = await response.json();
+                
+                if(result.success) {
+                    const table = document.getElementById('pricesTable');
+                    let html = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #667eea; color: white;">
+                                    <th style="padding: 12px; text-align: left;">Categoría</th>
+                                    <th style="padding: 12px; text-align: left;">Subcategoría</th>
+                                    <th style="padding: 12px; text-align: right;">Precio</th>
+                                    <th style="padding: 12px; text-align: center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    for(let key in result.prices) {
+                        const parts = key.split('_');
+                        const category = parts[0];
+                        const subcategory = parts.slice(1).join('_') || '-';
+                        const price = result.prices[key];
+
+                        html += `
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 10px;">${category}</td>
+                                <td style="padding: 10px;">${subcategory}</td>
+                                <td style="padding: 10px; text-align: right;">$${price}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <button class="btn btn-warning" style="padding: 5px 10px; font-size: 0.9em;" 
+                                        onclick='editPrice("${category}", "${subcategory}", ${price})'>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    html += '</tbody></table>';
+                    table.innerHTML = html;
+                }
+            } catch(error) {
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function editPrice(category, subcategory, price) {
+            document.getElementById('priceCategory').value = category;
+            document.getElementById('priceSubcategory').value = subcategory === '-' ? '' : subcategory;
+            document.getElementById('priceValue').value = price;
+            window.scrollTo({ top: document.getElementById('priceCategory').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        async function savePrice() {
+            const category = document.getElementById('priceCategory').value.trim();
+            const subcategory = document.getElementById('priceSubcategory').value.trim();
+            const price = parseFloat(document.getElementById('priceValue').value);
+
+            if(!category || isNaN(price)) {
+                alert('Completa categoría y precio');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'updatePrice',
+                        category: category,
+                        subcategory: subcategory,
+                        price: price
+                    })
+                });
+
+                const result = await response.json();
+                
+                if(result.success) {
+                    alert('Precio guardado correctamente');
+                    document.getElementById('priceCategory').value = '';
+                    document.getElementById('priceSubcategory').value = '';
+                    document.getElementById('priceValue').value = '';
+                    loadPricesTable();
+                    loadPrices(); // Recargar caché de precios
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch(error) {
+                alert('Error: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ADMIN - Gestión de Sucursales
+        async function loadBranchesTable() {
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getBranches');
+                const result = await response.json();
+                
+                if(result.success) {
+                    const table = document.getElementById('branchesTable');
+                    let html = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #667eea; color: white;">
+                                    <th style="padding: 12px; text-align: left;">Nombre</th>
+                                    <th style="padding: 12px; text-align: left;">Dirección</th>
+                                    <th style="padding: 12px; text-align: left;">Teléfono</th>
+                                    <th style="padding: 12px; text-align: left;">Datos Bancarios</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    result.branches.forEach(branch => {
+                        html += `
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 10px;"><strong>${branch.name}</strong></td>
+                                <td style="padding: 10px;">${branch.address}</td>
+                                <td style="padding: 10px;">${branch.phone}</td>
+                                <td style="padding: 10px; white-space: pre-line; font-size: 0.85em;">${branch.bankData}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</tbody></table>';
+                    table.innerHTML = html;
+                }
+            } catch(error) {
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function saveBranch() {
-            // Implementar guardado de sucursal
-            alert('Sucursal guardada');
-        }
+            const name = document.getElementById('branchName').value.trim();
+            const address = document.getElementById('branchAddress').value.trim();
+            const phone = document.getElementById('branchPhone').value.trim();
+            const bankData = document.getElementById('branchBankData').value.trim();
 
-        async function updateDeliveryFee() {
-            // Implementar actualización de tarifa
-            alert('Tarifa actualizada');
+            if(!name || !address || !phone) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'saveBranch',
+                        name: name,
+                        address: address,
+                        phone: phone,
+                        bankData: bankData
+                    })
+                });
+
+                const result = await response.json();
+                
+                if(result.success) {
+                    alert('Sucursal guardada correctamente');
+                    document.getElementById('branchName').value = '';
+                    document.getElementById('branchAddress').value = '';
+                    document.getElementById('branchPhone').value = '';
+                    document.getElementById('branchBankData').value = '';
+                    loadBranchesTable();
+                    loadBranches(); // Recargar caché de sucursales
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch(error) {
+                alert('Error: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
         }
 
         function generateReport() {
@@ -1627,3 +2250,4 @@
 </body>
 </html>
      
+
