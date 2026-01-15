@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Centro de Copiado - Sistema de Pedidos</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <style>
         * {
             margin: 0;
@@ -16,12 +17,51 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+        }
+
+        .top-header {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .top-header .logo {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .access-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .access-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .access-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
         }
 
         .container {
             max-width: 1200px;
-            margin: 0 auto;
+            margin: 20px auto;
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
@@ -277,15 +317,6 @@
             color: #666;
         }
 
-        .login-container {
-            max-width: 400px;
-            margin: 50px auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
         .alert {
             padding: 15px;
             border-radius: 8px;
@@ -343,12 +374,19 @@
 
         .loading {
             display: none;
-            text-align: center;
-            padding: 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
         }
 
         .loading.active {
-            display: block;
+            display: flex;
         }
 
         .spinner {
@@ -364,6 +402,13 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
         }
 
         .ticket {
@@ -399,6 +444,11 @@
             color: white;
         }
 
+        .status-assigned {
+            background: #6f42c1;
+            color: white;
+        }
+
         .status-processing {
             background: #ffc107;
             color: #333;
@@ -409,60 +459,14 @@
             color: white;
         }
 
+        .status-delivering {
+            background: #fd7e14;
+            color: white;
+        }
+
         .status-delivered {
             background: #6c757d;
             color: white;
-        }
-
-        @media (max-width: 768px) {
-            .service-type {
-                grid-template-columns: 1fr;
-            }
-            
-            .nav-tab {
-                font-size: 0.9em;
-                padding: 12px 5px;
-            }
-        }
-    
-        /* Estilos adicionales para el nuevo header */
-        .top-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);;
-            color: white;
-            padding: 10px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .top-header .logo {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-
-        .access-buttons {
-            display: flex;
-            gap: 15px;
-        }
-
-        .access-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-        }
-
-        .access-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: rgba(255,255,255,0.5);
-            transform: translateY(-2px);
         }
 
         .timeline {
@@ -549,11 +553,33 @@
             font-size: 0.8em;
             margin-top: 5px;
         }
+
+        .admin-tab-content {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .service-type {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tab {
+                font-size: 0.9em;
+                padding: 12px 5px;
+            }
+
+            .access-buttons {
+                gap: 10px;
+            }
+
+            .access-btn {
+                padding: 6px 15px;
+                font-size: 0.85em;
+            }
+        }
     </style>
-   
 </head>
 <body>
-     <!-- Nuevo header con accesos -->
     <div class="top-header">
         <div class="logo">
             <i class="fas fa-print"></i> Centro de Copiado
@@ -567,14 +593,12 @@
             </button>
         </div>
     </div>
-    
-  <div class="container">
+    <div class="container">
         <div class="header">
             <h1><i class="fas fa-print"></i> Centro de Copiado</h1>
             <p>Sistema de Pedidos Pick-up y Entrega a Domicilio</p>
         </div>
-      
-        <!-- Navegación Principal -->
+
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showMainTab('cliente')">
                 <i class="fas fa-shopping-cart"></i> Hacer Pedido
@@ -583,9 +607,8 @@
                 <i class="fas fa-map-marked-alt"></i> Rastrear Pedido
             </button>
         </div>
-      
+
         <div class="content">
-            <!-- TAB CLIENTE -->
             <div id="cliente-tab" class="tab-content active">
                 <div id="client-info-step">
                     <h2><i class="fas fa-user-circle"></i> Información del Cliente</h2>
@@ -688,7 +711,7 @@
                     <div id="vinilOptions" class="hidden">
                         <div class="form-group">
                             <label>Tipo de Vinil *</label>
-                            <select id="vinilType">
+                            <select id="vinilType" onchange="calculateWorkPrice()">
                                 <option value="TRANSPARENTE">Transparente</option>
                                 <option value="NORMAL">Normal</option>
                                 <option value="MICROPERFORADO">Microperforado</option>
@@ -702,7 +725,7 @@
                     <div id="standardOptions" class="hidden">
                         <div class="form-group">
                             <label>Color *</label>
-                            <select id="colorOption">
+                            <select id="colorOption" onchange="calculateWorkPrice()">
                                 <option value="BN">Blanco y Negro</option>
                                 <option value="COLOR">Color</option>
                             </select>
@@ -710,7 +733,7 @@
 
                         <div class="form-group">
                             <label>Tipo de Papel *</label>
-                            <select id="paperType">
+                            <select id="paperType" onchange="calculateWorkPrice()">
                                 <option value="BOND">Bond</option>
                                 <option value="KROMECOTE">Kromecote</option>
                                 <option value="OPALINA">Opalina</option>
@@ -723,7 +746,7 @@
                     <div id="urgencyOptions" class="hidden">
                         <div class="form-group">
                             <label>Modalidad *</label>
-                            <select id="urgencyMode">
+                            <select id="urgencyMode" onchange="calculateWorkPrice()">
                                 <option value="NORMAL">Entrega 24 hrs</option>
                                 <option value="URGENTE">Urgente</option>
                             </select>
@@ -733,7 +756,7 @@
                     <div id="finishingOptions" class="hidden">
                         <div class="form-group">
                             <label>Acabado</label>
-                            <select id="finishing" multiple size="6">
+                            <select id="finishing" multiple size="6" onchange="calculateWorkPrice()">
                                 <option value="ENGARGOLADO">Engargolado</option>
                                 <option value="ENMICADO">Enmicado</option>
                                 <option value="ENGRAPADO">Engrapado</option>
@@ -747,7 +770,7 @@
 
                     <div class="form-group">
                         <label>Cantidad de Copias/Juegos *</label>
-                        <input type="number" id="copies" min="1" value="1">
+                        <input type="number" id="copies" min="1" value="1" onchange="calculateWorkPrice()">
                     </div>
 
                     <div class="form-group">
@@ -779,7 +802,8 @@
                         <i class="fas fa-plus"></i> Agregar Otro Trabajo
                     </button>
                 </div>
-              <div id="cart-step" class="hidden">
+
+                <div id="cart-step" class="hidden">
                     <h2><i class="fas fa-shopping-cart"></i> Carrito de Trabajos</h2>
                     <div id="cartItems"></div>
                     <div class="cart-total">
@@ -816,9 +840,6 @@
                 </div>
             </div>
 
-            
-
-            <!-- TAB TRACKING -->
             <div id="tracking-tab" class="tab-content">
                 <h2><i class="fas fa-search-location"></i> Rastrear Pedido</h2>
                 <div class="form-group">
@@ -836,75 +857,29 @@
             </div>
         </div>
     </div>
-
-    <!-- Modal para Ticket -->
-    <div id="ticketModal" class="modal">
-        <div class="modal-content">
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
-                <h3>Ticket de Pedido</h3>
-                <button class="close-modal" onclick="closeTicketModal()">×</button>
+                <h3><i class="fas fa-lock"></i> <span id="loginModalTitle">Iniciar Sesión</span></h3>
+                <button class="close-modal" onclick="closeLoginModal()">×</button>
             </div>
-            <div id="ticketContent"></div>
-            <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="printTicket()">
-                    <i class="fas fa-print"></i> Imprimir
-                </button>
-                <button class="btn btn-success" onclick="downloadTicket()">
-                    <i class="fas fa-download"></i> Descargar
-                </button>
-                <button class="btn btn-warning" onclick="sendToWhatsApp()">
-                    <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
-                </button>
+            <div id="loginModalAlert" class="alert alert-error hidden"></div>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="modalUsername" placeholder="Ingresa tu usuario">
             </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="modalPassword" placeholder="Ingresa tu contraseña">
+            </div>
+            <button class="btn btn-primary" onclick="processLogin()" style="width: 100%;">
+                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+            </button>
         </div>
     </div>
 
-    <!-- Modal de Detalle de Pedido -->
-  <!-- Modal de Detalle de Pedido -->
-    <div id="orderDetailModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3>Detalle del Pedido</h3>
-                <button class="close-modal" onclick="closeOrderDetail()">×</button>
-            </div>
-            <div id="orderDetailContent"></div>
-            
-            <!-- Timeline del Pedido -->
-            <div style="margin-top: 30px;">
-                <h4><i class="fas fa-history"></i> Historial del Pedido</h4>
-                <div id="orderTimeline" class="timeline"></div>
-            </div>
-
-            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                <h4>Actualizar Estado</h4>
-                <div class="form-group">
-                    <label>Nuevo Estado</label>
-                    <select id="orderStatus">
-                        <option value="new">Nuevo (Recibido)</option>
-                        <option value="assigned">Asignado a Empleado</option>
-                        <option value="processing">En Elaboración</option>
-                        <option value="ready">Listo para Entrega</option>
-                        <option value="delivering">En Camino</option>
-                        <option value="delivered">Entregado</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Notas adicionales</label>
-                    <textarea id="statusNotes" rows="2" placeholder="Agregar nota..."></textarea>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-success" onclick="updateOrderStatus()">
-                        <i class="fas fa-save"></i> Actualizar Estado
-                    </button>
-                    <button class="btn btn-primary" onclick="notifyClient()">
-                        <i class="fas fa-bell"></i> Notificar Cliente
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel de Usuario (antes era tab) -->
+    <!-- Panel de Usuario -->
     <div id="usuarioPanel" class="modal">
         <div class="modal-content" style="max-width: 95%; max-height: 95vh;">
             <div class="modal-header">
@@ -919,8 +894,9 @@
             <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
                 <button class="btn btn-warning" onclick="filterOrders('new')">Nuevos</button>
-                <button class="btn btn-success" onclick="filterOrders('processing')">En Proceso</button>
-                <button class="btn btn-secondary" onclick="filterOrders('ready')">Listos</button>
+                <button class="btn" style="background: #6f42c1; color: white;" onclick="filterOrders('assigned')">Asignados</button>
+                <button class="btn" style="background: #ffc107; color: #333;" onclick="filterOrders('processing')">En Proceso</button>
+                <button class="btn btn-success" onclick="filterOrders('ready')">Listos</button>
             </div>
             
             <div id="usuarioOrdersList"></div>
@@ -956,30 +932,34 @@
             <div id="admin-orders-tab" class="admin-tab-content">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="filterAdminOrders('all')">Todos</button>
-                    <button class="btn btn-warning" onclick="filterAdminOrders('new')">Nuevos</button>
-                    <button class="btn btn-success" onclick="filterAdminOrders('processing')">En Proceso</button>
-                    <button class="btn btn-secondary" onclick="filterAdminOrders('ready')">Listos</button>
-                    <button class="btn" style="background: #17a2b8; color: white;" onclick="filterAdminOrders('delivered')">Entregados</button>
+                    <button class="btn" style="background: #17a2b8; color: white;" onclick="filterAdminOrders('new')">Nuevos</button>
+                    <button class="btn" style="background: #6f42c1; color: white;" onclick="filterAdminOrders('assigned')">Asignados</button>
+                    <button class="btn btn-warning" onclick="filterAdminOrders('processing')">En Proceso</button>
+                    <button class="btn btn-success" onclick="filterAdminOrders('ready')">Listos</button>
+                    <button class="btn" style="background: #fd7e14; color: white;" onclick="filterAdminOrders('delivering')">En Camino</button>
+                    <button class="btn btn-secondary" onclick="filterAdminOrders('delivered')">Entregados</button>
                 </div>
                 <div id="adminOrdersList"></div>
             </div>
 
             <!-- Tab Precios -->
             <div id="admin-prices-tab" class="admin-tab-content hidden">
-                <h4>Gestión de Precios</h4>
-                <div id="pricesTable" style="overflow-x: auto;"></div>
-                <hr>
-                <h4>Agregar/Editar Precio</h4>
+                <h4><i class="fas fa-list-ul"></i> Precios Actuales</h4>
+                <div id="pricesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
+                <hr style="margin: 30px 0;">
+                <h4><i class="fas fa-edit"></i> Agregar/Editar Precio</h4>
                 <div class="form-group">
-                    <label>Categoría</label>
+                    <label>Categoría *</label>
                     <input type="text" id="priceCategory" placeholder="Ej: CARTA, VINIL, ACABADO">
+                    <small>Ejemplos: CARTA, OFICIO, VINIL, LONAS, ACABADO, DELIVERY_FEE</small>
                 </div>
                 <div class="form-group">
                     <label>Subcategoría</label>
-                    <input type="text" id="priceSubcategory" placeholder="Ej: BN_BOND, COLOR_BOND, ENGARGOLADO">
+                    <input type="text" id="priceSubcategory" placeholder="Ej: BN_BOND, COLOR_BOND">
+                    <small>Para CARTA: BN_BOND, COLOR_BOND, COLOR_KROMECOTE, etc. Para ACABADO: ENGARGOLADO, ENMICADO, etc.</small>
                 </div>
                 <div class="form-group">
-                    <label>Precio</label>
+                    <label>Precio *</label>
                     <input type="number" id="priceValue" step="0.01" placeholder="0.00">
                 </div>
                 <button class="btn btn-success" onclick="savePrice()">
@@ -989,25 +969,25 @@
 
             <!-- Tab Sucursales -->
             <div id="admin-branches-tab" class="admin-tab-content hidden">
-                <h4>Gestión de Sucursales</h4>
-                <div id="branchesTable" style="overflow-x: auto; margin-bottom: 20px;"></div>
-                <hr>
-                <h4>Agregar Nueva Sucursal</h4>
+                <h4><i class="fas fa-list-ul"></i> Sucursales Actuales</h4>
+                <div id="branchesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
+                <hr style="margin: 30px 0;">
+                <h4><i class="fas fa-plus-circle"></i> Agregar Nueva Sucursal</h4>
                 <div class="form-group">
-                    <label>Nombre de Sucursal</label>
+                    <label>Nombre de Sucursal *</label>
                     <input type="text" id="branchName" placeholder="Ej: Tamulte">
                 </div>
                 <div class="form-group">
-                    <label>Dirección</label>
+                    <label>Dirección *</label>
                     <input type="text" id="branchAddress" placeholder="Dirección completa">
                 </div>
                 <div class="form-group">
-                    <label>Teléfono</label>
+                    <label>Teléfono *</label>
                     <input type="text" id="branchPhone" placeholder="9931234567">
                 </div>
                 <div class="form-group">
-                    <label>Datos Bancarios</label>
-                    <textarea id="branchBankData" rows="4" placeholder="Banco, Cuenta, CLABE, Titular"></textarea>
+                    <label>Datos Bancarios *</label>
+                    <textarea id="branchBankData" rows="4" placeholder="Banco: BBVA&#10;Cuenta: 0123456789&#10;CLABE: 012345678901234567&#10;Titular: Centro de Copiado SA"></textarea>
                 </div>
                 <button class="btn btn-success" onclick="saveBranch()">
                     <i class="fas fa-save"></i> Guardar Sucursal
@@ -1016,7 +996,7 @@
 
             <!-- Tab Reportes -->
             <div id="admin-reports-tab" class="admin-tab-content hidden">
-                <h4>Reportes</h4>
+                <h4><i class="fas fa-chart-line"></i> Generar Reportes</h4>
                 <div class="form-group">
                     <label>Tipo de Reporte</label>
                     <select id="reportType">
@@ -1041,16 +1021,84 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Modal de Ticket -->
+    <div id="ticketModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-receipt"></i> Ticket de Pedido</h3>
+                <button class="close-modal" onclick="closeTicketModal()">×</button>
+            </div>
+            <div id="ticketContent"></div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="printTicket()">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <button class="btn btn-success" onclick="downloadTicket()">
+                    <i class="fas fa-download"></i> Descargar
+                </button>
+                <button class="btn btn-warning" onclick="sendToWhatsApp()">
+                    <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle de Pedido -->
+    <div id="orderDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
+                <button class="close-modal" onclick="closeOrderDetail()">×</button>
+            </div>
+            <div id="orderDetailContent"></div>
+            
+            <!-- Timeline del Pedido -->
+            <div style="margin-top: 30px;">
+                <h4><i class="fas fa-history"></i> Historial del Pedido</h4>
+                <div id="orderTimeline" class="timeline"></div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4><i class="fas fa-sync-alt"></i> Actualizar Estado</h4>
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select id="orderStatus">
+                        <option value="new">Nuevo (Recibido)</option>
+                        <option value="assigned">Asignado a Empleado</option>
+                        <option value="processing">En Elaboración</option>
+                        <option value="ready">Listo para Entrega</option>
+                        <option value="delivering">En Camino</option>
+                        <option value="delivered">Entregado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notas adicionales</label>
+                    <textarea id="statusNotes" rows="2" placeholder="Agregar nota..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="updateOrderStatus()">
+                        <i class="fas fa-save"></i> Actualizar Estado
+                    </button>
+                    <button class="btn btn-primary" onclick="notifyClient()">
+                        <i class="fas fa-bell"></i> Notificar Cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <p>Procesando...</p>
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p><strong>Procesando...</strong></p>
+            <p style="font-size: 0.9em; color: #666;">Por favor espera un momento</p>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-  <script>
+    <script>
         // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrJgWCzCuEgdRH7kE0NNJ9sxJRi5k7LOc7L51TnzghZB95vTsjmUn1sbFFNT-pKYjUfA/exec';
 
@@ -1062,19 +1110,17 @@
         let currentFile = null;
         let currentProof = null;
         let currentUser = null;
+        let currentLoginType = null;
         let prices = {};
         let branches = [];
         let currentOrder = null;
-        let currentLoginType = null; // 'usuario' o 'admin'
-        let allOrders = []; // Cache de todas las órdenes
+        let allOrders = [];
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
             loadBranches();
             loadPrices();
         });
-
-        // FUNCIONES DE NAVEGACIÓN
         // FUNCIONES DE NAVEGACIÓN
         function showMainTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -1178,8 +1224,7 @@
                 loadBranchesTable();
             }
         }
-      
-        
+
         // CLIENTE - PASO 1: Guardar información
         function saveClientInfo() {
             const name = document.getElementById('clientName').value.trim();
@@ -1281,7 +1326,6 @@
             if(input.files.length > 0) {
                 currentFile = input.files[0];
                 
-                // Validar tamaño (50MB)
                 if(currentFile.size > 50 * 1024 * 1024) {
                     alert('El archivo es muy grande. Máximo 50MB');
                     currentFile = null;
@@ -1300,6 +1344,7 @@
             document.getElementById('fileInput').value = '';
             document.getElementById('fileName').textContent = 'Haz clic para subir tu archivo';
             document.getElementById('removeFileBtn').classList.add('hidden');
+            calculateWorkPrice();
         }
 
         // Calcular precio del trabajo actual
@@ -1416,13 +1461,16 @@
                 item.innerHTML = `
                     <div class="cart-item-header">
                         <strong>${work.fileName}</strong>
-                        <button class="btn btn-danger" onclick="removeFromCart(${index})">
+                        <button class="btn btn-danger" onclick="removeFromCart(${index})" style="padding: 5px 10px;">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
-                    <div class="cart-item-details">Cantidad: ${work.copies}</div>
+                    <div class="cart-item-details">Cantidad: ${work.copies} copias</div>
                     <div class="cart-item-details">Tipo: ${work.printType}</div>
-                    <div class="cart-item-details">Precio: $${work.price.toFixed(2)}</div>
+                    ${work.color ? `<div class="cart-item-details">Color: ${work.color} | Papel: ${work.paperType}</div>` : ''}
+                    ${work.vinilType ? `<div class="cart-item-details">Vinil: ${work.vinilType}</div>` : ''}
+                    ${work.finishing && work.finishing.length > 0 ? `<div class="cart-item-details">Acabado: ${work.finishing.join(', ')}</div>` : ''}
+                    <div class="cart-item-details"><strong>Precio: $${work.price.toFixed(2)}</strong></div>
                 `;
                 cartItems.appendChild(item);
             });
@@ -1452,7 +1500,7 @@
                 showCart();
             }
         }
-    // Actualizar información de pago
+        // Actualizar información de pago
         function updatePaymentInfo() {
             const method = document.getElementById('paymentMethod').value;
             const total = parseFloat(document.getElementById('total').textContent);
@@ -1474,7 +1522,7 @@
                 document.getElementById('uploadProof').classList.remove('hidden');
                 
                 const branch = branches.find(b => b.name === currentBranch) || branches[0];
-                document.getElementById('bankDetails').innerHTML = branch ? branch.bankData : 'Cargando...';
+                document.getElementById('bankDetails').innerHTML = branch ? branch.bankData.replace(/\n/g, '<br>') : 'Cargando...';
             } else {
                 document.getElementById('transferInfo').classList.add('hidden');
                 document.getElementById('uploadProof').classList.add('hidden');
@@ -1569,10 +1617,11 @@
                     <p><strong>Servicio:</strong> ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
                     <hr>
                     <h4>Trabajos:</h4>
-                    ${order.works.map(w => `
+                    ${order.works.map((w, idx) => `
                         <div class="ticket-item">
-                            <p><strong>${w.fileName}</strong></p>
-                            <p>Cantidad: ${w.copies} | Tipo: ${w.printType}</p>
+                            <p><strong>${idx + 1}. ${w.fileName}</strong></p>
+                            <p>Cantidad: ${w.copies} copias</p>
+                            <p>Tipo: ${w.printType}</p>
                             ${w.color ? `<p>Color: ${w.color} | Papel: ${w.paperType}</p>` : ''}
                             ${w.vinilType ? `<p>Vinil: ${w.vinilType}</p>` : ''}
                             ${w.finishing && w.finishing.length > 0 ? `<p>Acabado: ${w.finishing.join(', ')}</p>` : ''}
@@ -1587,6 +1636,7 @@
                     <p><strong>Método de Pago:</strong> ${order.paymentMethod}</p>
                     <hr>
                     <p style="text-align: center; margin-top: 15px;">¡Gracias por su preferencia!</p>
+                    <p style="text-align: center; font-size: 0.9em;">Guarda tu folio para rastrear tu pedido</p>
                 </div>
             `;
             
@@ -1624,7 +1674,7 @@
                 `Total: $${currentOrder.total.toFixed(2)}%0A` +
                 `Servicio: ${currentOrder.serviceType === 'pickup' ? 'Pick-up' : 'Entrega a Domicilio'}`;
             
-            window.open(`https://wa.me/${currentClient.phone}?text=${message}`, '_blank');
+            window.open(`https://wa.me/52${currentClient.phone}?text=${message}`, '_blank');
         }
 
         function resetAll() {
@@ -1647,7 +1697,7 @@
             document.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
         }
 
-       // Cargar pedidos para USUARIO
+        // CARGAR PEDIDOS
         async function loadUsuarioOrders() {
             showLoading(true);
             try {
@@ -1710,7 +1760,6 @@
             }
         }
 
-        // Cargar pedidos para ADMIN
         async function loadAdminOrders() {
             showLoading(true);
             try {
@@ -1788,103 +1837,10 @@
             };
             return statusMap[status] || status;
         }
-       
-        
-        function filterOrders(status) {
-            loadOrders();
-        }
-
-        // Cargar precios y sucursales
-        async function loadPrices() {
-            try {
-                const response = await fetch(SCRIPT_URL + '?action=getPrices');
-                const result = await response.json();
-                if(result.success) {
-                    prices = result.prices;
-                }
-            } catch(error) {
-                console.error(error);
-            }
-        }
-
-        async function loadBranches() {
-            try {
-                const response = await fetch(SCRIPT_URL + '?action=getBranches');
-                const result = await response.json();
-                if(result.success) {
-                    branches = result.branches;
-                    const select = document.getElementById('branchSelect');
-                    select.innerHTML = '<option value="">Selecciona una sucursal</option>';
-                    branches.forEach(b => {
-                        const option = document.createElement('option');
-                        option.value = b.name;
-                        option.textContent = b.name + ' - ' + b.address;
-                        select.appendChild(option);
-                    });
-                }
-            } catch(error) {
-                console.error(error);
-            }
-        }
-
-        // Rastrear pedido
-        async function trackOrder() {
-            const folio = document.getElementById('trackingFolio').value.trim();
-            if(!folio) {
-                alert('Ingresa el número de folio');
-                return;
-            }
-
-            showLoading(true);
-            try {
-                const response = await fetch(SCRIPT_URL + '?action=trackOrder&folio=' + folio);
-                const result = await response.json();
-                
-                if(result.success) {
-                    displayTracking(result.order);
-                } else {
-                    alert('Pedido no encontrado');
-                }
-            } catch(error) {
-                alert('Error: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        function displayTracking(order) {
-            const results = document.getElementById('trackingResults');
-            results.innerHTML = `
-                <div class="cart-item">
-                    <h3>Pedido ${order.folio}</h3>
-                    <p><strong>Estado:</strong> <span class="order-status status-${order.status}">${order.status.toUpperCase()}</span></p>
-                    <p><strong>Cliente:</strong> ${order.client.name}</p>
-                    <p><strong>Total:</strong> $${order.total}</p>
-                    <p><strong>Fecha:</strong> ${new Date(order.date).toLocaleString('es-MX')}</p>
-                </div>
-            `;
-            
-            if(order.serviceType === 'delivery' && order.status === 'delivering') {
-                document.getElementById('trackingMap').classList.remove('hidden');
-                initMap();
-            }
-        }
-
-        function initMap() {
-            // Implementación básica de mapa con Leaflet
-            const map = L.map('map').setView([17.989, -92.948], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            L.marker([17.989, -92.948]).addTo(map).bindPopup('Tu pedido está en camino');
-        }
-
-        function showLoading(show) {
-            document.getElementById('loading').classList.toggle('active', show);
-        }
 
         function viewOrderDetail(order) {
             currentOrder = order;
             
-            // Mostrar información del pedido
             const detailContent = document.getElementById('orderDetailContent');
             detailContent.innerHTML = `
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -1924,13 +1880,9 @@
                 </div>
             `;
 
-            // Construir timeline
             buildTimeline(order);
-
-            // Establecer estado actual en select
             document.getElementById('orderStatus').value = order.status;
             document.getElementById('statusNotes').value = '';
-
             document.getElementById('orderDetailModal').classList.add('active');
         }
 
@@ -1938,7 +1890,6 @@
             const timeline = document.getElementById('orderTimeline');
             const history = order.history || [];
             
-            // Estados del proceso
             const states = [
                 { key: 'new', label: 'Pedido Recibido', icon: 'fa-inbox' },
                 { key: 'assigned', label: 'Asignado a Empleado', icon: 'fa-user-check' },
@@ -2031,7 +1982,6 @@
                     alert('Estado actualizado correctamente');
                     closeOrderDetail();
                     
-                    // Recargar según el panel activo
                     if(document.getElementById('usuarioPanel').classList.contains('active')) {
                         loadUsuarioOrders();
                     } else if(document.getElementById('adminPanel').classList.contains('active')) {
@@ -2049,12 +1999,12 @@
 
         function notifyClient() {
             if(currentOrder && currentOrder.client.phone) {
-                const message = `Tu pedido ${currentOrder.folio} está listo`;
-                window.open(`https://wa.me/${currentOrder.client.phone}?text=${message}`, '_blank');
+                const statusText = getStatusText(currentOrder.status);
+                const message = `Hola ${currentOrder.client.name}, tu pedido ${currentOrder.folio} está: ${statusText}`;
+                window.open(`https://wa.me/52${currentOrder.client.phone}?text=${encodeURIComponent(message)}`, '_blank');
             }
         }
 
-        // ADMIN
         // ADMIN - Gestión de Precios
         async function loadPricesTable() {
             showLoading(true);
@@ -2145,7 +2095,7 @@
                     document.getElementById('priceSubcategory').value = '';
                     document.getElementById('priceValue').value = '';
                     loadPricesTable();
-                    loadPrices(); // Recargar caché de precios
+                    loadPrices();
                 } else {
                     alert('Error: ' + result.message);
                 }
@@ -2156,7 +2106,6 @@
             }
         }
 
-        // ADMIN - Gestión de Sucursales
         async function loadBranchesTable() {
             showLoading(true);
             try {
@@ -2232,7 +2181,7 @@
                     document.getElementById('branchPhone').value = '';
                     document.getElementById('branchBankData').value = '';
                     loadBranchesTable();
-                    loadBranches(); // Recargar caché de sucursales
+                    loadBranches();
                 } else {
                     alert('Error: ' + result.message);
                 }
@@ -2243,13 +2192,23 @@
             }
         }
 
-        function generateReport() {
+
+        // Cargar precios y sucursales
+        async function loadPrices() {
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getPrices');
+                const result = await response.json();
+                if(result.success) {
+                    prices = result.prices;
+                }
+            } catch(error) {
+                console.error(error);
+            }
+        }
+function generateReport() {
             alert('Generando reporte...');
         }
     </script>
 </body>
 </html>
-     
-
-
-
+        
