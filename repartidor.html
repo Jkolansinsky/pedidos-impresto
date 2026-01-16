@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Repartidor - Centro de Copiado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Login -->
+    <div id="loginSection">
+        <div class="container" style="max-width: 500px; margin-top: 100px;">
+            <div class="header">
+                <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
+                <p>Inicia sesión para gestionar entregas</p>
+            </div>
+            <div class="content">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="username" placeholder="Ingresa tu usuario">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" placeholder="Ingresa tu contraseña">
+                </div>
+                <div id="loginError" class="alert alert-error hidden"></div>
+                <button class="btn btn-warning" onclick="login()" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="index.html" style="color: #667eea;">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Repartidor -->
+    <div id="deliveryPanel" class="hidden">
+        <div class="top-header">
+            <div class="logo">
+                <i class="fas fa-motorcycle"></i> Panel de Repartidor
+            </div>
+            <div class="user-info">
+                <span class="user-badge">
+                    <i class="fas fa-motorcycle"></i> <span id="currentUserName"></span>
+                </span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="content">
+                <h2><i class="fas fa-shipping-fast"></i> Entregas a Domicilio</h2>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="filterDeliveries('ready')">
+                        <i class="fas fa-check-circle"></i> Listas para Recoger
+                    </button>
+                    <button class="btn btn-warning" onclick="filterDeliveries('mytaken')">
+                        <i class="fas fa-motorcycle"></i> Mis Entregas en Curso
+                    </button>
+                    <button class="btn btn-secondary" onclick="filterDeliveries('completed')">
+                        <i class="fas fa-check-double"></i> Completadas Hoy
+                    </button>
+                </div>
+
+                <div id="deliveriesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Entrega en Curso -->
+    <div id="activeDeliveryModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-route"></i> Entrega en Curso</h3>
+                <button class="close-modal" onclick="closeActiveDelivery()">×</button>
+            </div>
+            
+            <div id="deliveryInfo"></div>
+
+            <!-- Mapa de Ruta -->
+            <div style="margin-top: 20px;">
+                <h4><i class="fas fa-map-marked-alt"></i> Ruta de Entrega</h4>
+                <div id="deliveryMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+            </div>
+
+            <!-- Controles de Entrega -->
+            <div class="delivery-controls">
+                <h4><i class="fas fa-clipboard-check"></i> Finalizar Entrega</h4>
+                <div class="form-group">
+                    <label>Comentarios / Observaciones</label>
+                    <textarea id="deliveryNotes" rows="3" placeholder="Ej: Cliente recibió conforme, Dejado con portero, etc."></textarea>
+                </div>
+                <button class="btn btn-success" onclick="completeDelivery()" style="width: 100%;">
+                    <i class="fas fa-check-circle"></i> Marcar como Entregado
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p><strong>Procesando...</strong></p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/repartidor.js"></script>
+</body>
+</html>

@@ -1,0 +1,436 @@
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
+
+let currentUser = null;
+let allDeliveries = [];
+let activeDelivery = null;
+let deliveryMap = null;
+let deliveryMarker = null;
+let routeLine = null;
+let updateInterval = null;
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    const user = checkAuth('delivery');
+    if(user) {
+        showDeliveryPanel(user);
+    }
+});
+
+// ============================================
+// LOGIN
+// ============================================
+
+async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const errorDiv = document.getElementById('loginError');
+
+    if(!username || !password) {
+        errorDiv.textContent = 'Completa todos los campos';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=delivery');
+        const result = await response.json();
+        
+        if(result.success) {
+            if(result.user.role !== 'delivery') {
+                errorDiv.textContent = 'No tienes permisos de repartidor';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            localStorage.setItem('currentUser', JSON.stringify(result.user));
+            currentUser = result.user;
+            
+            showDeliveryPanel(result.user);
+        } else {
+            errorDiv.textContent = result.message || 'Credenciales incorrectas';
+            errorDiv.classList.remove('hidden');
+        }
+    } catch(error) {
+        errorDiv.textContent = 'Error de conexión: ' + error.message;
+        errorDiv.classList.remove('hidden');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function showDeliveryPanel(user) {
+    currentUser = user;
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('deliveryPanel').classList.remove('hidden');
+    document.getElementById('currentUserName').textContent = user.username;
+    loadDeliveries();
+    
+    // Actualizar cada 30 segundos
+    updateInterval = setInterval(loadDeliveries, 30000);
+}
+
+// ============================================
+// CARGAR ENTREGAS
+// ============================================
+
+async function loadDeliveries() {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryOrders&delivery=' + currentUser.username);
+        const result = await response.json();
+        
+        if(result.success) {
+            allDeliveries = result.orders;
+            filterDeliveries('ready');
+        }
+    } catch(error) {
+        console.error('Error cargando entregas:', error);
+    }
+}
+
+function filterDeliveries(filter) {
+    let filtered = [];
+    
+    if(filter === 'ready') {
+        // Pedidos listos para recoger (estado: ready y serviceType: delivery)
+        filtered = allDeliveries.filter(o => o.status === 'ready' && !o.deliveryPerson);
+    } else if(filter === 'mytaken') {
+        // Mis entregas en curso
+        filtered = allDeliveries.filter(o => o.deliveryPerson === currentUser.username && o.status === 'delivering');
+    } else if(filter === 'completed') {
+        // Completadas hoy
+        const today = new Date().toISOString().split('T')[0];
+        filtered = allDeliveries.filter(o => 
+            o.deliveryPerson === currentUser.username && 
+            o.status === 'delivered' &&
+            o.deliveryDate && o.deliveryDate.startsWith(today)
+        );
+    }
+    
+    displayDeliveries(filtered, filter);
+}
+
+function displayDeliveries(deliveries, filter) {
+    const container = document.getElementById('deliveriesList');
+    container.innerHTML = '';
+    
+    if(deliveries.length === 0) {
+        let message = 'No hay entregas disponibles';
+        if(filter === 'mytaken') message = 'No tienes entregas en curso';
+        if(filter === 'completed') message = 'No hay entregas completadas hoy';
+        
+        container.innerHTML = `<p style="text-align: center; color: #666; padding: 40px;">${message}</p>`;
+        return;
+    }
+    
+    deliveries.forEach(order => {
+        const div = document.createElement('div');
+        div.className = 'order-item';
+        div.style.borderLeft = filter === 'mytaken' ? '4px solid #fd7e14' : '4px solid #28a745';
+        
+        const address = order.address;
+        const addressText = address ? `${address.street}, ${address.colony}, ${address.city}` : 'Dirección no disponible';
+        
+        div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4><i class="fas fa-file-alt"></i> ${order.folio}</h4>
+                    <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
+                    <p style="margin: 5px 0;"><i class="fas fa-map-marker-alt"></i> ${addressText}</p>
+                    ${address && address.references ? `<p style="margin: 5px 0; font-size: 0.9em; color: #666;"><em>Ref: ${address.references}</em></p>` : ''}
+                    <p style="margin: 5px 0;">Total: <strong>$${order.total}</strong></p>
+                    <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                        <i class="far fa-clock"></i> ${formatDate(order.date)}
+                    </p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${filter === 'ready' ? `
+                        <button class="btn btn-success" onclick='takeDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-hand-holding"></i> Tomar Entrega
+                        </button>
+                    ` : ''}
+                    ${filter === 'mytaken' ? `
+                        <button class="btn btn-warning" onclick='startDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-route"></i> Iniciar Ruta
+                        </button>
+                    ` : ''}
+                    ${filter === 'completed' ? `
+                        <span class="order-status status-delivered">Entregado</span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// ============================================
+// TOMAR ENTREGA
+// ============================================
+
+async function takeDelivery(order) {
+    if(!confirm(`¿Confirmas tomar la entrega del pedido ${order.folio}?`)) {
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'assignDelivery',
+                folio: order.folio,
+                deliveryPerson: currentUser.username,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Entrega asignada correctamente. Ahora puedes iniciar la ruta.');
+            loadDeliveries();
+        } else {
+            alert('Error al asignar entrega: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================
+// INICIAR ENTREGA CON MAPA
+// ============================================
+
+async function startDelivery(order) {
+    activeDelivery = order;
+    
+    // Actualizar estado a "delivering"
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'updateOrderStatus',
+                folio: order.folio,
+                status: 'delivering',
+                employee: currentUser.username,
+                notes: 'Pedido salió para entrega',
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            // Enviar WhatsApp automático al cliente
+            await sendDeliveryStartNotification(order);
+            
+            showDeliveryMap(order);
+        } else {
+            alert('Error al iniciar entrega: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function sendDeliveryStartNotification(order) {
+    try {
+        // Enviar notificación automática por WhatsApp
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'sendWhatsAppNotification',
+                phone: order.client.phone,
+                folio: order.folio,
+                message: `¡Hola ${order.client.name}! Tu pedido ${order.folio} está en camino. El repartidor salió de nuestra sucursal y llegará pronto. 🚀`
+            })
+        });
+    } catch(error) {
+        console.error('Error enviando WhatsApp:', error);
+    }
+}
+
+function showDeliveryMap(order) {
+    const deliveryInfo = document.getElementById('deliveryInfo');
+    const address = order.address;
+    
+    deliveryInfo.innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h4><i class="fas fa-box"></i> ${order.folio}</h4>
+            <p><strong>Cliente:</strong> ${order.client.name}</p>
+            <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+            <p><strong>Dirección:</strong> ${address.street}, ${address.colony}, ${address.city}</p>
+            ${address.references ? `<p><strong>Referencias:</strong> ${address.references}</p>` : ''}
+            <p><strong>Total a cobrar:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
+        </div>
+    `;
+
+    document.getElementById('activeDeliveryModal').classList.add('active');
+    
+    // Inicializar mapa
+    setTimeout(() => initDeliveryMap(order), 300);
+}
+
+function initDeliveryMap(order) {
+    const mapDiv = document.getElementById('deliveryMap');
+    
+    // Coordenadas de ejemplo (Villahermosa centro - sucursal)
+    const centralLat = 17.989;
+    const centralLng = -92.948;
+    
+    // Simulación de destino (en producción obtendrías coordenadas reales)
+    const destLat = centralLat + (Math.random() * 0.02 - 0.01);
+    const destLng = centralLng + (Math.random() * 0.02 - 0.01);
+    
+    // Crear mapa
+    if(deliveryMap) {
+        deliveryMap.remove();
+    }
+    
+    deliveryMap = L.map('deliveryMap').setView([centralLat, centralLng], 14);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(deliveryMap);
+    
+    // Marcador de sucursal
+    L.marker([centralLat, centralLng], {
+        icon: L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background-color:#667eea;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store" style="color:white;"></i></div>',
+            iconSize: [30, 30]
+        })
+    }).addTo(deliveryMap).bindPopup('Sucursal');
+    
+    // Marcador de destino
+    L.marker([destLat, destLng], {
+        icon: L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background-color:#dc3545;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-home" style="color:white;"></i></div>',
+            iconSize: [30, 30]
+        })
+    }).addTo(deliveryMap).bindPopup('Destino: ' + order.client.name);
+    
+    // Marcador del repartidor (moto)
+    deliveryMarker = L.marker([centralLat, centralLng], {
+        icon: L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
+            iconSize: [40, 40]
+        })
+    }).addTo(deliveryMap).bindPopup('Repartidor');
+    
+    // Línea de ruta
+    routeLine = L.polyline([
+        [centralLat, centralLng],
+        [destLat, destLng]
+    ], {
+        color: '#667eea',
+        weight: 4,
+        opacity: 0.7,
+        dashArray: '10, 10'
+    }).addTo(deliveryMap);
+    
+    // Simular movimiento del repartidor
+    simulateDeliveryMovement([centralLat, centralLng], [destLat, destLng]);
+}
+
+function simulateDeliveryMovement(start, end) {
+    let step = 0;
+    const totalSteps = 100;
+    
+    const moveInterval = setInterval(() => {
+        step++;
+        
+        const lat = start[0] + (end[0] - start[0]) * (step / totalSteps);
+        const lng = start[1] + (end[1] - start[1]) * (step / totalSteps);
+        
+        if(deliveryMarker && deliveryMap) {
+            deliveryMarker.setLatLng([lat, lng]);
+            deliveryMap.panTo([lat, lng]);
+        }
+        
+        if(step >= totalSteps) {
+            clearInterval(moveInterval);
+            // Notificar llegada
+            if(confirm('¿Has llegado al destino?')) {
+                // El repartidor puede proceder a completar la entrega
+            }
+        }
+    }, 200); // Mueve el marcador cada 200ms
+}
+
+function closeActiveDelivery() {
+    if(deliveryMap) {
+        deliveryMap.remove();
+        deliveryMap = null;
+    }
+    document.getElementById('activeDeliveryModal').classList.remove('active');
+    activeDelivery = null;
+    loadDeliveries();
+}
+
+// ============================================
+// COMPLETAR ENTREGA
+// ============================================
+
+async function completeDelivery() {
+    const notes = document.getElementById('deliveryNotes').value.trim();
+    
+    if(!notes) {
+        if(!confirm('¿Deseas completar la entrega sin comentarios?')) {
+            return;
+        }
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'completeDelivery',
+                folio: activeDelivery.folio,
+                deliveryPerson: currentUser.username,
+                notes: notes,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('✅ Entrega completada exitosamente');
+            closeActiveDelivery();
+        } else {
+            alert('Error al completar entrega: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================
+// CLEANUP
+// ============================================
+
+window.addEventListener('beforeunload', function() {
+    if(updateInterval) {
+        clearInterval(updateInterval);
+    }
+    if(deliveryMap) {
+        deliveryMap.remove();
+    }
+});

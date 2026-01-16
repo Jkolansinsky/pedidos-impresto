@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Usuario - Centro de Copiado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Login -->
+    <div id="loginSection">
+        <div class="container" style="max-width: 500px; margin-top: 100px;">
+            <div class="header">
+                <h1><i class="fas fa-user-tie"></i> Panel de Usuario</h1>
+                <p>Inicia sesión para continuar</p>
+            </div>
+            <div class="content">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="username" placeholder="Ingresa tu usuario">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" placeholder="Ingresa tu contraseña">
+                </div>
+                <div id="loginError" class="alert alert-error hidden"></div>
+                <button class="btn btn-primary" onclick="login()" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="index.html" style="color: #667eea;">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Usuario -->
+    <div id="userPanel" class="hidden">
+        <div class="top-header">
+            <div class="logo">
+                <i class="fas fa-user-tie"></i> Panel de Usuario
+            </div>
+            <div class="user-info">
+                <span class="user-badge">
+                    <i class="fas fa-user"></i> <span id="currentUserName"></span>
+                </span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="content">
+                <h2><i class="fas fa-tasks"></i> Mis Pedidos Asignados</h2>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="filterOrders('all')">
+                        <i class="fas fa-list"></i> Todos
+                    </button>
+                    <button class="btn btn-info" onclick="filterOrders('new')">
+                        <i class="fas fa-inbox"></i> Nuevos
+                    </button>
+                    <button class="btn" style="background: #6f42c1; color: white;" onclick="filterOrders('assigned')">
+                        <i class="fas fa-user-check"></i> Asignados
+                    </button>
+                    <button class="btn btn-warning" onclick="filterOrders('processing')">
+                        <i class="fas fa-cogs"></i> En Proceso
+                    </button>
+                    <button class="btn btn-success" onclick="filterOrders('ready')">
+                        <i class="fas fa-check-circle"></i> Listos
+                    </button>
+                </div>
+
+                <div id="ordersList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle -->
+    <div id="orderDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
+                <button class="close-modal" onclick="closeOrderDetail()">×</button>
+            </div>
+            <div id="orderDetailContent"></div>
+            
+            <div style="margin-top: 30px;">
+                <h4><i class="fas fa-history"></i> Historial del Pedido</h4>
+                <div id="orderTimeline" class="timeline"></div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4><i class="fas fa-sync-alt"></i> Actualizar Estado</h4>
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select id="orderStatus">
+                        <option value="new">Nuevo (Recibido)</option>
+                        <option value="assigned">Asignado a Empleado</option>
+                        <option value="processing">En Elaboración</option>
+                        <option value="ready">Listo para Entrega</option>
+                        <option value="delivered">Entregado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notas adicionales</label>
+                    <textarea id="statusNotes" rows="2" placeholder="Agregar nota..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="updateOrderStatus()">
+                        <i class="fas fa-save"></i> Actualizar Estado
+                    </button>
+                    <button class="btn btn-primary" onclick="notifyClient()">
+                        <i class="fas fa-bell"></i> Notificar Cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p><strong>Procesando...</strong></p>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/usuario.js"></script>
+</body>
+</html>

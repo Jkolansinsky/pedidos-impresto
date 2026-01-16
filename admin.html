@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Centro de Copiado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Login -->
+    <div id="loginSection">
+        <div class="container" style="max-width: 500px; margin-top: 100px;">
+            <div class="header">
+                <h1><i class="fas fa-user-shield"></i> Panel de Administración</h1>
+                <p>Acceso solo para administradores</p>
+            </div>
+            <div class="content">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="username" placeholder="admin">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" placeholder="••••••••">
+                </div>
+                <div id="loginError" class="alert alert-error hidden"></div>
+                <button class="btn btn-danger" onclick="login()" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="index.html" style="color: #667eea;">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Admin -->
+    <div id="adminPanel" class="hidden">
+        <div class="top-header">
+            <div class="logo">
+                <i class="fas fa-user-shield"></i> Panel de Administración
+            </div>
+            <div class="user-info">
+                <span class="user-badge">
+                    <i class="fas fa-shield-alt"></i> <span id="currentUserName"></span>
+                </span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showAdminTab('orders')">
+                    <i class="fas fa-list"></i> Pedidos
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('prices')">
+                    <i class="fas fa-dollar-sign"></i> Precios
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('branches')">
+                    <i class="fas fa-store"></i> Sucursales
+                </button>
+                <button class="nav-tab" onclick="showAdminTab('reports')">
+                    <i class="fas fa-chart-bar"></i> Reportes
+                </button>
+            </div>
+
+            <div class="content">
+                <!-- Tab Pedidos -->
+                <div id="orders-tab" class="tab-content active">
+                    <h2><i class="fas fa-tasks"></i> Gestión de Pedidos</h2>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
+                        <button class="btn btn-info" onclick="filterOrders('new')">Nuevos</button>
+                        <button class="btn" style="background: #6f42c1; color: white;" onclick="filterOrders('assigned')">Asignados</button>
+                        <button class="btn btn-warning" onclick="filterOrders('processing')">En Proceso</button>
+                        <button class="btn btn-success" onclick="filterOrders('ready')">Listos</button>
+                        <button class="btn" style="background: #fd7e14; color: white;" onclick="filterOrders('delivering')">En Camino</button>
+                        <button class="btn btn-secondary" onclick="filterOrders('delivered')">Entregados</button>
+                    </div>
+
+                    <div id="ordersList"></div>
+                </div>
+
+                <!-- Tab Precios -->
+                <div id="prices-tab" class="tab-content">
+                    <h2><i class="fas fa-dollar-sign"></i> Gestión de Precios</h2>
+                    
+                    <div id="pricesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
+                    
+                    <hr style="margin: 30px 0;">
+                    
+                    <h3><i class="fas fa-edit"></i> Agregar/Editar Precio</h3>
+                    <div class="form-group">
+                        <label>Categoría *</label>
+                        <input type="text" id="priceCategory" placeholder="Ej: CARTA, VINIL, ACABADO">
+                        <small>Ejemplos: CARTA, OFICIO, VINIL, LONAS, ACABADO, DELIVERY_FEE</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Subcategoría</label>
+                        <input type="text" id="priceSubcategory" placeholder="Ej: BN_BOND, COLOR_BOND">
+                        <small>Para acabados: ENGARGOLADO, ENMICADO, etc.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Precio *</label>
+                        <input type="number" id="priceValue" step="0.01" placeholder="0.00">
+                    </div>
+                    <button class="btn btn-success" onclick="savePrice()">
+                        <i class="fas fa-save"></i> Guardar Precio
+                    </button>
+                </div>
+
+                <!-- Tab Sucursales -->
+                <div id="branches-tab" class="tab-content">
+                    <h2><i class="fas fa-store"></i> Gestión de Sucursales</h2>
+                    
+                    <div id="branchesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
+                    
+                    <hr style="margin: 30px 0;">
+                    
+                    <h3><i class="fas fa-plus-circle"></i> Agregar Nueva Sucursal</h3>
+                    <div class="form-group">
+                        <label>Nombre de Sucursal *</label>
+                        <input type="text" id="branchName" placeholder="Ej: Tamulte">
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección *</label>
+                        <input type="text" id="branchAddress" placeholder="Dirección completa">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono *</label>
+                        <input type="text" id="branchPhone" placeholder="9931234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Email de la Sucursal *</label>
+                        <input type="email" id="branchEmail" placeholder="sucursal@centrocopiado.com">
+                        <small>Los pedidos se enviarán a este correo</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Datos Bancarios *</label>
+                        <textarea id="branchBankData" rows="4" placeholder="Banco: BBVA&#10;Cuenta: 0123456789&#10;CLABE: 012345678901234567&#10;Titular: Centro de Copiado SA"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="saveBranch()">
+                        <i class="fas fa-save"></i> Guardar Sucursal
+                    </button>
+                </div>
+
+                <!-- Tab Reportes -->
+                <div id="reports-tab" class="tab-content">
+                    <h2><i class="fas fa-chart-bar"></i> Reportes</h2>
+                    
+                    <div class="form-group">
+                        <label>Tipo de Reporte</label>
+                        <select id="reportType">
+                            <option value="daily">Por Día</option>
+                            <option value="client">Por Cliente</option>
+                            <option value="service">Por Tipo de Servicio</option>
+                            <option value="employee">Por Empleado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Inicio</label>
+                        <input type="date" id="reportStartDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Fin</label>
+                        <input type="date" id="reportEndDate">
+                    </div>
+                    <button class="btn btn-primary" onclick="generateReport()">
+                        <i class="fas fa-file-export"></i> Generar Reporte
+                    </button>
+                    <div id="reportResults" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle (igual que usuario) -->
+    <div id="orderDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
+                <button class="close-modal" onclick="closeOrderDetail()">×</button>
+            </div>
+            <div id="orderDetailContent"></div>
+            
+            <div style="margin-top: 30px;">
+                <h4><i class="fas fa-history"></i> Historial del Pedido</h4>
+                <div id="orderTimeline" class="timeline"></div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4><i class="fas fa-sync-alt"></i> Actualizar Estado</h4>
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select id="orderStatus">
+                        <option value="new">Nuevo (Recibido)</option>
+                        <option value="assigned">Asignado a Empleado</option>
+                        <option value="processing">En Elaboración</option>
+                        <option value="ready">Listo para Entrega</option>
+                        <option value="delivering">En Camino</option>
+                        <option value="delivered">Entregado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Asignar a Empleado</label>
+                    <input type="text" id="assignEmployee" placeholder="Nombre del empleado">
+                </div>
+                <div class="form-group">
+                    <label>Notas adicionales</label>
+                    <textarea id="statusNotes" rows="2" placeholder="Agregar nota..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="updateOrderStatus()">
+                        <i class="fas fa-save"></i> Actualizar Estado
+                    </button>
+                    <button class="btn btn-primary" onclick="notifyClient()">
+                        <i class="fas fa-bell"></i> Notificar Cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p><strong>Procesando...</strong></p>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
