@@ -2192,8 +2192,6 @@
             }
         }
 
-
-        // Cargar precios y sucursales
         async function loadPrices() {
             try {
                 const response = await fetch(SCRIPT_URL + '?action=getPrices');
@@ -2205,11 +2203,110 @@
                 console.error(error);
             }
         }
-function generateReport() {
-            alert('Generando reporte...');
+
+        async function loadBranches() {
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getBranches');
+                const result = await response.json();
+                if(result.success) {
+                    branches = result.branches;
+                    const select = document.getElementById('branchSelect');
+                    select.innerHTML = '<option value="">Selecciona una sucursal</option>';
+                    branches.forEach(b => {
+                        const option = document.createElement('option');
+                        option.value = b.name;
+                        option.textContent = b.name + ' - ' + b.address;
+                        select.appendChild(option);
+                    });
+                }
+            } catch(error) {
+                console.error(error);
+            }
+        }
+
+        async function trackOrder() {
+            const folio = document.getElementById('trackingFolio').value.trim();
+            if(!folio) {
+                alert('Ingresa el número de folio');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=trackOrder&folio=' + folio);
+                const result = await response.json();
+                
+                if(result.success) {
+                    displayTracking(result.order);
+                } else {
+                    alert('Pedido no encontrado');
+                }
+            } catch(error) {
+                alert('Error: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayTracking(order) {
+            const results = document.getElementById('trackingResults');
+            const statusText = getStatusText(order.status);
+            const statusClass = 'status-' + order.status;
+            
+            results.innerHTML = `
+                <div class="cart-item">
+                    <h3>Pedido ${order.folio}</h3>
+                    <p><strong>Estado:</strong> <span class="order-status ${statusClass}">${statusText}</span></p>
+                    <p><strong>Cliente:</strong> ${order.client.name}</p>
+                    <p><strong>Total:</strong> ${order.total}</p>
+                    <p><strong>Fecha:</strong> ${new Date(order.date).toLocaleString('es-MX')}</p>
+                    ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
+                </div>
+            `;
+            
+            if(order.history && order.history.length > 0) {
+                results.innerHTML += '<h4 style="margin-top: 20px;"><i class="fas fa-history"></i> Historial</h4>';
+                const timelineDiv = document.createElement('div');
+                timelineDiv.className = 'timeline';
+                
+                order.history.forEach(h => {
+                    const item = document.createElement('div');
+                    item.className = 'timeline-item completed';
+                    item.innerHTML = `
+                        <div class="timeline-content">
+                            <div class="timeline-title">${getStatusText(h.status)}</div>
+                            <div class="timeline-meta">
+                                <i class="far fa-clock"></i> ${new Date(h.timestamp).toLocaleString('es-MX')}
+                            </div>
+                            ${h.employee ? `<span class="timeline-employee"><i class="fas fa-user"></i> ${h.employee}</span>` : ''}
+                            ${h.notes ? `<div style="margin-top: 5px; font-style: italic;">${h.notes}</div>` : ''}
+                        </div>
+                    `;
+                    timelineDiv.appendChild(item);
+                });
+                
+                results.appendChild(timelineDiv);
+            }
+            
+            if(order.serviceType === 'delivery' && order.status === 'delivering') {
+                document.getElementById('trackingMap').classList.remove('hidden');
+                initMap();
+            }
+        }
+
+        function initMap() {
+            const map = L.map('map').setView([17.989, -92.948], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([17.989, -92.948]).addTo(map).bindPopup('Tu pedido está en camino');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        function generateReport() {
+            alert('Funcionalidad de reportes en desarrollo');
         }
     </script>
 </body>
 </html>
-        
-
