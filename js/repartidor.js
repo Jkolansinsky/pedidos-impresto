@@ -9,6 +9,8 @@ let deliveryMap = null;
 let deliveryMarker = null;
 let routeLine = null;
 let updateInterval = null;
+let gpsWatchId = null;
+let currentLocation = null;
 
 // ============================================
 // INICIALIZACIÓN
@@ -70,10 +72,39 @@ function showDeliveryPanel(user) {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('deliveryPanel').classList.remove('hidden');
     document.getElementById('currentUserName').textContent = user.username;
+    
+    // Solicitar permisos de geolocalización
+    requestGeolocationPermission();
+    
     loadDeliveries();
     
     // Actualizar cada 30 segundos
     updateInterval = setInterval(loadDeliveries, 30000);
+}
+
+function requestGeolocationPermission() {
+    if('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('Geolocalización activada');
+            },
+            function(error) {
+                console.error('Error de geolocalización:', error);
+                alert('Por favor activa la ubicación para poder hacer entregas');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        alert('Tu navegador no soporta geolocalización');
+    }
 }
 
 // ============================================
@@ -213,6 +244,11 @@ async function takeDelivery(order) {
 async function startDelivery(order) {
     activeDelivery = order;
     
+    if(!currentLocation) {
+        alert('Esperando ubicación GPS...');
+        return;
+    }
+    
     // Actualizar estado a "delivering"
     showLoading(true);
     try {
@@ -234,6 +270,9 @@ async function startDelivery(order) {
             // Enviar WhatsApp automático al cliente
             await sendDeliveryStartNotification(order);
             
+            // Iniciar seguimiento GPS
+            startGPSTracking(order);
+            
             showDeliveryMap(order);
         } else {
             alert('Error al iniciar entrega: ' + result.message);
@@ -242,6 +281,55 @@ async function startDelivery(order) {
         alert('Error: ' + error.message);
     } finally {
         showLoading(false);
+    }
+}
+
+function startGPSTracking(order) {
+    // Iniciar seguimiento continuo de ubicación
+    if('geolocation' in navigator) {
+        gpsWatchId = navigator.geolocation.watchPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                
+                // Actualizar ubicación en el servidor
+                updateLocationOnServer(order.folio, currentLocation);
+                
+                // Actualizar marcador en mapa
+                if(deliveryMarker && deliveryMap) {
+                    deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+                    deliveryMap.panTo([currentLocation.latitude, currentLocation.longitude]);
+                }
+            },
+            function(error) {
+                console.error('Error GPS:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5000
+            }
+        );
+    }
+}
+
+async function updateLocationOnServer(folio, location) {
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'updateLocation',
+                deliveryPerson: currentUser.username,
+                folio: folio,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                timestamp: new Date().toISOString()
+            })
+        });
+    } catch(error) {
+        console.error('Error actualizando ubicación:', error);
     }
 }
 
@@ -286,33 +374,33 @@ function showDeliveryMap(order) {
 function initDeliveryMap(order) {
     const mapDiv = document.getElementById('deliveryMap');
     
-    // Coordenadas de ejemplo (Villahermosa centro - sucursal)
-    const centralLat = 17.989;
-    const centralLng = -92.948;
+    // Usar ubicación actual del repartidor
+    const startLat = currentLocation ? currentLocation.latitude : 17.989;
+    const startLng = currentLocation ? currentLocation.longitude : -92.948;
     
-    // Simulación de destino (en producción obtendrías coordenadas reales)
-    const destLat = centralLat + (Math.random() * 0.02 - 0.01);
-    const destLng = centralLng + (Math.random() * 0.02 - 0.01);
+    // Coordenadas del destino (simuladas - en producción usarías geocoding)
+    const destLat = startLat + (Math.random() * 0.02 - 0.01);
+    const destLng = startLng + (Math.random() * 0.02 - 0.01);
     
     // Crear mapa
     if(deliveryMap) {
         deliveryMap.remove();
     }
     
-    deliveryMap = L.map('deliveryMap').setView([centralLat, centralLng], 14);
+    deliveryMap = L.map('deliveryMap').setView([startLat, startLng], 14);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(deliveryMap);
     
-    // Marcador de sucursal
-    L.marker([centralLat, centralLng], {
+    // Marcador de sucursal/inicio
+    L.marker([startLat, startLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#667eea;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store" style="color:white;"></i></div>',
             iconSize: [30, 30]
         })
-    }).addTo(deliveryMap).bindPopup('Sucursal');
+    }).addTo(deliveryMap).bindPopup('Punto de Partida');
     
     // Marcador de destino
     L.marker([destLat, destLng], {
@@ -323,18 +411,18 @@ function initDeliveryMap(order) {
         })
     }).addTo(deliveryMap).bindPopup('Destino: ' + order.client.name);
     
-    // Marcador del repartidor (moto)
-    deliveryMarker = L.marker([centralLat, centralLng], {
+    // Marcador del repartidor (moto) - posición real
+    deliveryMarker = L.marker([startLat, startLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
             iconSize: [40, 40]
         })
-    }).addTo(deliveryMap).bindPopup('Repartidor');
+    }).addTo(deliveryMap).bindPopup('Tu ubicación');
     
     // Línea de ruta
     routeLine = L.polyline([
-        [centralLat, centralLng],
+        [startLat, startLng],
         [destLat, destLng]
     ], {
         color: '#667eea',
@@ -343,36 +431,16 @@ function initDeliveryMap(order) {
         dashArray: '10, 10'
     }).addTo(deliveryMap);
     
-    // Simular movimiento del repartidor
-    simulateDeliveryMovement([centralLat, centralLng], [destLat, destLng]);
-}
-
-function simulateDeliveryMovement(start, end) {
-    let step = 0;
-    const totalSteps = 100;
-    
-    const moveInterval = setInterval(() => {
-        step++;
-        
-        const lat = start[0] + (end[0] - start[0]) * (step / totalSteps);
-        const lng = start[1] + (end[1] - start[1]) * (step / totalSteps);
-        
-        if(deliveryMarker && deliveryMap) {
-            deliveryMarker.setLatLng([lat, lng]);
-            deliveryMap.panTo([lat, lng]);
-        }
-        
-        if(step >= totalSteps) {
-            clearInterval(moveInterval);
-            // Notificar llegada
-            if(confirm('¿Has llegado al destino?')) {
-                // El repartidor puede proceder a completar la entrega
-            }
-        }
-    }, 200); // Mueve el marcador cada 200ms
+    // El GPS real actualizará la posición automáticamente
 }
 
 function closeActiveDelivery() {
+    // Detener seguimiento GPS
+    if(gpsWatchId) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
+    
     if(deliveryMap) {
         deliveryMap.remove();
         deliveryMap = null;
@@ -430,6 +498,9 @@ async function completeDelivery() {
 window.addEventListener('beforeunload', function() {
     if(updateInterval) {
         clearInterval(updateInterval);
+    }
+    if(gpsWatchId) {
+        navigator.geolocation.clearWatch(gpsWatchId);
     }
     if(deliveryMap) {
         deliveryMap.remove();
