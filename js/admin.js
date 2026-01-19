@@ -82,6 +82,8 @@ function showAdminTab(tabName) {
 
     if(tabName === 'orders') {
         loadOrders();
+    } else if(tabName === 'users') {
+        loadUsersTable();
     } else if(tabName === 'prices') {
         loadPricesTable();
     } else if(tabName === 'branches') {
@@ -316,6 +318,189 @@ function notifyClient() {
         const statusText = getStatusText(currentOrder.status);
         const message = `Hola ${currentOrder.client.name}, tu pedido ${currentOrder.folio} está: ${statusText}`;
         window.open(`https://wa.me/52${currentOrder.client.phone}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+}
+
+// ============================================
+// GESTIÓN DE USUARIOS
+// ============================================
+
+async function loadUsersTable() {
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getUsers');
+        const result = await response.json();
+        
+        if(result.success) {
+            const table = document.getElementById('usersTable');
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre Completo</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            result.users.forEach(user => {
+                const roleText = user.role === 'admin' ? 'Administrador' : 
+                                user.role === 'delivery' ? 'Repartidor' : 'Usuario';
+                const statusBadge = user.active ? 
+                    '<span class="order-status status-ready">Activo</span>' : 
+                    '<span class="order-status status-delivered">Inactivo</span>';
+                
+                html += `
+                    <tr>
+                        <td><strong>${user.username}</strong></td>
+                        <td>${user.name}</td>
+                        <td>${roleText}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="btn btn-warning" style="padding: 5px 10px; font-size: 0.9em;" 
+                                onclick='editUser(${JSON.stringify(user).replace(/'/g, "&apos;")})'>
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            ${user.active ? `
+                                <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9em;" 
+                                    onclick='deactivateUser("${user.username}")'>
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            table.innerHTML = html;
+        }
+    } catch(error) {
+        console.error('Error cargando usuarios:', error);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function editUser(user) {
+    const newPassword = prompt(`Cambiar contraseña para ${user.username} (dejar vacío para no cambiar):`);
+    
+    if(newPassword !== null) {
+        updateUserPassword(user.username, newPassword);
+    }
+}
+
+async function updateUserPassword(username, password) {
+    if(!password) return;
+    
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'updateUser',
+                username: username,
+                password: password
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Contraseña actualizada correctamente');
+            loadUsersTable();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function deactivateUser(username) {
+    if(!confirm(`¿Desactivar usuario ${username}?`)) return;
+    
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'deleteUser',
+                username: username
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Usuario desactivado correctamente');
+            loadUsersTable();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function createNewUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value.trim();
+    const role = document.getElementById('newUserRole').value;
+    const name = document.getElementById('newUserFullName').value.trim();
+
+    if(!username || !password || !name) {
+        alert('Completa todos los campos obligatorios');
+        return;
+    }
+
+    if(username.length < 3) {
+        alert('El nombre de usuario debe tener al menos 3 caracteres');
+        return;
+    }
+
+    if(password.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'createUser',
+                username: username,
+                password: password,
+                role: role,
+                name: name
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Usuario creado correctamente');
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newUserRole').value = 'user';
+            document.getElementById('newUserFullName').value = '';
+            loadUsersTable();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
     }
 }
 
