@@ -72,15 +72,14 @@ function logout() {
 function checkAuth(requiredRole) {
     const userStr = localStorage.getItem('currentUser');
     if(!userStr) {
-        window.location.href = 'index.html';
-        return null;
+        return null; // Solo retorna null, no redirige
     }
     
     const user = JSON.parse(userStr);
     
     if(requiredRole && user.role !== requiredRole) {
-        alert('No tienes permisos para acceder a esta página');
-        window.location.href = 'index.html';
+        // Limpiar y permitir nuevo login
+        localStorage.removeItem('currentUser');
         return null;
     }
     
