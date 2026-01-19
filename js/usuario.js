@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if(user) {
         showUserPanel(user);
     }
+    // Si no hay usuario, simplemente muestra el login (no redirige)
 });
 
 // ============================================
