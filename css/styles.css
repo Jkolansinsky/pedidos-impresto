@@ -86,12 +86,6 @@ body {
     padding: 30px;
     text-align: center;
 }
-.headerAdmin {
-    background: linear-gradient(90deg,rgba(184, 4, 19, 1) 0%, rgba(247, 116, 116, 1) 50%, rgba(184, 4, 19, 1) 100%);
-    color: white;
-    padding: 30px;
-    text-align: center;
-}
 
 .header h1 {
     font-size: 2.5em;
@@ -754,4 +748,5 @@ table tbody tr:hover {
     }
 
 }
+
 
