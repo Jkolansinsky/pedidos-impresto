@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if(user) {
         showDeliveryPanel(user);
     }
+    // Si no hay usuario, simplemente muestra el login (no redirige)
 });
 
 // ============================================
