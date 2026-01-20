@@ -538,7 +538,7 @@ function displayTracking(order) {
             <h3>Pedido ${order.folio}</h3>
             <p><strong>Estado:</strong> <span class="order-status ${statusClass}">${statusText}</span></p>
             <p><strong>Cliente:</strong> ${order.client.name}</p>
-            <p><strong>Total:</strong> $${order.total}</p>
+            <p><strong>Total:</strong> ${order.total}</p>
             <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
             ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
         </div>
@@ -566,6 +566,81 @@ function displayTracking(order) {
         });
         
         results.appendChild(timelineDiv);
+    }
+    
+    // Si está en camino, mostrar mapa en tiempo real
+    if(order.serviceType === 'delivery' && order.status === 'delivering') {
+        showTrackingMap(order.folio);
+    }
+}
+
+async function showTrackingMap(folio) {
+    const mapContainer = document.getElementById('trackingResults');
+    
+    // Crear contenedor del mapa
+    const mapDiv = document.createElement('div');
+    mapDiv.innerHTML = `
+        <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación en Tiempo Real</h4>
+        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+    `;
+    mapContainer.appendChild(mapDiv);
+    
+    // Obtener ubicación del repartidor
+    setTimeout(() => updateTrackingMap(folio), 300);
+}
+
+async function updateTrackingMap(folio) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
+        const result = await response.json();
+        
+        if(result.success && result.location) {
+            const loc = result.location;
+            
+            // Crear mapa
+            const trackMap = L.map('clientTrackingMap').setView([loc.latitude, loc.longitude], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(trackMap);
+            
+            // Marcador del repartidor
+            L.marker([loc.latitude, loc.longitude], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color:#ffc107;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:24px;"></i></div>',
+                    iconSize: [50, 50]
+                })
+            }).addTo(trackMap).bindPopup('Tu pedido está en camino').openPopup();
+            
+            // Actualizar cada 10 segundos
+            setInterval(() => refreshDeliveryLocation(folio, trackMap), 10000);
+        } else {
+            document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha iniciado el recorrido</p>';
+        }
+    } catch(error) {
+        console.error('Error cargando mapa:', error);
+    }
+}
+
+async function refreshDeliveryLocation(folio, map) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
+        const result = await response.json();
+        
+        if(result.success && result.location) {
+            const loc = result.location;
+            map.setView([loc.latitude, loc.longitude], 15);
+            
+            // Actualizar marcador (eliminar anterior y crear nuevo)
+            map.eachLayer(layer => {
+                if(layer instanceof L.Marker) {
+                    layer.setLatLng([loc.latitude, loc.longitude]);
+                }
+            });
+        }
+    } catch(error) {
+        console.error('Error actualizando ubicación:', error);
     }
 }
 
