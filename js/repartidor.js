@@ -17,6 +17,9 @@ let currentLocation = null;
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Solicitar GPS inmediatamente al cargar la página
+    requestGeolocationPermission();
+    
     const user = checkAuth('delivery');
     if(user) {
         showDeliveryPanel(user);
@@ -72,9 +75,6 @@ function showDeliveryPanel(user) {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('deliveryPanel').classList.remove('hidden');
     document.getElementById('currentUserName').textContent = user.username;
-    
-    // Solicitar permisos de geolocalización
-    requestGeolocationPermission();
     
     loadDeliveries();
     
@@ -190,6 +190,9 @@ function displayDeliveries(deliveries, filter) {
                         <button class="btn btn-warning" onclick='startDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
                             <i class="fas fa-route"></i> Iniciar Ruta
                         </button>
+                        <button class="btn btn-danger" onclick='cancelDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})' style="margin-top: 5px;">
+                            <i class="fas fa-times-circle"></i> Cancelar
+                        </button>
                     ` : ''}
                     ${filter === 'completed' ? `
                         <span class="order-status status-delivered">Entregado</span>
@@ -199,6 +202,54 @@ function displayDeliveries(deliveries, filter) {
         `;
         container.appendChild(div);
     });
+}
+
+// ============================================
+// CANCELAR ENTREGA
+// ============================================
+
+async function cancelDelivery(order) {
+    const reason = prompt('¿Por qué motivo cancelas esta entrega?\n(Ej: Problema mecánico, accidente, etc.)');
+    
+    if(!reason) return;
+    
+    if(!confirm(`¿Estás seguro de cancelar la entrega del pedido ${order.folio}?\n\nEsto permitirá que otro repartidor tome el pedido.`)) {
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'cancelDeliveryByDriver',
+                folio: order.folio,
+                deliveryPerson: currentUser.username,
+                reason: reason,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Entrega cancelada. Otro repartidor podrá tomarla.');
+            
+            // Detener GPS si estaba activo
+            if(gpsWatchId) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+                gpsWatchId = null;
+            }
+            
+            loadDeliveries();
+        } else {
+            alert('Error al cancelar: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
 }
 
 // ============================================
@@ -420,16 +471,8 @@ function initDeliveryMap(order) {
         })
     }).addTo(deliveryMap).bindPopup('Tu ubicación');
     
-    // Línea de ruta
-    routeLine = L.polyline([
-        [startLat, startLng],
-        [destLat, destLng]
-    ], {
-        color: '#667eea',
-        weight: 4,
-        opacity: 0.7,
-        dashArray: '10, 10'
-    }).addTo(deliveryMap);
+    // NO AGREGAR LÍNEAS PUNTEADAS
+    // routeLine ya no se crea
     
     // El GPS real actualizará la posición automáticamente
 }
@@ -489,6 +532,13 @@ async function completeDelivery() {
     } finally {
         showLoading(false);
     }
+}
+
+function cancelActiveDelivery() {
+    if(!activeDelivery) return;
+    
+    closeActiveDelivery();
+    cancelDelivery(activeDelivery);
 }
 
 // ============================================
