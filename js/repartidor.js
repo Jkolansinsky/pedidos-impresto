@@ -132,8 +132,11 @@ function filterDeliveries(filter) {
         // Pedidos listos para recoger (estado: ready y serviceType: delivery)
         filtered = allDeliveries.filter(o => o.status === 'ready' && !o.deliveryPerson);
     } else if(filter === 'mytaken') {
-        // Mis entregas en curso
-        filtered = allDeliveries.filter(o => o.deliveryPerson === currentUser.username && o.status === 'delivering');
+        // Mis entregas en curso - incluye AMBOS estados: ready con repartidor asignado Y delivering
+        filtered = allDeliveries.filter(o => 
+            o.deliveryPerson === currentUser.username && 
+            (o.status === 'ready' || o.status === 'delivering')
+        );
     } else if(filter === 'completed') {
         // Completadas hoy
         const today = new Date().toISOString().split('T')[0];
@@ -556,3 +559,4 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
+
