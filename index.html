@@ -5,25 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Centro de Copiado - Hacer Pedido</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-   <div class="top-header">
-    <div class="logo">
-        <i class="fas fa-print"></i> Centro de Copiado
+    <div class="top-header">
+        <div class="logo">
+            <i class="fas fa-print"></i> Centro de Copiado
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <a href="usuario.html" style="color: white; text-decoration: none;">
+                <button class="btn btn-info">
+                    <i class="fas fa-user-tie"></i> Usuario
+                </button>
+            </a>
+            <a href="admin.html" style="color: white; text-decoration: none;">
+                <button class="btn btn-danger">
+                    <i class="fas fa-user-shield"></i> Admin
+                </button>
+            </a>
+            <a href="repartidor.html" style="color: white; text-decoration: none;">
+                <button class="btn btn-warning">
+                    <i class="fas fa-motorcycle"></i> Repartidor
+                </button>
+            </a>
+        </div>
     </div>
-    <div style="display: flex; gap: 15px;">
-        <button class="btn btn-info" onclick="window.location.href='usuario.html'">
-            <i class="fas fa-user-tie"></i> Usuario
-        </button>
-        <button class="btn btn-danger" onclick="window.location.href='admin.html'">
-            <i class="fas fa-user-shield"></i> Admin
-        </button>
-        <button class="btn btn-warning" onclick="window.location.href='repartidor.html'">
-            <i class="fas fa-motorcycle"></i> Repartidor
-        </button>
-    </div>
-</div>
 
     <div class="container">
         <div class="header">
@@ -316,15 +323,8 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script src="js/config.js"></script>
     <script src="js/cliente.js"></script>
 </body>
-
 </html>
-
-
-
-
-
-
-
