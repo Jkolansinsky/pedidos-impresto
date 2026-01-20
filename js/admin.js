@@ -5,18 +5,44 @@
 let currentUser = null;
 let allOrders = [];
 let currentOrder = null;
+let currentLocation = null;
 
 // ============================================
 // INICIALIZACIÓN
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    const user = checkAuth('admin');
+    // Solicitar GPS inmediatamente al cargar
+    requestGeolocationPermission();
+    
+    const user = checkAuth('admin'); // o 'user' para usuario.js
     if(user) {
-        showAdminPanel(user);
+        showAdminPanel(user); // o showUserPanel(user) para usuario.js
     }
-    // Si no hay usuario, simplemente muestra el login (no redirige)
 });
+
+function requestGeolocationPermission() {
+    if('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('Geolocalización activada');
+            },
+            function(error) {
+                console.error('Error de geolocalización:', error);
+                // No mostrar alert para no ser intrusivo en panel admin/usuario
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    }
+}
 
 // ============================================
 // LOGIN
@@ -755,4 +781,5 @@ async function saveBranch() {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
