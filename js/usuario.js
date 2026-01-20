@@ -161,6 +161,8 @@ function filterOrders(status) {
 // DETALLE DE PEDIDO
 // ============================================
 
+// ACTUALIZAR la función viewOrderDetail en admin.js y usuario.js
+
 function viewOrderDetail(order) {
     currentOrder = order;
     
@@ -189,18 +191,45 @@ function viewOrderDetail(order) {
 
         <h4><i class="fas fa-list"></i> Trabajos Solicitados</h4>
         <div style="margin-bottom: 20px;">
-            ${order.works.map((work, idx) => `
-                <div class="cart-item" style="margin-bottom: 10px;">
-                    <p><strong>${idx + 1}. ${work.fileName}</strong></p>
-                    <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
-                    ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
-                    ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
-                    ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
-                    ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
-                    <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
-                </div>
-            `).join('')}
+            ${order.works.map((work, idx) => {
+                // Buscar archivo correspondiente
+                const workFile = order.fileUrls ? order.fileUrls.find(f => f.type === 'work' && f.workIndex === idx) : null;
+                
+                return `
+                    <div class="cart-item" style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <p><strong>${idx + 1}. ${work.fileName}</strong></p>
+                                <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
+                                ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
+                                ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
+                                ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
+                                ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
+                                <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
+                            </div>
+                            ${workFile ? `
+                                <div style="margin-left: 15px;">
+                                    <a href="${workFile.downloadUrl}" target="_blank" class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9em; text-decoration: none;">
+                                        <i class="fas fa-download"></i> Descargar Archivo
+                                    </a>
+                                </div>
+                            ` : '<p style="color: #dc3545; font-size: 0.9em; margin-left: 15px;"><i class="fas fa-exclamation-triangle"></i> Archivo no disponible</p>'}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
         </div>
+        
+        ${order.fileUrls && order.fileUrls.some(f => f.type === 'proof') ? `
+            <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 20px;">
+                <h4><i class="fas fa-receipt"></i> Comprobante de Pago</h4>
+                ${order.fileUrls.filter(f => f.type === 'proof').map(proof => `
+                    <a href="${proof.downloadUrl}" target="_blank" class="btn btn-success" style="text-decoration: none; margin-top: 10px;">
+                        <i class="fas fa-download"></i> Descargar Comprobante
+                    </a>
+                `).join('')}
+            </div>
+        ` : ''}
     `;
 
     buildTimeline(order);
@@ -326,3 +355,4 @@ function notifyClient() {
         window.open(`https://wa.me/52${currentOrder.client.phone}?text=${encodeURIComponent(message)}`, '_blank');
     }
 }
+
