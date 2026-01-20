@@ -130,12 +130,31 @@ function displayOrders(orders) {
         const statusClass = 'status-' + order.status;
         const employeeName = order.employee || 'Sin asignar';
         
+        // Verificar retraso
+        let isDelayed = false;
+        if(order.status === 'delivering' && order.history) {
+            const deliveringEvent = order.history.find(h => h.status === 'delivering');
+            if(deliveringEvent) {
+                const startTime = new Date(deliveringEvent.timestamp);
+                const now = new Date();
+                const hoursDiff = (now - startTime) / (1000 * 60 * 60);
+                if(hoursDiff > 1) {
+                    isDelayed = true;
+                }
+            }
+        }
+        
+        if(isDelayed) {
+            div.style.background = '#ffe6e6';
+            div.style.borderLeft = '4px solid #dc3545';
+        }
+        
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
                 <div style="flex: 1;">
-                    <h4><i class="fas fa-file-alt"></i> ${order.folio}</h4>
+                    <h4><i class="fas fa-file-alt"></i> ${order.folio} ${isDelayed ? '<span style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> RETRASO +1HR</span>' : ''}</h4>
                     <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
-                    <p style="margin: 5px 0;">Total: <strong>$${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                    <p style="margin: 5px 0;">Total: <strong>${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
                     <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
                         <i class="far fa-clock"></i> ${formatDate(order.date)}
                     </p>
