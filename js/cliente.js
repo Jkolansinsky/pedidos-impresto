@@ -11,15 +11,41 @@ let currentProof = null;
 let prices = {};
 let branches = [];
 let currentOrder = null;
+let currentLocation = null;
 
 // ============================================
 // INICIALIZACIÓN
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Solicitar GPS inmediatamente
+    requestGeolocationPermission();
+    
     loadBranches();
     loadPrices();
 });
+
+function requestGeolocationPermission() {
+    if('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('Geolocalización activada en cliente');
+            },
+            function(error) {
+                console.error('Error de geolocalización:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    }
+}
 
 // ============================================
 // NAVEGACIÓN
@@ -679,3 +705,4 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
