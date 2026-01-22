@@ -301,8 +301,8 @@ async function startDelivery(order) {
     // Si no hay ubicación, usar ubicación por defecto de Villahermosa
     if(!currentLocation) {
         currentLocation = {
-            latitude: 17.989,
-            longitude: -92.948
+            latitude: 17.990512690140015,
+            longitude: -92.94638880354256
         };
     }
     
@@ -569,6 +569,7 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
+
 
 
 
