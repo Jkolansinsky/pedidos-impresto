@@ -260,6 +260,14 @@ function viewOrderDetail(order) {
     `;
 
     buildTimeline(order);
+    buildTimeline(order);
+    
+    // AGREGAR ESTO AQUÍ:
+    // Si es delivery y está en camino, mostrar mapa en el modal
+    if(order.serviceType === 'delivery' && order.status === 'delivering') {
+        showAdminDeliveryMap(order);
+    }
+    
     document.getElementById('orderStatus').value = order.status;
     document.getElementById('statusNotes').value = '';
     document.getElementById('orderDetailModal').classList.add('active');
@@ -383,4 +391,81 @@ function notifyClient() {
     }
 }
 
+// Agregar al final de admin.js y usuario.js
+async function showAdminDeliveryMap(order) {
+    const detailContent = document.getElementById('orderDetailContent');
+    
+    // Agregar contenedor del mapa
+    const mapDiv = document.createElement('div');
+    mapDiv.innerHTML = `
+        <div style="margin-top: 20px;">
+            <h4><i class="fas fa-map-marked-alt"></i> Ubicación del Repartidor en Tiempo Real</h4>
+            <div id="adminDeliveryMap" style="height: 350px; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ffc107;"></div>
+        </div>
+    `;
+    detailContent.appendChild(mapDiv);
+    
+    // Esperar un momento para que el DOM se actualice
+    setTimeout(async () => {
+        try {
+            const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + order.folio);
+            const result = await response.json();
+            
+            if(result.success && result.location) {
+                const loc = result.location;
+                const address = order.address;
+                
+                const map = L.map('adminDeliveryMap').setView([loc.latitude, loc.longitude], 14);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Marcador del repartidor
+                L.marker([loc.latitude, loc.longitude], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background-color:#ffc107;width:45px;height:45px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:22px;"></i></div>',
+                        iconSize: [45, 45]
+                    })
+                }).addTo(map).bindPopup('Repartidor en camino').openPopup();
+                
+                // Marcador del destino si hay coordenadas
+                if(address && address.latitude && address.longitude) {
+                    L.marker([address.latitude, address.longitude], {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:16px;"></i></div>',
+                            iconSize: [35, 35]
+                        })
+                    }).addTo(map).bindPopup('Destino: ' + order.client.name);
+                    
+                    // Ajustar zoom para mostrar ambos puntos
+                    const bounds = L.latLngBounds([[loc.latitude, loc.longitude], [address.latitude, address.longitude]]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+                
+                // Actualizar ubicación cada 10 segundos
+                setInterval(async () => {
+                    const updateResponse = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + order.folio);
+                    const updateResult = await updateResponse.json();
+                    
+                    if(updateResult.success && updateResult.location) {
+                        map.eachLayer(layer => {
+                            if(layer instanceof L.Marker && layer.getPopup() && layer.getPopup().getContent().includes('Repartidor')) {
+                                layer.setLatLng([updateResult.location.latitude, updateResult.location.longitude]);
+                            }
+                        });
+                    }
+                }, 10000);
+                
+            } else {
+                document.getElementById('adminDeliveryMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha compartido su ubicación</p>';
+            }
+        } catch(error) {
+            console.error('Error cargando mapa:', error);
+            document.getElementById('adminDeliveryMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #dc3545;">Error al cargar el mapa</p>';
+        }
+    }, 300);
+}
 
