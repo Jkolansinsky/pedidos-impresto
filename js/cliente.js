@@ -396,6 +396,10 @@ async function submitOrder() {
     try {
         const folio = 'ORD-' + new Date().toISOString().split('T')[0].replace(/-/g, '') + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         
+        // 1. Subir archivos a Drive
+        const fileUrls = await uploadFilesToDrive(folio);
+        
+        // 2. Crear orden con URLs de archivos
         const orderData = {
             action: 'createOrder',
             folio: folio,
@@ -430,6 +434,17 @@ async function submitOrder() {
         const result = await response.json();
         
         if(result.success) {
+            // 3. Actualizar orden con URLs de archivos
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'updateOrder',
+                    folio: folio,
+                    fileUrls: fileUrls
+                })
+            });
+            
+            orderData.fileUrls = fileUrls;
             showTicket(orderData);
         } else {
             alert('Error al crear pedido: ' + result.message);
@@ -439,6 +454,91 @@ async function submitOrder() {
     } finally {
         showLoading(false);
     }
+}
+
+async function uploadFilesToDrive(folio) {
+    const fileUrls = [];
+    
+    try {
+        // Subir archivos de trabajos
+        for(let i = 0; i < cart.length; i++) {
+            const work = cart[i];
+            if(work.fileData) {
+                const fileUrl = await uploadSingleFile(work.fileData, `${folio}_trabajo_${i+1}_${work.fileName}`);
+                if(fileUrl) {
+                    fileUrls.push({
+                        type: 'work',
+                        workIndex: i,
+                        fileName: work.fileName,
+                        url: fileUrl.fileUrl,
+                        downloadUrl: fileUrl.downloadUrl
+                    });
+                }
+            }
+        }
+        
+        // Subir comprobante de pago
+        if(currentProof) {
+            const proofUrl = await uploadSingleFile(currentProof, `${folio}_comprobante.${currentProof.name.split('.').pop()}`);
+            if(proofUrl) {
+                fileUrls.push({
+                    type: 'proof',
+                    fileName: currentProof.name,
+                    url: proofUrl.fileUrl,
+                    downloadUrl: proofUrl.downloadUrl
+                });
+            }
+        }
+        
+    } catch(error) {
+        console.error('Error subiendo archivos:', error);
+    }
+    
+    return fileUrls;
+}
+
+async function uploadSingleFile(file, fileName) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            try {
+                const base64Data = e.target.result.split(',')[1];
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'uploadFile',
+                        fileName: fileName,
+                        fileData: base64Data,
+                        mimeType: file.type
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if(result.success) {
+                    resolve({
+                        fileUrl: result.fileUrl,
+                        downloadUrl: result.downloadUrl
+                    });
+                } else {
+                    console.error('Error subiendo archivo:', result.message);
+                    resolve(null);
+                }
+            } catch(error) {
+                console.error('Error en upload:', error);
+                resolve(null);
+            }
+        };
+        
+        reader.onerror = function() {
+            console.error('Error leyendo archivo');
+            resolve(null);
+        };
+        
+        reader.readAsDataURL(file);
+    });
 }
 
 // ============================================
@@ -564,12 +664,22 @@ function displayTracking(order) {
             <h3>Pedido ${order.folio}</h3>
             <p><strong>Estado:</strong> <span class="order-status ${statusClass}">${statusText}</span></p>
             <p><strong>Cliente:</strong> ${order.client.name}</p>
-            <p><strong>Total:</strong> ${order.total}</p>
+            <p><strong>Total:</strong> $${order.total}</p>
             <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
             ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
         </div>
     `;
     
+    // MOSTRAR MAPA SEGÚN TIPO DE SERVICIO
+    if(order.serviceType === 'delivery' && order.status === 'delivering') {
+        // Delivery en camino - mostrar ubicación del repartidor
+        showDeliveryTrackingMap(order.folio);
+    } else if(order.serviceType === 'pickup') {
+        // Pickup - mostrar ubicación de sucursal
+        showPickupBranchMap(order.branch);
+    }
+    
+    // Historial
     if(order.history && order.history.length > 0) {
         results.innerHTML += '<h4 style="margin-top: 20px;"><i class="fas fa-history"></i> Historial</h4>';
         const timelineDiv = document.createElement('div');
@@ -593,17 +703,11 @@ function displayTracking(order) {
         
         results.appendChild(timelineDiv);
     }
-    
-    // Si está en camino, mostrar mapa en tiempo real
-    if(order.serviceType === 'delivery' && order.status === 'delivering') {
-        showTrackingMap(order.folio);
-    }
 }
 
-async function showTrackingMap(folio) {
+async function showDeliveryTrackingMap(folio) {
     const mapContainer = document.getElementById('trackingResults');
     
-    // Crear contenedor del mapa
     const mapDiv = document.createElement('div');
     mapDiv.innerHTML = `
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación en Tiempo Real</h4>
@@ -611,8 +715,65 @@ async function showTrackingMap(folio) {
     `;
     mapContainer.appendChild(mapDiv);
     
-    // Obtener ubicación del repartidor
     setTimeout(() => updateTrackingMap(folio), 300);
+}
+
+async function showPickupBranchMap(branchName) {
+    const mapContainer = document.getElementById('trackingResults');
+    
+    // Buscar datos de la sucursal
+    const branch = branches.find(b => b.name === branchName);
+    
+    if(!branch) {
+        mapContainer.innerHTML += `
+            <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <h3 style="color: #856404;">
+                    <i class="fas fa-store"></i> Su pedido está listo para recoger
+                </h3>
+                <p style="font-size: 1.2em; margin: 15px 0;">
+                    Puede pasar a la sucursal <strong>${branchName}</strong> a recoger su pedido
+                </p>
+            </div>
+        `;
+        return;
+    }
+    
+    const mapDiv = document.createElement('div');
+    mapDiv.innerHTML = `
+        <div style="margin-top: 20px; padding: 20px; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
+            <h3 style="color: #0c5460;">
+                <i class="fas fa-store"></i> Su pedido está en espera - Pase a recogerlo
+            </h3>
+            <p style="font-size: 1.3em; margin: 15px 0;">
+                Sucursal: <strong>${branch.name}</strong>
+            </p>
+            <p style="margin: 10px 0;">
+                <i class="fas fa-map-marker-alt"></i> ${branch.address}
+            </p>
+            <p style="margin: 10px 0;">
+                <i class="fas fa-phone"></i> ${branch.phone}
+            </p>
+        </div>
+        <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación de la Sucursal</h4>
+        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+    `;
+    mapContainer.appendChild(mapDiv);
+    
+    setTimeout(() => {
+        const map = L.map('clientTrackingMap').setView([branch.latitude, branch.longitude], 15);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        L.marker([branch.latitude, branch.longitude], {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: '<div style="background-color:#17a2b8;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:24px;"></i></div>',
+                iconSize: [50, 50]
+            })
+        }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
+    }, 300);
 }
 
 async function updateTrackingMap(folio) {
@@ -623,14 +784,12 @@ async function updateTrackingMap(folio) {
         if(result.success && result.location) {
             const loc = result.location;
             
-            // Crear mapa
             const trackMap = L.map('clientTrackingMap').setView([loc.latitude, loc.longitude], 15);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(trackMap);
             
-            // Marcador del repartidor
             L.marker([loc.latitude, loc.longitude], {
                 icon: L.divIcon({
                     className: 'custom-div-icon',
@@ -639,7 +798,6 @@ async function updateTrackingMap(folio) {
                 })
             }).addTo(trackMap).bindPopup('Tu pedido está en camino').openPopup();
             
-            // Actualizar cada 10 segundos
             setInterval(() => refreshDeliveryLocation(folio, trackMap), 10000);
         } else {
             document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha iniciado el recorrido</p>';
@@ -658,7 +816,6 @@ async function refreshDeliveryLocation(folio, map) {
             const loc = result.location;
             map.setView([loc.latitude, loc.longitude], 15);
             
-            // Actualizar marcador (eliminar anterior y crear nuevo)
             map.eachLayer(layer => {
                 if(layer instanceof L.Marker) {
                     layer.setLatLng([loc.latitude, loc.longitude]);
@@ -673,36 +830,33 @@ async function refreshDeliveryLocation(folio, map) {
 // ============================================
 // CARGA DE DATOS
 // ============================================
-
 async function loadPrices() {
-    try {
-        const response = await fetch(SCRIPT_URL + '?action=getPrices');
-        const result = await response.json();
-        if(result.success) {
-            prices = result.prices;
-        }
-    } catch(error) {
-        console.error('Error cargando precios:', error);
-    }
+try {
+const response = await fetch(SCRIPT_URL + '?action=getPrices');
+const result = await response.json();
+if(result.success) {
+prices = result.prices;
 }
-
+} catch(error) {
+console.error('Error cargando precios:', error);
+ }
+}
 async function loadBranches() {
-    try {
-        const response = await fetch(SCRIPT_URL + '?action=getBranches');
-        const result = await response.json();
-        if(result.success) {
-            branches = result.branches;
-            const select = document.getElementById('branchSelect');
-            select.innerHTML = '<option value="">Selecciona una sucursal</option>';
-            branches.forEach(b => {
-                const option = document.createElement('option');
-                option.value = b.name;
-                option.textContent = b.name + ' - ' + b.address;
-                select.appendChild(option);
-            });
-        }
-    } catch(error) {
-        console.error('Error cargando sucursales:', error);
-    }
+try {
+const response = await fetch(SCRIPT_URL + '?action=getBranches');
+const result = await response.json();
+if(result.success) {
+branches = result.branches;
+const select = document.getElementById('branchSelect');
+select.innerHTML = '<option value="">Selecciona una sucursal</option>';
+branches.forEach(b => {
+const option = document.createElement('option');
+option.value = b.name;
+option.textContent = b.name + ' - ' + b.address;
+select.appendChild(option);
+});
 }
-
+} catch(error) {
+console.error('Error cargando sucursales:', error);
+ }
+}
