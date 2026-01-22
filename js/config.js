@@ -3,7 +3,7 @@
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1SYOY6bqKrKNoT6IB__ASPaj4UrD6Karoc_1QgQwOeE4c3Wz-eYWaklp685Tx1vf1ag/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzEToI8flNhrTtLGqJFTpUvVPx8pElt3j6S-4CV6K5FWS2PzgySD7-K3LhbbctjC6T4ag/exec';
 
 // ============================================
 // FUNCIONES COMUNES
@@ -85,5 +85,6 @@ function checkAuth(requiredRole) {
     
     return user;
 }
+
 
 
