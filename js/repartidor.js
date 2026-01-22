@@ -430,10 +430,10 @@ function showDeliveryMap(order) {
 
 function initDeliveryMap(order) {
     const mapDiv = document.getElementById('deliveryMap');
-    
+     
     // Usar ubicación actual del repartidor
-    const startLat = currentLocation ? currentLocation.latitude : 17.989;
-    const startLng = currentLocation ? currentLocation.longitude : -92.948;
+    const startLat = currentLocation ? currentLocation.latitude : 17.990512690140015;
+    const startLng = currentLocation ? currentLocation.longitude : -92.94638880354256;
     
     // Coordenadas del destino basadas en la dirección del pedido
     // Nota: En producción usa Google Geocoding API para obtener coordenadas exactas
@@ -569,6 +569,7 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
+
 
 
 
