@@ -120,6 +120,7 @@ function confirmAddress() {
         return;
     }
 
+    // Crear objeto de dirección
     currentClient.address = {
         street,
         colony,
@@ -127,6 +128,15 @@ function confirmAddress() {
         zip: document.getElementById('deliveryZip').value,
         references: document.getElementById('deliveryReferences').value
     };
+    
+    // Intentar obtener coordenadas de la dirección
+    // Nota: En producción deberías usar Google Geocoding API
+    // Por ahora usamos coordenadas aproximadas de Villahermosa
+    const baseCoords = { latitude: 17.989, longitude: -92.948 };
+    const variation = Math.random() * 0.02 - 0.01;
+    
+    currentClient.address.latitude = baseCoords.latitude + variation;
+    currentClient.address.longitude = baseCoords.longitude + variation;
 
     document.getElementById('delivery-address-step').classList.add('hidden');
     document.getElementById('work-config-step').classList.remove('hidden');
@@ -860,3 +870,4 @@ select.appendChild(option);
 console.error('Error cargando sucursales:', error);
  }
 }
+
