@@ -777,9 +777,10 @@ async function saveBranch() {
         alert('Error: ' + error.message);
     } finally {
         showLoading(false);
-    }
+    }   
+}
 
-    // Agregar al final de admin.js y usuario.js
+ // Agregar al final de admin.js y usuario.js
 async function showAdminDeliveryMap(order) {
     const detailContent = document.getElementById('orderDetailContent');
     
@@ -856,7 +857,6 @@ async function showAdminDeliveryMap(order) {
         }
     }, 300);
 }
-}
 
 // ============================================
 // REPORTES
@@ -865,6 +865,7 @@ async function showAdminDeliveryMap(order) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
