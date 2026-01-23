@@ -85,7 +85,7 @@
                         <button class="btn btn-warning" onclick="filterOrders('processing')">En Proceso</button>
                         <button class="btn btn-success" onclick="filterOrders('ready')">Listos</button>
                         <button class="btn" style="background: #fd7e14; color: white;" onclick="filterOrders('delivering')">En Camino</button>
-                        <button class="btn btn-secondary" onclick="filterOrders('delivered')">Entregados</button>
+                        <button class="btn btn-secondary" onclick="filterOrders('delivered')">Entregados Hoy</button>
                     </div>
 
                     <div id="ordersList"></div>
@@ -178,6 +178,16 @@
                         <label>Email de la Sucursal *</label>
                         <input type="email" id="branchEmail" placeholder="sucursal@centrocopiado.com">
                         <small>Los pedidos se enviarán a este correo</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Latitud (opcional)</label>
+                        <input type="text" id="branchLatitude" placeholder="Ej: 17.9892">
+                        <small>Coordenada de latitud para mostrar en el mapa</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Longitud (opcional)</label>
+                        <input type="text" id="branchLongitude" placeholder="Ej: -92.9475">
+                        <small>Coordenada de longitud para mostrar en el mapa</small>
                     </div>
                     <div class="form-group">
                         <label>Datos Bancarios *</label>
