@@ -5,44 +5,18 @@
 let currentUser = null;
 let allOrders = [];
 let currentOrder = null;
-let currentLocation = null;
 
 // ============================================
 // INICIALIZACIÓN
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Solicitar GPS inmediatamente al cargar
-    requestGeolocationPermission();
-    
-    const user = checkAuth('admin'); // o 'user' para usuario.js
+    const user = checkAuth('admin');
     if(user) {
-        showAdminPanel(user); // o showUserPanel(user) para usuario.js
+        showAdminPanel(user);
     }
+    // Si no hay usuario, simplemente muestra el login (no redirige)
 });
-
-function requestGeolocationPermission() {
-    if('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                currentLocation = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                };
-                console.log('Geolocalización activada');
-            },
-            function(error) {
-                console.error('Error de geolocalización:', error);
-                // No mostrar alert para no ser intrusivo en panel admin/usuario
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
-            }
-        );
-    }
-}
 
 // ============================================
 // LOGIN
@@ -201,16 +175,47 @@ function displayOrders(orders) {
 function filterOrders(status) {
     if(status === 'all') {
         displayOrders(allOrders);
+    } else if(status === 'delivered') {
+        // Filtrar solo entregados hoy
+        const deliveredToday = allOrders.filter(o => isDeliveredToday(o));
+        displayOrders(deliveredToday);
     } else {
         const filtered = allOrders.filter(o => o.status === status);
         displayOrders(filtered);
     }
 }
 
-// ACTUALIZAR la función viewOrderDetail en admin.js y usuario.js
-
 function viewOrderDetail(order) {
     currentOrder = order;
+    
+    // Generar links de archivos
+    let filesHTML = '';
+    if(order.works && order.works.length > 0) {
+        filesHTML = order.works.map((work, idx) => {
+            if(work.fileUrl) {
+                return `
+                    <div style="margin: 5px 0;">
+                        <a href="${work.fileUrl}" target="_blank" style="color: #667eea; text-decoration: none;">
+                            <i class="fas fa-download"></i> Descargar ${work.fileName}
+                        </a>
+                    </div>
+                `;
+            }
+            return '';
+        }).join('');
+    }
+    
+    // Link del comprobante de pago
+    let proofHTML = '';
+    if(order.proofFileUrl) {
+        proofHTML = `
+            <div style="margin-top: 10px;">
+                <a href="${order.proofFileUrl}" target="_blank" style="color: #28a745; text-decoration: none;">
+                    <i class="fas fa-file-invoice-dollar"></i> Ver Comprobante de Pago
+                </a>
+            </div>
+        `;
+    }
     
     const detailContent = document.getElementById('orderDetailContent');
     detailContent.innerHTML = `
@@ -226,6 +231,7 @@ function viewOrderDetail(order) {
                     <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
                     <p><strong>Servicio:</strong> ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
                     <p><strong>Método de Pago:</strong> ${order.paymentMethod}</p>
+                    ${proofHTML}
                 </div>
                 <div>
                     <p><strong>Subtotal:</strong> $${order.subtotal}</p>
@@ -233,59 +239,33 @@ function viewOrderDetail(order) {
                     <p><strong>Total:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
                 </div>
             </div>
+            ${filesHTML ? `
+                <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                    <h4 style="margin-bottom: 10px;"><i class="fas fa-file-download"></i> Archivos del Cliente</h4>
+                    ${filesHTML}
+                </div>
+            ` : ''}
         </div>
 
         <h4><i class="fas fa-list"></i> Trabajos Solicitados</h4>
         <div style="margin-bottom: 20px;">
-            ${order.works.map((work, idx) => {
-                // Buscar archivo correspondiente
-                const workFile = order.fileUrls ? order.fileUrls.find(f => f.type === 'work' && f.workIndex === idx) : null;
-                
-                return `
-                    <div class="cart-item" style="margin-bottom: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <div style="flex: 1;">
-                                <p><strong>${idx + 1}. ${work.fileName}</strong></p>
-                                <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
-                                ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
-                                ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
-                                ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
-                                ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
-                                <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
-                            </div>
-                            ${workFile ? `
-                                <div style="margin-left: 15px;">
-                                    <a href="${workFile.downloadUrl}" target="_blank" class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9em; text-decoration: none;">
-                                        <i class="fas fa-download"></i> Descargar Archivo
-                                    </a>
-                                </div>
-                            ` : '<p style="color: #dc3545; font-size: 0.9em; margin-left: 15px;"><i class="fas fa-exclamation-triangle"></i> Archivo no disponible</p>'}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
+            ${order.works.map((work, idx) => `
+                <div class="cart-item" style="margin-bottom: 10px;">
+                    <p><strong>${idx + 1}. ${work.fileName}</strong></p>
+                    <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
+                    ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
+                    ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
+                    ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
+                    ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
+                    <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
+                </div>
+            `).join('')}
         </div>
-        
-        ${order.fileUrls && order.fileUrls.some(f => f.type === 'proof') ? `
-            <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 20px;">
-                <h4><i class="fas fa-receipt"></i> Comprobante de Pago</h4>
-                ${order.fileUrls.filter(f => f.type === 'proof').map(proof => `
-                    <a href="${proof.downloadUrl}" target="_blank" class="btn btn-success" style="text-decoration: none; margin-top: 10px;">
-                        <i class="fas fa-download"></i> Descargar Comprobante
-                    </a>
-                `).join('')}
-            </div>
-        ` : ''}
     `;
 
     buildTimeline(order);
-    // AGREGAR ESTO AQUÍ:
-    // Si es delivery y está en camino, mostrar mapa en el modal
-    if(order.serviceType === 'delivery' && order.status === 'delivering') {
-        showAdminDeliveryMap(order);
-    }
-    
     document.getElementById('orderStatus').value = order.status;
+    document.getElementById('assignEmployee').value = order.employee || '';
     document.getElementById('statusNotes').value = '';
     document.getElementById('orderDetailModal').classList.add('active');
 }
@@ -706,6 +686,7 @@ async function loadBranchesTable() {
                             <th>Dirección</th>
                             <th>Teléfono</th>
                             <th>Email</th>
+                            <th>Coordenadas</th>
                             <th>Datos Bancarios</th>
                         </tr>
                     </thead>
@@ -719,6 +700,7 @@ async function loadBranchesTable() {
                         <td>${branch.address}</td>
                         <td>${branch.phone}</td>
                         <td>${branch.email || 'N/A'}</td>
+                        <td style="font-size: 0.85em;">${branch.latitude ? `Lat: ${branch.latitude}<br>Lng: ${branch.longitude}` : 'No establecidas'}</td>
                         <td style="white-space: pre-line; font-size: 0.85em;">${branch.bankData}</td>
                     </tr>
                 `;
@@ -740,6 +722,8 @@ async function saveBranch() {
     const phone = document.getElementById('branchPhone').value.trim();
     const email = document.getElementById('branchEmail').value.trim();
     const bankData = document.getElementById('branchBankData').value.trim();
+    const latitude = document.getElementById('branchLatitude').value.trim();
+    const longitude = document.getElementById('branchLongitude').value.trim();
 
     if(!name || !address || !phone || !email) {
         alert('Completa todos los campos obligatorios');
@@ -756,7 +740,9 @@ async function saveBranch() {
                 address: address,
                 phone: phone,
                 email: email,
-                bankData: bankData
+                bankData: bankData,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null
             })
         });
 
@@ -769,6 +755,8 @@ async function saveBranch() {
             document.getElementById('branchPhone').value = '';
             document.getElementById('branchEmail').value = '';
             document.getElementById('branchBankData').value = '';
+            document.getElementById('branchLatitude').value = '';
+            document.getElementById('branchLongitude').value = '';
             loadBranchesTable();
         } else {
             alert('Error: ' + result.message);
@@ -777,85 +765,7 @@ async function saveBranch() {
         alert('Error: ' + error.message);
     } finally {
         showLoading(false);
-    }   
-}
-
- // Agregar al final de admin.js y usuario.js
-async function showAdminDeliveryMap(order) {
-    const detailContent = document.getElementById('orderDetailContent');
-    
-    // Agregar contenedor del mapa
-    const mapDiv = document.createElement('div');
-    mapDiv.innerHTML = `
-        <div style="margin-top: 20px;">
-            <h4><i class="fas fa-map-marked-alt"></i> Ubicación del Repartidor en Tiempo Real</h4>
-            <div id="adminDeliveryMap" style="height: 350px; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ffc107;"></div>
-        </div>
-    `;
-    detailContent.appendChild(mapDiv);
-    
-    // Esperar un momento para que el DOM se actualice
-    setTimeout(async () => {
-        try {
-            const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + order.folio);
-            const result = await response.json();
-            
-            if(result.success && result.location) {
-                const loc = result.location;
-                const address = order.address;
-                
-                const map = L.map('adminDeliveryMap').setView([loc.latitude, loc.longitude], 14);
-                
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(map);
-                
-                // Marcador del repartidor
-                L.marker([loc.latitude, loc.longitude], {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: '<div style="background-color:#ffc107;width:45px;height:45px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:22px;"></i></div>',
-                        iconSize: [45, 45]
-                    })
-                }).addTo(map).bindPopup('Repartidor en camino').openPopup();
-                
-                // Marcador del destino si hay coordenadas
-                if(address && address.latitude && address.longitude) {
-                    L.marker([address.latitude, address.longitude], {
-                        icon: L.divIcon({
-                            className: 'custom-div-icon',
-                            html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:16px;"></i></div>',
-                            iconSize: [35, 35]
-                        })
-                    }).addTo(map).bindPopup('Destino: ' + order.client.name);
-                    
-                    // Ajustar zoom para mostrar ambos puntos
-                    const bounds = L.latLngBounds([[loc.latitude, loc.longitude], [address.latitude, address.longitude]]);
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                }
-                
-                // Actualizar ubicación cada 10 segundos
-                setInterval(async () => {
-                    const updateResponse = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + order.folio);
-                    const updateResult = await updateResponse.json();
-                    
-                    if(updateResult.success && updateResult.location) {
-                        map.eachLayer(layer => {
-                            if(layer instanceof L.Marker && layer.getPopup() && layer.getPopup().getContent().includes('Repartidor')) {
-                                layer.setLatLng([updateResult.location.latitude, updateResult.location.longitude]);
-                            }
-                        });
-                    }
-                }, 10000);
-                
-            } else {
-                document.getElementById('adminDeliveryMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha compartido su ubicación</p>';
-            }
-        } catch(error) {
-            console.error('Error cargando mapa:', error);
-            document.getElementById('adminDeliveryMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #dc3545;">Error al cargar el mapa</p>';
-        }
-    }, 300);
+    }
 }
 
 // ============================================
@@ -865,7 +775,3 @@ async function showAdminDeliveryMap(order) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
-
-
-
-
