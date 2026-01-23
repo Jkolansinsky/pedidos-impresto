@@ -7,7 +7,7 @@ let allDeliveries = [];
 let activeDelivery = null;
 let deliveryMap = null;
 let deliveryMarker = null;
-let routeLine = null;
+let destinationMarker = null;
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
@@ -17,9 +17,6 @@ let currentLocation = null;
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Solicitar GPS inmediatamente al cargar la página
-    requestGeolocationPermission();
-    
     const user = checkAuth('delivery');
     if(user) {
         showDeliveryPanel(user);
@@ -82,31 +79,6 @@ function showDeliveryPanel(user) {
     updateInterval = setInterval(loadDeliveries, 30000);
 }
 
-function requestGeolocationPermission() {
-    if('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                currentLocation = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                };
-                console.log('Geolocalización activada');
-            },
-            function(error) {
-                console.error('Error de geolocalización:', error);
-                alert('Por favor activa la ubicación para poder hacer entregas');
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
-            }
-        );
-    } else {
-        alert('Tu navegador no soporta geolocalización');
-    }
-}
-
 // ============================================
 // CARGAR ENTREGAS
 // ============================================
@@ -138,12 +110,10 @@ function filterDeliveries(filter) {
             (o.status === 'ready' || o.status === 'delivering')
         );
     } else if(filter === 'completed') {
-        // Completadas hoy
-        const today = new Date().toISOString().split('T')[0];
+        // Completadas hoy - usar la función isDeliveredToday
         filtered = allDeliveries.filter(o => 
             o.deliveryPerson === currentUser.username && 
-            o.status === 'delivered' &&
-            o.deliveryDate && o.deliveryDate.startsWith(today)
+            isDeliveredToday(o)
         );
     }
     
@@ -298,12 +268,9 @@ async function takeDelivery(order) {
 async function startDelivery(order) {
     activeDelivery = order;
     
-    // Si no hay ubicación, usar ubicación por defecto de Villahermosa
-    if(!currentLocation) {
-        currentLocation = {
-            latitude: 17.990512690140015,
-            longitude: -92.94638880354256
-        };
+    if(!userCurrentLocation) {
+        alert('Esperando ubicación GPS...');
+        return;
     }
     
     // Actualizar estado a "delivering"
@@ -430,22 +397,15 @@ function showDeliveryMap(order) {
 
 function initDeliveryMap(order) {
     const mapDiv = document.getElementById('deliveryMap');
-     
+    
     // Usar ubicación actual del repartidor
-    const startLat = currentLocation ? currentLocation.latitude : 17.990512690140015;
-    const startLng = currentLocation ? currentLocation.longitude : -92.94638880354256;
+    const startLat = userCurrentLocation ? userCurrentLocation.latitude : 17.989;
+    const startLng = userCurrentLocation ? userCurrentLocation.longitude : -92.948;
     
-    // Coordenadas del destino basadas en la dirección del pedido
-    // Nota: En producción usa Google Geocoding API para obtener coordenadas exactas
+    // Coordenadas del destino del cliente
     const address = order.address;
-    let destLat = startLat + (Math.random() * 0.02 - 0.01);
-    let destLng = startLng + (Math.random() * 0.02 - 0.01);
-    
-    // Si la dirección tiene coordenadas guardadas, usarlas
-    if(address && address.latitude && address.longitude) {
-        destLat = address.latitude;
-        destLng = address.longitude;
-    }
+    const destLat = address.latitude || 17.9892;
+    const destLng = address.longitude || -92.9475;
     
     // Crear mapa
     if(deliveryMap) {
@@ -458,34 +418,25 @@ function initDeliveryMap(order) {
         attribution: '© OpenStreetMap contributors'
     }).addTo(deliveryMap);
     
-    // Marcador de sucursal/inicio (punto de partida del repartidor)
-    L.marker([startLat, startLng], {
-        icon: L.divIcon({
-            className: 'custom-div-icon',
-            html: '<div style="background-color:#667eea;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store" style="color:white;"></i></div>',
-            iconSize: [30, 30]
-        })
-    }).addTo(deliveryMap).bindPopup('Punto de Partida');
-    
     // Marcador de destino (casa del cliente)
-    L.marker([destLat, destLng], {
+    destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
-            html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:16px;"></i></div>',
+            html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:18px;"></i></div>',
             iconSize: [35, 35]
         })
-    }).addTo(deliveryMap).bindPopup(`<strong>Destino</strong><br>${order.client.name}<br>${address.street}, ${address.colony}`);
+    }).addTo(deliveryMap).bindPopup('Destino: ' + order.client.name);
     
-    // Marcador del repartidor (moto) - posición actual
+    // Marcador del repartidor (moto) - posición real
     deliveryMarker = L.marker([startLat, startLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
-            html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
+            html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
             iconSize: [40, 40]
         })
-    }).addTo(deliveryMap).bindPopup('Tu ubicación actual').openPopup();
+    }).addTo(deliveryMap).bindPopup('Tu ubicación').openPopup();
     
-    // Ajustar el zoom para mostrar ambos puntos
+    // Ajustar el mapa para ver ambos marcadores
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
     deliveryMap.fitBounds(bounds, { padding: [50, 50] });
 }
@@ -501,6 +452,10 @@ function closeActiveDelivery() {
         deliveryMap.remove();
         deliveryMap = null;
     }
+    
+    deliveryMarker = null;
+    destinationMarker = null;
+    
     document.getElementById('activeDeliveryModal').classList.remove('active');
     activeDelivery = null;
     loadDeliveries();
@@ -569,7 +524,6 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
-
 
 
 
