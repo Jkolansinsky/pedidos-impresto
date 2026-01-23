@@ -3,7 +3,11 @@
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwj1a1xTkPw2axGndN145I2RF-fAmO3tyQxkDLFdYcQOaPN0t0XsX5um3HRiawF4XL7cQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXmW8_BVfO_Gne4MnF6uWxXU5vd9T2_VweeN5JgR59MIbvlAuigBn1a1HSLnyzoGDrQQ/exec';
+
+// Variables globales de geolocalización
+let userCurrentLocation = null;
+let geoWatchId = null;
 
 // ============================================
 // FUNCIONES COMUNES
@@ -86,6 +90,119 @@ function checkAuth(requiredRole) {
     return user;
 }
 
+/**
+ * Solicita permisos de geolocalización al cargar la página
+ */
+function initGeolocation() {
+    if('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                userCurrentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('Geolocalización activada:', userCurrentLocation);
+                
+                // Iniciar seguimiento continuo
+                geoWatchId = navigator.geolocation.watchPosition(
+                    function(position) {
+                        userCurrentLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                    },
+                    function(error) {
+                        console.error('Error en seguimiento GPS:', error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 5000
+                    }
+                );
+            },
+            function(error) {
+                console.error('Error de geolocalización:', error);
+                alert('Por favor activa la ubicación para usar todas las funcionalidades del sistema');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        console.warn('Geolocalización no soportada');
+        alert('Tu navegador no soporta geolocalización');
+    }
+}
 
+/**
+ * Geocodificar dirección a coordenadas usando Nominatim (OpenStreetMap)
+ */
+async function geocodeAddress(address) {
+    try {
+        const query = encodeURIComponent(address);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+        const data = await response.json();
+        
+        if(data && data.length > 0) {
+            return {
+                latitude: parseFloat(data[0].lat),
+                longitude: parseFloat(data[0].lon)
+            };
+        }
+        
+        // Si no encuentra, retornar coordenadas por defecto (Villahermosa, Tabasco)
+        return {
+            latitude: 17.9892,
+            longitude: -92.9475
+        };
+    } catch(error) {
+        console.error('Error en geocodificación:', error);
+        // Coordenadas por defecto
+        return {
+            latitude: 17.9892,
+            longitude: -92.9475
+        };
+    }
+}
 
+/**
+ * Verifica si un pedido fue entregado hoy
+ */
+function isDeliveredToday(order) {
+    if(order.status !== 'delivered') return false;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Buscar en el historial el evento de entrega
+    if(order.history && order.history.length > 0) {
+        const deliveredEvent = order.history.find(h => h.status === 'delivered');
+        if(deliveredEvent) {
+            const deliveredDate = new Date(deliveredEvent.timestamp).toISOString().split('T')[0];
+            return deliveredDate === today;
+        }
+    }
+    
+    // Si tiene deliveryDate
+    if(order.deliveryDate) {
+        const deliveredDate = new Date(order.deliveryDate).toISOString().split('T')[0];
+        return deliveredDate === today;
+    }
+    
+    return false;
+}
+
+// Inicializar geolocalización al cargar cualquier página
+document.addEventListener('DOMContentLoaded', function() {
+    initGeolocation();
+});
+
+// Limpiar el watch cuando se cierre la página
+window.addEventListener('beforeunload', function() {
+    if(geoWatchId) {
+        navigator.geolocation.clearWatch(geoWatchId);
+    }
+});
 
