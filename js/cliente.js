@@ -606,6 +606,11 @@ async function trackOrder() {
 
     showLoading(true);
     try {
+        // Asegurarse de que las sucursales estén cargadas
+        if(branches.length === 0) {
+            await loadBranches();
+        }
+        
         const response = await fetch(SCRIPT_URL + '?action=trackOrder&folio=' + folio);
         const result = await response.json();
         
@@ -620,7 +625,6 @@ async function trackOrder() {
         showLoading(false);
     }
 }
-
 function displayTracking(order) {
     const results = document.getElementById('trackingResults');
     const statusText = getStatusText(order.status);
@@ -723,6 +727,7 @@ async function showTrackingMapDestinationOnly(order) {
 async function showTrackingMapPickup(order) {
     const mapContainer = document.getElementById('trackingResults');
     
+    // Buscar la sucursal en el array de branches
     const branch = branches.find(b => b.name === order.branch);
     
     if(!branch) {
@@ -750,10 +755,9 @@ async function showTrackingMapPickup(order) {
             </p>
         </div>
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marker-alt"></i> Ubicación de la Sucursal</h4>
-        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>`;
-
-    
-mapContainer.appendChild(mapDiv);
+        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+    `;
+    mapContainer.appendChild(mapDiv);
     
     setTimeout(() => {
         const branchLat = branch.latitude || 17.9892;
@@ -870,3 +874,4 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
