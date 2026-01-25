@@ -727,10 +727,18 @@ async function showTrackingMapDestinationOnly(order) {
 async function showTrackingMapPickup(order) {
     const mapContainer = document.getElementById('trackingResults');
     
+    console.log('=== DEBUG TRACKING MAP PICKUP ===');
+    console.log('Order:', order);
+    console.log('Order.branch:', order.branch);
+    console.log('Branches array:', branches);
+    
     // Buscar la sucursal en el array de branches
     const branch = branches.find(b => b.name === order.branch);
     
+    console.log('Branch found:', branch);
+    
     if(!branch) {
+        console.error('No se encontró la sucursal:', order.branch);
         mapContainer.innerHTML += `
             <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
                 <h3 style="color: #667eea; margin-bottom: 10px;">
@@ -739,10 +747,17 @@ async function showTrackingMapPickup(order) {
                 <p style="font-size: 1.2em; color: #333;">
                     Su pedido está en espera de que lo pase a buscar en la sucursal <strong>${order.branch}</strong>
                 </p>
+                <p style="color: #dc3545; margin-top: 10px;">No se pudo cargar el mapa de la sucursal</p>
             </div>
         `;
         return;
     }
+    
+    const branchLat = branch.latitude ? parseFloat(branch.latitude) : 17.9892;
+    const branchLng = branch.longitude ? parseFloat(branch.longitude) : -92.9475;
+    
+    console.log('Latitude:', branch.latitude, '-> parsed:', branchLat);
+    console.log('Longitude:', branch.longitude, '-> parsed:', branchLng);
     
     mapContainer.innerHTML += `
         <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
@@ -752,43 +767,65 @@ async function showTrackingMapPickup(order) {
             <p style="font-size: 1.2em; color: #333; margin-bottom: 15px;">
                 Su pedido está en espera de que lo pase a buscar en la sucursal <strong>${branch.name}</strong>
             </p>
+            <p style="font-size: 0.9em; color: #666;">Coordenadas: ${branchLat}, ${branchLng}</p>
         </div>
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marker-alt"></i> Ubicación de la Sucursal</h4>
-        <div id="clientTrackingMap" style="height: 400px; width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; position: relative; z-index: 1;"></div>
+        <div id="clientTrackingMap" style="height: 400px; width: 100%; border-radius: 8px; margin-top: 10px; border: 2px solid #ddd;"></div>
     `;
     
-    // Esperar a que el DOM se renderice completamente
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const branchLat = parseFloat(branch.latitude) || 17.9892;
-    const branchLng = parseFloat(branch.longitude) || -92.9475;
-    
-    console.log('Coordenadas de sucursal:', branchLat, branchLng);
-    console.log('Branch data:', branch);
-    
-    // Crear el mapa
-    const map = L.map('clientTrackingMap').setView([branchLat, branchLng], 16);
-    
-    // Agregar las tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
-    
-    // Agregar marcador de la sucursal
-    L.marker([branchLat, branchLng], {
-        icon: L.divIcon({
-            className: 'custom-div-icon',
-            html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        })
-    }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
-    
-    // Forzar que el mapa se redibuje correctamente después de un momento
+    // Esperar a que el contenedor esté en el DOM
     setTimeout(() => {
-        map.invalidateSize();
-    }, 250);
+        const mapElement = document.getElementById('clientTrackingMap');
+        console.log('Map element:', mapElement);
+        console.log('Map element dimensions:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
+        
+        if(!mapElement) {
+            console.error('No se encontró el elemento del mapa');
+            return;
+        }
+        
+        try {
+            // Crear el mapa
+            const map = L.map('clientTrackingMap', {
+                center: [branchLat, branchLng],
+                zoom: 16
+            });
+            
+            console.log('Mapa creado');
+            
+            // Agregar las tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            console.log('Tiles agregadas');
+            
+            // Agregar marcador de la sucursal
+            const marker = L.marker([branchLat, branchLng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                })
+            }).addTo(map);
+            
+            console.log('Marcador agregado');
+            
+            marker.bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
+            
+            // Forzar redibujado
+            setTimeout(() => {
+                map.invalidateSize();
+                console.log('Mapa invalidado y redibujado');
+            }, 100);
+            
+        } catch(error) {
+            console.error('Error creando el mapa:', error);
+        }
+        
+    }, 300);
 }
 
 async function updateTrackingMap(order) {
@@ -886,6 +923,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
