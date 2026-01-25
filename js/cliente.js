@@ -755,28 +755,43 @@ async function showTrackingMapPickup(order) {
             </p>
         </div>
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marker-alt"></i> Ubicación de la Sucursal</h4>
-        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+        <div id="clientTrackingMap" style="height: 400px; width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ddd;"></div>
     `;
     mapContainer.appendChild(mapDiv);
     
+    // Esperar a que el DOM se actualice completamente
     setTimeout(() => {
-        const branchLat = branch.latitude || 17.9892;
-        const branchLng = branch.longitude || -92.9475;
+        const branchLat = parseFloat(branch.latitude) || 17.9892;
+        const branchLng = parseFloat(branch.longitude) || -92.9475;
         
-        const map = L.map('clientTrackingMap').setView([branchLat, branchLng], 16);
+        // Crear el mapa
+        const map = L.map('clientTrackingMap', {
+            center: [branchLat, branchLng],
+            zoom: 16,
+            scrollWheelZoom: true
+        });
         
+        // Agregar las tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
         }).addTo(map);
         
+        // Agregar marcador de la sucursal
         L.marker([branchLat, branchLng], {
             icon: L.divIcon({
                 className: 'custom-div-icon',
                 html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
-                iconSize: [40, 40]
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
             })
         }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
-    }, 300);
+        
+        // Forzar que el mapa se redibuje correctamente
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+    }, 500);
 }
 
 async function updateTrackingMap(order) {
@@ -874,4 +889,5 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
