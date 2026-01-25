@@ -744,8 +744,7 @@ async function showTrackingMapPickup(order) {
         return;
     }
     
-    const mapDiv = document.createElement('div');
-    mapDiv.innerHTML = `
+    mapContainer.innerHTML += `
         <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
             <h3 style="color: #667eea; margin-bottom: 10px;">
                 <i class="fas fa-store"></i> Pick-up en Sucursal
@@ -755,43 +754,41 @@ async function showTrackingMapPickup(order) {
             </p>
         </div>
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marker-alt"></i> Ubicación de la Sucursal</h4>
-        <div id="clientTrackingMap" style="height: 400px; width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ddd;"></div>
+        <div id="clientTrackingMap" style="height: 400px; width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; position: relative; z-index: 1;"></div>
     `;
-    mapContainer.appendChild(mapDiv);
     
-    // Esperar a que el DOM se actualice completamente
+    // Esperar a que el DOM se renderice completamente
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const branchLat = parseFloat(branch.latitude) || 17.9892;
+    const branchLng = parseFloat(branch.longitude) || -92.9475;
+    
+    console.log('Coordenadas de sucursal:', branchLat, branchLng);
+    console.log('Branch data:', branch);
+    
+    // Crear el mapa
+    const map = L.map('clientTrackingMap').setView([branchLat, branchLng], 16);
+    
+    // Agregar las tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Agregar marcador de la sucursal
+    L.marker([branchLat, branchLng], {
+        icon: L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        })
+    }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
+    
+    // Forzar que el mapa se redibuje correctamente después de un momento
     setTimeout(() => {
-        const branchLat = parseFloat(branch.latitude) || 17.9892;
-        const branchLng = parseFloat(branch.longitude) || -92.9475;
-        
-        // Crear el mapa
-        const map = L.map('clientTrackingMap', {
-            center: [branchLat, branchLng],
-            zoom: 16,
-            scrollWheelZoom: true
-        });
-        
-        // Agregar las tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-        
-        // Agregar marcador de la sucursal
-        L.marker([branchLat, branchLng], {
-            icon: L.divIcon({
-                className: 'custom-div-icon',
-                html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            })
-        }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
-        
-        // Forzar que el mapa se redibuje correctamente
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 100);
-    }, 500);
+        map.invalidateSize();
+    }, 250);
 }
 
 async function updateTrackingMap(order) {
@@ -889,5 +886,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
