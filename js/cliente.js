@@ -11,41 +11,16 @@ let currentProof = null;
 let prices = {};
 let branches = [];
 let currentOrder = null;
-let currentLocation = null;
+let uploadedFiles = []; // Para almacenar archivos con sus IDs de Drive
 
 // ============================================
 // INICIALIZACIÓN
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Solicitar GPS inmediatamente
-    requestGeolocationPermission();
-    
     loadBranches();
     loadPrices();
 });
-
-function requestGeolocationPermission() {
-    if('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                currentLocation = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                };
-                console.log('Geolocalización activada en cliente');
-            },
-            function(error) {
-                console.error('Error de geolocalización:', error);
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
-            }
-        );
-    }
-}
 
 // ============================================
 // NAVEGACIÓN
@@ -110,7 +85,7 @@ function confirmBranch() {
     document.getElementById('work-config-step').classList.remove('hidden');
 }
 
-function confirmAddress() {
+async function confirmAddress() {
     const street = document.getElementById('deliveryStreet').value.trim();
     const colony = document.getElementById('deliveryColony').value.trim();
     const city = document.getElementById('deliveryCity').value.trim();
@@ -120,23 +95,21 @@ function confirmAddress() {
         return;
     }
 
-    // Crear objeto de dirección
+    // Geocodificar la dirección
+    showLoading(true);
+    const fullAddress = `${street}, ${colony}, ${city}, Tabasco, México`;
+    const coords = await geocodeAddress(fullAddress);
+    showLoading(false);
+
     currentClient.address = {
         street,
         colony,
         city,
         zip: document.getElementById('deliveryZip').value,
-        references: document.getElementById('deliveryReferences').value
+        references: document.getElementById('deliveryReferences').value,
+        latitude: coords.latitude,
+        longitude: coords.longitude
     };
-    
-    // Intentar obtener coordenadas de la dirección
-    // Nota: En producción deberías usar Google Geocoding API
-    // Por ahora usamos coordenadas aproximadas de Villahermosa
-    const baseCoords = { latitude: 17.989, longitude: -92.948 };
-    const variation = Math.random() * 0.02 - 0.01;
-    
-    currentClient.address.latitude = baseCoords.latitude + variation;
-    currentClient.address.longitude = baseCoords.longitude + variation;
 
     document.getElementById('delivery-address-step').classList.add('hidden');
     document.getElementById('work-config-step').classList.remove('hidden');
@@ -230,10 +203,64 @@ function calculateWorkPrice() {
 }
 
 // ============================================
+// SUBIR ARCHIVO A GOOGLE DRIVE
+// ============================================
+
+async function uploadFileToDrive(file, folio, index) {
+    try {
+        const reader = new FileReader();
+        
+        return new Promise((resolve, reject) => {
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                
+                const uploadData = {
+                    action: 'uploadFileToDrive',
+                    fileName: file.name,
+                    fileData: base64Data,
+                    mimeType: file.type,
+                    folio: folio,
+                    fileIndex: index
+                };
+                
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(uploadData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if(result.success) {
+                        resolve({
+                            fileId: result.fileId,
+                            fileUrl: result.fileUrl,
+                            fileName: file.name
+                        });
+                    } else {
+                        reject(new Error('Error al subir archivo: ' + result.message));
+                    }
+                } catch(error) {
+                    reject(error);
+                }
+            };
+            
+            reader.onerror = function() {
+                reject(new Error('Error al leer el archivo'));
+            };
+            
+            reader.readAsDataURL(file);
+        });
+    } catch(error) {
+        throw error;
+    }
+}
+
+// ============================================
 // CARRITO
 // ============================================
 
-function addToCart() {
+async function addToCart() {
     const printType = document.getElementById('printType').value;
     const copies = parseInt(document.getElementById('copies').value) || 1;
     const observations = document.getElementById('workObservations').value;
@@ -406,17 +433,38 @@ async function submitOrder() {
     try {
         const folio = 'ORD-' + new Date().toISOString().split('T')[0].replace(/-/g, '') + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         
-        // 1. Subir archivos a Drive
-        const fileUrls = await uploadFilesToDrive(folio);
+        // Subir archivos a Google Drive
+        uploadedFiles = [];
+        for(let i = 0; i < cart.length; i++) {
+            const work = cart[i];
+            try {
+                const fileInfo = await uploadFileToDrive(work.fileData, folio, i);
+                uploadedFiles.push(fileInfo);
+            } catch(error) {
+                console.error('Error subiendo archivo:', error);
+                alert('Error al subir archivo: ' + work.fileName);
+                showLoading(false);
+                return;
+            }
+        }
         
-        // 2. Crear orden con URLs de archivos
+        // Subir comprobante de pago si existe
+        let proofFileInfo = null;
+        if(currentProof) {
+            try {
+                proofFileInfo = await uploadFileToDrive(currentProof, folio, 'comprobante');
+            } catch(error) {
+                console.error('Error subiendo comprobante:', error);
+            }
+        }
+        
         const orderData = {
             action: 'createOrder',
             folio: folio,
             client: currentClient,
             serviceType: currentService,
             branch: currentBranch,
-            works: cart.map(w => ({
+            works: cart.map((w, idx) => ({
                 fileName: w.fileName,
                 printType: w.printType,
                 copies: w.copies,
@@ -426,14 +474,18 @@ async function submitOrder() {
                 finishing: w.finishing,
                 urgency: w.urgency,
                 observations: w.observations,
-                price: w.price
+                price: w.price,
+                fileId: uploadedFiles[idx].fileId,
+                fileUrl: uploadedFiles[idx].fileUrl
             })),
             paymentMethod: method,
             subtotal: parseFloat(document.getElementById('subtotal').textContent),
             deliveryCost: currentService === 'delivery' ? parseFloat(document.getElementById('deliveryCost').textContent) : 0,
             total: parseFloat(document.getElementById('total').textContent),
             status: 'new',
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            proofFileId: proofFileInfo ? proofFileInfo.fileId : null,
+            proofFileUrl: proofFileInfo ? proofFileInfo.fileUrl : null
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -444,17 +496,6 @@ async function submitOrder() {
         const result = await response.json();
         
         if(result.success) {
-            // 3. Actualizar orden con URLs de archivos
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'updateOrder',
-                    folio: folio,
-                    fileUrls: fileUrls
-                })
-            });
-            
-            orderData.fileUrls = fileUrls;
             showTicket(orderData);
         } else {
             alert('Error al crear pedido: ' + result.message);
@@ -464,91 +505,6 @@ async function submitOrder() {
     } finally {
         showLoading(false);
     }
-}
-
-async function uploadFilesToDrive(folio) {
-    const fileUrls = [];
-    
-    try {
-        // Subir archivos de trabajos
-        for(let i = 0; i < cart.length; i++) {
-            const work = cart[i];
-            if(work.fileData) {
-                const fileUrl = await uploadSingleFile(work.fileData, `${folio}_trabajo_${i+1}_${work.fileName}`);
-                if(fileUrl) {
-                    fileUrls.push({
-                        type: 'work',
-                        workIndex: i,
-                        fileName: work.fileName,
-                        url: fileUrl.fileUrl,
-                        downloadUrl: fileUrl.downloadUrl
-                    });
-                }
-            }
-        }
-        
-        // Subir comprobante de pago
-        if(currentProof) {
-            const proofUrl = await uploadSingleFile(currentProof, `${folio}_comprobante.${currentProof.name.split('.').pop()}`);
-            if(proofUrl) {
-                fileUrls.push({
-                    type: 'proof',
-                    fileName: currentProof.name,
-                    url: proofUrl.fileUrl,
-                    downloadUrl: proofUrl.downloadUrl
-                });
-            }
-        }
-        
-    } catch(error) {
-        console.error('Error subiendo archivos:', error);
-    }
-    
-    return fileUrls;
-}
-
-async function uploadSingleFile(file, fileName) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = async function(e) {
-            try {
-                const base64Data = e.target.result.split(',')[1];
-                
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'uploadFile',
-                        fileName: fileName,
-                        fileData: base64Data,
-                        mimeType: file.type
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if(result.success) {
-                    resolve({
-                        fileUrl: result.fileUrl,
-                        downloadUrl: result.downloadUrl
-                    });
-                } else {
-                    console.error('Error subiendo archivo:', result.message);
-                    resolve(null);
-                }
-            } catch(error) {
-                console.error('Error en upload:', error);
-                resolve(null);
-            }
-        };
-        
-        reader.onerror = function() {
-            console.error('Error leyendo archivo');
-            resolve(null);
-        };
-        
-        reader.readAsDataURL(file);
-    });
 }
 
 // ============================================
@@ -624,6 +580,7 @@ function resetAll() {
     currentFile = null;
     currentProof = null;
     currentOrder = null;
+    uploadedFiles = [];
     
     document.getElementById('client-info-step').classList.remove('hidden');
     document.getElementById('service-type-step').classList.add('hidden');
@@ -674,22 +631,12 @@ function displayTracking(order) {
             <h3>Pedido ${order.folio}</h3>
             <p><strong>Estado:</strong> <span class="order-status ${statusClass}">${statusText}</span></p>
             <p><strong>Cliente:</strong> ${order.client.name}</p>
-            <p><strong>Total:</strong> $${order.total}</p>
+            <p><strong>Total:</strong> ${order.total}</p>
             <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
             ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
         </div>
     `;
     
-    // MOSTRAR MAPA SEGÚN TIPO DE SERVICIO
-    if(order.serviceType === 'delivery' && order.status === 'delivering') {
-        // Delivery en camino - mostrar ubicación del repartidor
-        showDeliveryTrackingMap(order.folio);
-    } else if(order.serviceType === 'pickup') {
-        // Pickup - mostrar ubicación de sucursal
-        showPickupBranchMap(order.branch);
-    }
-    
-    // Historial
     if(order.history && order.history.length > 0) {
         results.innerHTML += '<h4 style="margin-top: 20px;"><i class="fas fa-history"></i> Historial</h4>';
         const timelineDiv = document.createElement('div');
@@ -713,9 +660,23 @@ function displayTracking(order) {
         
         results.appendChild(timelineDiv);
     }
+    
+    // Mostrar mapa según el tipo de servicio
+    if(order.serviceType === 'delivery') {
+        if(order.status === 'delivering') {
+            // Pedido en camino - mostrar ubicación del repartidor
+            showTrackingMapWithDelivery(order);
+        } else {
+            // Pedido aún no sale - solo mostrar destino
+            showTrackingMapDestinationOnly(order);
+        }
+    } else {
+        // Pickup - mostrar sucursal
+        showTrackingMapPickup(order);
+    }
 }
 
-async function showDeliveryTrackingMap(folio) {
+async function showTrackingMapWithDelivery(order) {
     const mapContainer = document.getElementById('trackingResults');
     
     const mapDiv = document.createElement('div');
@@ -725,23 +686,53 @@ async function showDeliveryTrackingMap(folio) {
     `;
     mapContainer.appendChild(mapDiv);
     
-    setTimeout(() => updateTrackingMap(folio), 300);
+    setTimeout(() => updateTrackingMap(order), 300);
 }
 
-async function showPickupBranchMap(branchName) {
+async function showTrackingMapDestinationOnly(order) {
     const mapContainer = document.getElementById('trackingResults');
     
-    // Buscar datos de la sucursal
-    const branch = branches.find(b => b.name === branchName);
+    const mapDiv = document.createElement('div');
+    mapDiv.innerHTML = `
+        <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Dirección de Entrega</h4>
+        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+    `;
+    mapContainer.appendChild(mapDiv);
+    
+    setTimeout(() => {
+        const address = order.address;
+        const destLat = address.latitude || 17.9892;
+        const destLng = address.longitude || -92.9475;
+        
+        const map = L.map('clientTrackingMap').setView([destLat, destLng], 15);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        L.marker([destLat, destLng], {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: '<div style="background-color:#dc3545;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-home" style="color:white;"></i></div>',
+                iconSize: [30, 30]
+            })
+        }).addTo(map).bindPopup('Tu dirección').openPopup();
+    }, 300);
+}
+
+async function showTrackingMapPickup(order) {
+    const mapContainer = document.getElementById('trackingResults');
+    
+    const branch = branches.find(b => b.name === order.branch);
     
     if(!branch) {
         mapContainer.innerHTML += `
-            <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <h3 style="color: #856404;">
-                    <i class="fas fa-store"></i> Su pedido está listo para recoger
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">
+                    <i class="fas fa-store"></i> Pick-up en Sucursal
                 </h3>
-                <p style="font-size: 1.2em; margin: 15px 0;">
-                    Puede pasar a la sucursal <strong>${branchName}</strong> a recoger su pedido
+                <p style="font-size: 1.2em; color: #333;">
+                    Su pedido está en espera de que lo pase a buscar en la sucursal <strong>${order.branch}</strong>
                 </p>
             </div>
         `;
@@ -750,49 +741,50 @@ async function showPickupBranchMap(branchName) {
     
     const mapDiv = document.createElement('div');
     mapDiv.innerHTML = `
-        <div style="margin-top: 20px; padding: 20px; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
-            <h3 style="color: #0c5460;">
-                <i class="fas fa-store"></i> Su pedido está en espera - Pase a recogerlo
+        <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <h3 style="color: #667eea; margin-bottom: 10px;">
+                <i class="fas fa-store"></i> Pick-up en Sucursal
             </h3>
-            <p style="font-size: 1.3em; margin: 15px 0;">
-                Sucursal: <strong>${branch.name}</strong>
-            </p>
-            <p style="margin: 10px 0;">
-                <i class="fas fa-map-marker-alt"></i> ${branch.address}
-            </p>
-            <p style="margin: 10px 0;">
-                <i class="fas fa-phone"></i> ${branch.phone}
+            <p style="font-size: 1.2em; color: #333; margin-bottom: 15px;">
+                Su pedido está en espera de que lo pase a buscar en la sucursal <strong>${branch.name}</strong>
             </p>
         </div>
-        <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación de la Sucursal</h4>
-        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
-    `;
-    mapContainer.appendChild(mapDiv);
+        <h4 style="margin-top: 20px;"><i class="fas fa-map-marker-alt"></i> Ubicación de la Sucursal</h4>
+        <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>`;
+
+    
+mapContainer.appendChild(mapDiv);
     
     setTimeout(() => {
-        const map = L.map('clientTrackingMap').setView([branch.latitude, branch.longitude], 15);
+        const branchLat = branch.latitude || 17.9892;
+        const branchLng = branch.longitude || -92.9475;
+        
+        const map = L.map('clientTrackingMap').setView([branchLat, branchLng], 16);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        L.marker([branch.latitude, branch.longitude], {
+        L.marker([branchLat, branchLng], {
             icon: L.divIcon({
                 className: 'custom-div-icon',
-                html: '<div style="background-color:#17a2b8;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:24px;"></i></div>',
-                iconSize: [50, 50]
+                html: '<div style="background-color:#667eea;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-store" style="color:white;font-size:20px;"></i></div>',
+                iconSize: [40, 40]
             })
         }).addTo(map).bindPopup(`<strong>${branch.name}</strong><br>${branch.address}`).openPopup();
     }, 300);
 }
 
-async function updateTrackingMap(folio) {
+async function updateTrackingMap(order) {
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + order.folio);
         const result = await response.json();
         
         if(result.success && result.location) {
             const loc = result.location;
+            const address = order.address;
+            const destLat = address.latitude || 17.9892;
+            const destLng = address.longitude || -92.9475;
             
             const trackMap = L.map('clientTrackingMap').setView([loc.latitude, loc.longitude], 15);
             
@@ -800,7 +792,17 @@ async function updateTrackingMap(folio) {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(trackMap);
             
-            L.marker([loc.latitude, loc.longitude], {
+            // Marcador del destino
+            L.marker([destLat, destLng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color:#dc3545;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-home" style="color:white;"></i></div>',
+                    iconSize: [30, 30]
+                })
+            }).addTo(trackMap).bindPopup('Tu dirección');
+            
+            // Marcador del repartidor
+            const deliveryMarker = L.marker([loc.latitude, loc.longitude], {
                 icon: L.divIcon({
                     className: 'custom-div-icon',
                     html: '<div style="background-color:#ffc107;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:24px;"></i></div>',
@@ -808,7 +810,8 @@ async function updateTrackingMap(folio) {
                 })
             }).addTo(trackMap).bindPopup('Tu pedido está en camino').openPopup();
             
-            setInterval(() => refreshDeliveryLocation(folio, trackMap), 10000);
+            // Actualizar cada 10 segundos
+            setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker), 10000);
         } else {
             document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha iniciado el recorrido</p>';
         }
@@ -817,20 +820,15 @@ async function updateTrackingMap(folio) {
     }
 }
 
-async function refreshDeliveryLocation(folio, map) {
+async function refreshDeliveryLocation(folio, map, marker) {
     try {
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
         const result = await response.json();
         
         if(result.success && result.location) {
             const loc = result.location;
+            marker.setLatLng([loc.latitude, loc.longitude]);
             map.setView([loc.latitude, loc.longitude], 15);
-            
-            map.eachLayer(layer => {
-                if(layer instanceof L.Marker) {
-                    layer.setLatLng([loc.latitude, loc.longitude]);
-                }
-            });
         }
     } catch(error) {
         console.error('Error actualizando ubicación:', error);
@@ -840,34 +838,35 @@ async function refreshDeliveryLocation(folio, map) {
 // ============================================
 // CARGA DE DATOS
 // ============================================
+
 async function loadPrices() {
-try {
-const response = await fetch(SCRIPT_URL + '?action=getPrices');
-const result = await response.json();
-if(result.success) {
-prices = result.prices;
-}
-} catch(error) {
-console.error('Error cargando precios:', error);
- }
-}
-async function loadBranches() {
-try {
-const response = await fetch(SCRIPT_URL + '?action=getBranches');
-const result = await response.json();
-if(result.success) {
-branches = result.branches;
-const select = document.getElementById('branchSelect');
-select.innerHTML = '<option value="">Selecciona una sucursal</option>';
-branches.forEach(b => {
-const option = document.createElement('option');
-option.value = b.name;
-option.textContent = b.name + ' - ' + b.address;
-select.appendChild(option);
-});
-}
-} catch(error) {
-console.error('Error cargando sucursales:', error);
- }
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getPrices');
+        const result = await response.json();
+        if(result.success) {
+            prices = result.prices;
+        }
+    } catch(error) {
+        console.error('Error cargando precios:', error);
+    }
 }
 
+async function loadBranches() {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getBranches');
+        const result = await response.json();
+        if(result.success) {
+            branches = result.branches;
+            const select = document.getElementById('branchSelect');
+            select.innerHTML = '<option value="">Selecciona una sucursal</option>';
+            branches.forEach(b => {
+                const option = document.createElement('option');
+                option.value = b.name;
+                option.textContent = b.name + ' - ' + b.address;
+                select.appendChild(option);
+            });
+        }
+    } catch(error) {
+        console.error('Error cargando sucursales:', error);
+    }
+}
