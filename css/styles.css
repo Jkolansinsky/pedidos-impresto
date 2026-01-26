@@ -701,6 +701,72 @@ table tbody tr:hover {
 }
 
 /* ============================================
+   AUTH TABS (LOGIN/REGISTRO)
+   ============================================ */
+
+.tab-auth {
+    flex: 1;
+    padding: 15px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 600;
+    transition: all 0.3s;
+    color: #666;
+}
+
+.tab-auth:hover {
+    background: #f8f9fa;
+}
+
+.tab-auth.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.auth-tab {
+    display: none;
+}
+
+.auth-tab.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+/* ============================================
+   PHOTO UPLOAD
+   ============================================ */
+
+.photo-upload-container {
+    border: 2px dashed #667eea;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.photo-preview {
+    text-align: center;
+}
+
+.photo-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    border: 3px solid #28a745;
+}
+
+.photo-capture {
+    text-align: center;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+/* ============================================
    RESPONSIVE
    ============================================ */
 
@@ -748,5 +814,6 @@ table tbody tr:hover {
     }
 
 }
+
 
 
