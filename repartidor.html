@@ -10,8 +10,21 @@
 </head>
 <body>
     <!-- Login -->
-    <div id="loginSection">
-        <div class="container" style="max-width: 500px; margin-top: 100px;">
+    <!-- Login y Registro -->
+<div id="loginSection">
+    <div class="container" style="max-width: 500px; margin-top: 100px;">
+        <!-- Tabs para Login/Registro -->
+        <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
+            <button id="tabLogin" class="tab-auth active" onclick="showAuthTab('login')">
+                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+            </button>
+            <button id="tabRegister" class="tab-auth" onclick="showAuthTab('register')">
+                <i class="fas fa-user-plus"></i> Registrarse
+            </button>
+        </div>
+
+        <!-- Tab Login -->
+        <div id="loginTab" class="auth-tab active">
             <div class="header">
                 <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
                 <p>Inicia sesión para gestionar entregas</p>
@@ -36,7 +49,72 @@
                 </div>
             </div>
         </div>
+
+        <!-- Tab Registro -->
+        <div id="registerTab" class="auth-tab">
+            <div class="header">
+                <h1><i class="fas fa-user-plus"></i> Registro de Repartidor</h1>
+                <p>Crea tu cuenta para comenzar</p>
+            </div>
+            <div class="content">
+                <div class="form-group">
+                    <label>Nombre Completo *</label>
+                    <input type="text" id="regFullName" placeholder="Ej: Juan Pérez López">
+                </div>
+                <div class="form-group">
+                    <label>Nombre de Usuario *</label>
+                    <input type="text" id="regUsername" placeholder="Ej: juan.perez">
+                    <small>Mínimo 3 caracteres, sin espacios</small>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña *</label>
+                    <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar Contraseña *</label>
+                    <input type="password" id="regPasswordConfirm" placeholder="Repite tu contraseña">
+                </div>
+                <div class="form-group">
+                    <label>Foto del Rostro *</label>
+                    <div class="photo-upload-container">
+                        <div id="photoPreview" class="photo-preview hidden">
+                            <img id="photoImg" src="" alt="Vista previa">
+                            <button class="btn btn-danger btn-sm" onclick="removePhoto()" style="margin-top: 10px;">
+                                <i class="fas fa-trash"></i> Cambiar Foto
+                            </button>
+                        </div>
+                        <div id="photoCapture" class="photo-capture">
+                            <video id="videoPreview" autoplay style="width: 100%; max-width: 300px; border-radius: 8px; display: none;"></video>
+                            <canvas id="photoCanvas" style="display: none;"></canvas>
+                            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center;">
+                                <button type="button" class="btn btn-primary" onclick="startCamera()">
+                                    <i class="fas fa-camera"></i> Abrir Cámara
+                                </button>
+                                <button type="button" id="takePicBtn" class="btn btn-success hidden" onclick="takePicture()">
+                                    <i class="fas fa-camera-retro"></i> Tomar Foto
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('photoFileInput').click()">
+                                    <i class="fas fa-upload"></i> Subir Archivo
+                                </button>
+                            </div>
+                            <input type="file" id="photoFileInput" accept="image/*" style="display: none;" onchange="handlePhotoUpload()">
+                        </div>
+                    </div>
+                </div>
+                <div id="registerError" class="alert alert-error hidden"></div>
+                <div id="registerSuccess" class="alert alert-success hidden"></div>
+                <button class="btn btn-success" onclick="registerDelivery()" style="width: 100%;">
+                    <i class="fas fa-user-check"></i> Registrarse
+                </button>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="index.html" style="color: #667eea;">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
     <!-- Panel Repartidor -->
     <div id="deliveryPanel" class="hidden">
@@ -117,4 +195,5 @@
     <script src="js/config.js"></script>
     <script src="js/repartidor.js"></script>
 </body>
+
 </html>
