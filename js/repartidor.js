@@ -11,6 +11,295 @@ let destinationMarker = null;
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
+// ============================================
+// VARIABLES PARA REGISTRO
+// ============================================
+let videoStream = null;
+let capturedPhoto = null;
+let photoBlob = null;
+
+// ============================================
+// FUNCIONES DE AUTENTICACIÓN (LOGIN/REGISTRO)
+// ============================================
+
+function showAuthTab(tab) {
+    // Limpiar mensajes de error
+    document.getElementById('loginError').classList.add('hidden');
+    document.getElementById('registerError').classList.add('hidden');
+    document.getElementById('registerSuccess').classList.add('hidden');
+    
+    // Cambiar tabs
+    document.querySelectorAll('.tab-auth').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    
+    if(tab === 'login') {
+        document.getElementById('tabLogin').classList.add('active');
+        document.getElementById('loginTab').classList.add('active');
+    } else {
+        document.getElementById('tabRegister').classList.add('active');
+        document.getElementById('registerTab').classList.add('active');
+    }
+}
+
+// ============================================
+// CAPTURA DE FOTO
+// ============================================
+
+async function startCamera() {
+    try {
+        // Solicitar acceso a la cámara
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: 'user',
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            } 
+        });
+        
+        const video = document.getElementById('videoPreview');
+        video.srcObject = videoStream;
+        video.style.display = 'block';
+        
+        document.getElementById('takePicBtn').classList.remove('hidden');
+        
+    } catch(error) {
+        console.error('Error accediendo a la cámara:', error);
+        alert('No se pudo acceder a la cámara. Por favor, sube una foto desde archivo.');
+    }
+}
+
+function takePicture() {
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('photoCanvas');
+    const context = canvas.getContext('2d');
+    
+    // Configurar tamaño del canvas
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Capturar frame del video
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convertir a blob
+    canvas.toBlob(function(blob) {
+        photoBlob = blob;
+        const url = URL.createObjectURL(blob);
+        
+        // Mostrar preview
+        document.getElementById('photoImg').src = url;
+        document.getElementById('photoPreview').classList.remove('hidden');
+        document.getElementById('photoCapture').classList.add('hidden');
+        
+        // Detener cámara
+        stopCamera();
+        
+    }, 'image/jpeg', 0.8);
+}
+
+function handlePhotoUpload() {
+    const input = document.getElementById('photoFileInput');
+    if(input.files.length > 0) {
+        const file = input.files[0];
+        
+        // Validar que sea imagen
+        if(!file.type.startsWith('image/')) {
+            alert('Por favor selecciona una imagen válida');
+            return;
+        }
+        
+        // Validar tamaño (máx 5MB)
+        if(file.size > 5 * 1024 * 1024) {
+            alert('La imagen es muy grande. Máximo 5MB');
+            return;
+        }
+        
+        photoBlob = file;
+        const url = URL.createObjectURL(file);
+        
+        // Mostrar preview
+        document.getElementById('photoImg').src = url;
+        document.getElementById('photoPreview').classList.remove('hidden');
+        document.getElementById('photoCapture').classList.add('hidden');
+    }
+}
+
+function removePhoto() {
+    photoBlob = null;
+    document.getElementById('photoImg').src = '';
+    document.getElementById('photoPreview').classList.add('hidden');
+    document.getElementById('photoCapture').classList.remove('hidden');
+    document.getElementById('photoFileInput').value = '';
+}
+
+function stopCamera() {
+    if(videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
+    
+    const video = document.getElementById('videoPreview');
+    video.style.display = 'none';
+    video.srcObject = null;
+    
+    document.getElementById('takePicBtn').classList.add('hidden');
+}
+
+// ============================================
+// REGISTRO DE REPARTIDOR
+// ============================================
+
+async function registerDelivery() {
+    const fullName = document.getElementById('regFullName').value.trim();
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value.trim();
+    const passwordConfirm = document.getElementById('regPasswordConfirm').value.trim();
+    const errorDiv = document.getElementById('registerError');
+    const successDiv = document.getElementById('registerSuccess');
+
+    // Limpiar mensajes previos
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+
+    // Validaciones
+    if(!fullName || !username || !password || !passwordConfirm) {
+        errorDiv.textContent = 'Por favor completa todos los campos obligatorios';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(username.length < 3) {
+        errorDiv.textContent = 'El nombre de usuario debe tener al menos 3 caracteres';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(/\s/.test(username)) {
+        errorDiv.textContent = 'El nombre de usuario no puede contener espacios';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(password.length < 6) {
+        errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(password !== passwordConfirm) {
+        errorDiv.textContent = 'Las contraseñas no coinciden';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(!photoBlob) {
+        errorDiv.textContent = 'Debes tomar o subir una foto de tu rostro';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        // 1. Subir foto a Drive
+        const photoData = await uploadPhotoToDrive(photoBlob, username);
+        
+        if(!photoData.success) {
+            throw new Error('Error al subir la foto');
+        }
+
+        // 2. Crear usuario en Google Sheets
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'createUser',
+                username: username,
+                password: password,
+                role: 'delivery',
+                name: fullName,
+                photoFileId: photoData.fileId,
+                photoFileUrl: photoData.fileUrl
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            successDiv.innerHTML = `
+                <strong>¡Registro exitoso!</strong><br>
+                Tu cuenta ha sido creada correctamente.<br>
+                Ahora puedes iniciar sesión con tus credenciales.
+            `;
+            successDiv.classList.remove('hidden');
+            
+            // Limpiar formulario
+            document.getElementById('regFullName').value = '';
+            document.getElementById('regUsername').value = '';
+            document.getElementById('regPassword').value = '';
+            document.getElementById('regPasswordConfirm').value = '';
+            removePhoto();
+            
+            // Cambiar a tab de login después de 3 segundos
+            setTimeout(() => {
+                showAuthTab('login');
+            }, 3000);
+            
+        } else {
+            errorDiv.textContent = result.message || 'Error al crear la cuenta. Por favor intenta nuevamente.';
+            errorDiv.classList.remove('hidden');
+        }
+        
+    } catch(error) {
+        console.error('Error en registro:', error);
+        errorDiv.textContent = 'Error al registrar: ' + error.message;
+        errorDiv.classList.remove('hidden');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function uploadPhotoToDrive(blob, username) {
+    try {
+        // Convertir blob a base64
+        const reader = new FileReader();
+        
+        return new Promise((resolve, reject) => {
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                
+                const uploadData = {
+                    action: 'uploadDriverPhoto',
+                    fileName: `foto_${username}_${Date.now()}.jpg`,
+                    fileData: base64Data,
+                    mimeType: 'image/jpeg',
+                    username: username
+                };
+                
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(uploadData)
+                    });
+                    
+                    const result = await response.json();
+                    resolve(result);
+                    
+                } catch(error) {
+                    reject(error);
+                }
+            };
+            
+            reader.onerror = function() {
+                reject(new Error('Error al leer la imagen'));
+            };
+            
+            reader.readAsDataURL(blob);
+        });
+        
+    } catch(error) {
+        throw error;
+    }
+}
+
 
 // ============================================
 // INICIALIZACIÓN
@@ -510,8 +799,11 @@ function cancelActiveDelivery() {
 }
 
 // ============================================
-// CLEANUP
+// CLEANUP ADICIONAL PARA CÁMARA
 // ============================================
+
+// Modificar la función existente window.addEventListener('beforeunload')
+
 
 window.addEventListener('beforeunload', function() {
     if(updateInterval) {
@@ -523,7 +815,12 @@ window.addEventListener('beforeunload', function() {
     if(deliveryMap) {
         deliveryMap.remove();
     }
+    // Nuevo: Detener cámara si está activa
+    stopCamera();
 });
+
+
+
 
 
 
