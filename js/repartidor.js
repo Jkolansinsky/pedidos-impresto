@@ -200,14 +200,22 @@ async function registerDelivery() {
     showLoading(true);
 
     try {
+        console.log('=== INICIANDO REGISTRO ===');
+        console.log('Usuario:', username);
+        console.log('Nombre completo:', fullName);
+        
         // 1. Subir foto a Drive
+        console.log('Paso 1: Subiendo foto...');
         const photoData = await uploadPhotoToDrive(photoBlob, username);
         
+        console.log('Foto subida exitosamente:', photoData);
+        
         if(!photoData.success) {
-            throw new Error('Error al subir la foto');
+            throw new Error(photoData.message || 'Error al subir la foto');
         }
 
         // 2. Crear usuario en Google Sheets
+        console.log('Paso 2: Creando usuario en Sheets...');
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -222,6 +230,8 @@ async function registerDelivery() {
         });
 
         const result = await response.json();
+        
+        console.log('Resultado de creación de usuario:', result);
         
         if(result.success) {
             successDiv.innerHTML = `
@@ -241,6 +251,7 @@ async function registerDelivery() {
             // Cambiar a tab de login después de 3 segundos
             setTimeout(() => {
                 showAuthTab('login');
+                successDiv.classList.add('hidden');
             }, 3000);
             
         } else {
@@ -249,7 +260,10 @@ async function registerDelivery() {
         }
         
     } catch(error) {
-        console.error('Error en registro:', error);
+        console.error('=== ERROR EN REGISTRO ===');
+        console.error('Error completo:', error);
+        console.error('Stack:', error.stack);
+        
         errorDiv.textContent = 'Error al registrar: ' + error.message;
         errorDiv.classList.remove('hidden');
     } finally {
@@ -259,36 +273,54 @@ async function registerDelivery() {
 
 async function uploadPhotoToDrive(blob, username) {
     try {
+        console.log('Iniciando subida de foto para:', username);
+        console.log('Tamaño del blob:', blob.size);
+        
         // Convertir blob a base64
         const reader = new FileReader();
         
         return new Promise((resolve, reject) => {
             reader.onload = async function(e) {
-                const base64Data = e.target.result.split(',')[1];
-                
-                const uploadData = {
-                    action: 'uploadDriverPhoto',
-                    fileName: `foto_${username}_${Date.now()}.jpg`,
-                    fileData: base64Data,
-                    mimeType: 'image/jpeg',
-                    username: username
-                };
-                
                 try {
+                    const base64Data = e.target.result.split(',')[1];
+                    
+                    console.log('Base64 generado, longitud:', base64Data.length);
+                    
+                    const uploadData = {
+                        action: 'uploadDriverPhoto',
+                        fileName: `foto_${username}_${Date.now()}.jpg`,
+                        fileData: base64Data,
+                        mimeType: 'image/jpeg',
+                        username: username
+                    };
+                    
+                    console.log('Enviando datos al servidor...');
+                    
                     const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
                         body: JSON.stringify(uploadData)
                     });
                     
+                    console.log('Respuesta recibida');
+                    
                     const result = await response.json();
-                    resolve(result);
+                    
+                    console.log('Resultado:', result);
+                    
+                    if(result.success) {
+                        resolve(result);
+                    } else {
+                        reject(new Error(result.message || 'Error desconocido al subir foto'));
+                    }
                     
                 } catch(error) {
+                    console.error('Error en proceso de subida:', error);
                     reject(error);
                 }
             };
             
-            reader.onerror = function() {
+            reader.onerror = function(error) {
+                console.error('Error al leer el blob:', error);
                 reject(new Error('Error al leer la imagen'));
             };
             
@@ -296,10 +328,10 @@ async function uploadPhotoToDrive(blob, username) {
         });
         
     } catch(error) {
+        console.error('Error general en uploadPhotoToDrive:', error);
         throw error;
     }
 }
-
 
 // ============================================
 // INICIALIZACIÓN
@@ -818,6 +850,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
