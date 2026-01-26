@@ -12,6 +12,7 @@ let prices = {};
 let branches = [];
 let currentOrder = null;
 let uploadedFiles = []; // Para almacenar archivos con sus IDs de Drive
+let deliveryPersonData = null; // Datos del repartidor
 
 // ============================================
 // INICIALIZACIÓN
@@ -683,8 +684,16 @@ function displayTracking(order) {
 async function showTrackingMapWithDelivery(order) {
     const mapContainer = document.getElementById('trackingResults');
     
+    // Obtener datos del repartidor
+    if(order.deliveryPerson) {
+        deliveryPersonData = await getDeliveryPersonData(order.deliveryPerson);
+    }
+    
+    const deliveryPersonHTML = deliveryPersonData ? renderDeliveryPersonInfo(deliveryPersonData) : '';
+    
     const mapDiv = document.createElement('div');
     mapDiv.innerHTML = `
+        ${deliveryPersonHTML}
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación en Tiempo Real</h4>
         <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
     `;
@@ -889,6 +898,57 @@ async function refreshDeliveryLocation(folio, map, marker) {
 }
 
 // ============================================
+// OBTENER DATOS DEL REPARTIDOR
+// ============================================
+
+async function getDeliveryPersonData(username) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryPersonData&username=' + username);
+        const result = await response.json();
+        
+        if(result.success) {
+            return result.userData;
+        }
+        return null;
+    } catch(error) {
+        console.error('Error obteniendo datos del repartidor:', error);
+        return null;
+    }
+}
+
+function renderDeliveryPersonInfo(deliveryPerson) {
+    if(!deliveryPerson) return '';
+    
+    const photoUrl = deliveryPerson.photoUrl || 'https://via.placeholder.com/100?text=Sin+Foto';
+    
+    return `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+            <div style="flex-shrink: 0;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                    <img src="${photoUrl}" alt="${deliveryPerson.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/100?text=Sin+Foto'">
+                </div>
+            </div>
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <i class="fas fa-motorcycle" style="font-size: 1.5em;"></i>
+                    <h3 style="margin: 0; font-size: 1.3em;">${deliveryPerson.name}</h3>
+                </div>
+                <p style="margin: 0; font-size: 1.1em; opacity: 0.95;">
+                    <i class="fas fa-route"></i> 
+                    <strong>${deliveryPerson.name}</strong> está en camino a tu domicilio
+                </p>
+            </div>
+            <div style="flex-shrink: 0;">
+                <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 20px; text-align: center;">
+                    <i class="fas fa-clock" style="font-size: 1.2em;"></i>
+                    <div style="font-size: 0.9em; margin-top: 5px;">En tránsito</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ============================================
 // CARGA DE DATOS
 // ============================================
 
@@ -923,6 +983,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
