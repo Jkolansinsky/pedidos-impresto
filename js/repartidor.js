@@ -704,7 +704,7 @@ function continueDelivery(order) {
 }
 
 function startGPSTracking(order) {
-    // Iniciar seguimiento continuo de ubicación
+    // Iniciar seguimiento continuo de ubicación con opciones mejoradas
     if('geolocation' in navigator) {
         gpsWatchId = navigator.geolocation.watchPosition(
             function(position) {
@@ -712,6 +712,8 @@ function startGPSTracking(order) {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 };
+                
+                console.log('📍 Ubicación actualizada:', currentLocation);
                 
                 // Actualizar ubicación en el servidor
                 updateLocationOnServer(order.folio, currentLocation);
@@ -724,11 +726,20 @@ function startGPSTracking(order) {
             },
             function(error) {
                 console.error('Error GPS:', error);
+                
+                // Mostrar mensajes más amigables según el tipo de error
+                if(error.code === 1) {
+                    console.warn('⚠️ Permisos de ubicación denegados');
+                } else if(error.code === 2) {
+                    console.warn('⚠️ Ubicación no disponible');
+                } else if(error.code === 3) {
+                    console.warn('⚠️ Timeout de GPS - intentando nuevamente...');
+                }
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 5000
+                timeout: 30000,        // Aumentado a 30 segundos
+                maximumAge: 10000      // Aceptar ubicaciones de hasta 10 segundos de antigüedad
             }
         );
     }
@@ -796,11 +807,19 @@ function initDeliveryMap(order) {
     // Usar ubicación actual del repartidor
     const startLat = userCurrentLocation ? userCurrentLocation.latitude : 17.989;
     const startLng = userCurrentLocation ? userCurrentLocation.longitude : -92.948;
+
+    console.log('=== INICIANDO MAPA DE ENTREGA ===');
+    console.log('Pedido completo:', order);
+    console.log('Dirección del cliente:', order.address);
     
     // Coordenadas del destino del cliente
     const address = order.address;
     const destLat = address.latitude || 17.9892;
     const destLng = address.longitude || -92.9475;
+
+    console.log('Coordenadas de inicio (repartidor):', { lat: startLat, lng: startLng });
+    console.log('Coordenadas de destino (cliente):', { lat: destLat, lng: destLng });
+    
     
     // Crear mapa
     if(deliveryMap) {
@@ -943,6 +962,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
