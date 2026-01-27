@@ -926,13 +926,30 @@ async function getDeliveryPersonData(username) {
 }
 
 function renderDeliveryPersonInfo(deliveryPerson) {
-    if(!deliveryPerson) return '';
+    if(!deliveryPerson) {
+        console.warn('No hay datos del repartidor para mostrar');
+        return '';
+    }
     
-    // SVG de placeholder como fallback (ícono de usuario)
+    console.log('=== RENDERIZANDO INFO DEL REPARTIDOR ===');
+    console.log('Datos completos:', deliveryPerson);
+    console.log('Photo URL:', deliveryPerson.photoUrl);
+    
+    // SVG de placeholder solo como ÚLTIMO recurso si no hay foto
     const placeholderSVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+agTwvdGV4dD48L3N2Zz4=';
     
-    const photoUrl = deliveryPerson.photoUrl || placeholderSVG;
+    // Usar la foto del repartidor SI EXISTE, sino usar placeholder
+    const photoUrl = (deliveryPerson.photoUrl && deliveryPerson.photoUrl.trim() !== '') 
+        ? deliveryPerson.photoUrl 
+        : placeholderSVG;
+    
+    console.log('URL final a usar:', photoUrl);
+    
     const deliveryName = deliveryPerson.name || deliveryPerson.username || 'Repartidor';
+    
+    // Agregar evento onload para verificar que la imagen cargó
+    const imgOnLoad = `console.log('✅ Foto del repartidor cargada correctamente');`;
+    const imgOnError = `console.error('❌ Error cargando foto del repartidor'); this.src='${placeholderSVG}';`;
     
     return `
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
@@ -941,7 +958,8 @@ function renderDeliveryPersonInfo(deliveryPerson) {
                     <img src="${photoUrl}" 
                          alt="${deliveryName}" 
                          style="width: 100%; height: 100%; object-fit: cover;"
-                         onerror="this.src='${placeholderSVG}'">
+                         onload="${imgOnLoad}"
+                         onerror="${imgOnError}">
                 </div>
             </div>
             <div style="flex: 1;">
@@ -951,12 +969,12 @@ function renderDeliveryPersonInfo(deliveryPerson) {
                 </div>
                 <p style="margin: 0; font-size: 1.1em; opacity: 0.95;">
                     <i class="fas fa-route"></i> 
-                    <strong>${deliveryName}</strong> está en camino a tu domicilio
+                    <strong>${deliveryName}</strong> está en camino
                 </p>
             </div>
             <div style="flex-shrink: 0;">
                 <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 20px; text-align: center;">
-                    <i class="fas fa-clock" style="font-size: 1.2em;"></i>
+                    <i class="fas fa-shipping-fast" style="font-size: 1.2em;"></i>
                     <div style="font-size: 0.9em; margin-top: 5px;">En tránsito</div>
                 </div>
             </div>
@@ -999,6 +1017,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
