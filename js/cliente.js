@@ -903,12 +903,21 @@ async function refreshDeliveryLocation(folio, map, marker) {
 
 async function getDeliveryPersonData(username) {
     try {
+        console.log('=== OBTENIENDO DATOS DEL REPARTIDOR ===');
+        console.log('Username:', username);
+        
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryPersonData&username=' + username);
         const result = await response.json();
         
+        console.log('Respuesta del servidor:', result);
+        
         if(result.success) {
+            console.log('Datos del repartidor:', result.userData);
+            console.log('URL de la foto:', result.userData.photoUrl);
             return result.userData;
         }
+        
+        console.warn('No se encontraron datos del repartidor');
         return null;
     } catch(error) {
         console.error('Error obteniendo datos del repartidor:', error);
@@ -990,6 +999,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
