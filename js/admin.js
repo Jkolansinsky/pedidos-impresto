@@ -801,35 +801,41 @@ async function getDeliveryPersonData(username) {
 function renderDeliveryPersonInfo(deliveryPerson) {
     if(!deliveryPerson) return '';
     
-    const photoUrl = deliveryPerson.photoUrl || 'https://via.placeholder.com/100?text=Sin+Foto';
+    // SVG de placeholder como fallback (ícono de usuario)
+    const placeholderSVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+agTwvdGV4dD48L3N2Zz4=';
+    
+    const photoUrl = deliveryPerson.photoUrl || placeholderSVG;
+    const deliveryName = deliveryPerson.name || deliveryPerson.username || 'Repartidor';
     
     return `
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
             <div style="flex-shrink: 0;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-                    <img src="${photoUrl}" alt="${deliveryPerson.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/100?text=Sin+Foto'">
+                <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); background: white;">
+                    <img src="${photoUrl}" 
+                         alt="${deliveryName}" 
+                         style="width: 100%; height: 100%; object-fit: cover;"
+                         onerror="this.src='${placeholderSVG}'">
                 </div>
             </div>
             <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                     <i class="fas fa-motorcycle" style="font-size: 1.5em;"></i>
-                    <h3 style="margin: 0; font-size: 1.3em;">${deliveryPerson.name}</h3>
+                    <h3 style="margin: 0; font-size: 1.3em;">${deliveryName}</h3>
                 </div>
                 <p style="margin: 0; font-size: 1.1em; opacity: 0.95;">
                     <i class="fas fa-route"></i> 
-                    Repartidor: <strong>${deliveryPerson.name}</strong> (${deliveryPerson.username})
+                    <strong>${deliveryName}</strong> está en camino a tu domicilio
                 </p>
             </div>
             <div style="flex-shrink: 0;">
                 <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 20px; text-align: center;">
-                    <i class="fas fa-shipping-fast" style="font-size: 1.2em;"></i>
-                    <div style="font-size: 0.9em; margin-top: 5px;">En entrega</div>
+                    <i class="fas fa-clock" style="font-size: 1.2em;"></i>
+                    <div style="font-size: 0.9em; margin-top: 5px;">En tránsito</div>
                 </div>
             </div>
         </div>
     `;
 }
-
 
 // ============================================
 // REPORTES
@@ -838,4 +844,5 @@ function renderDeliveryPersonInfo(deliveryPerson) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
