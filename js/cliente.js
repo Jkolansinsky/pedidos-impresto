@@ -248,22 +248,7 @@ function cleanupAddressConfirmModal() {
     delete window.cancelAddressConfirm;
 }
 
-function cleanupAddressConfirmModal() {
-    if(confirmAddressMap) {
-        confirmAddressMap.remove();
-        confirmAddressMap = null;
-    }
-    confirmAddressMarker = null;
-    
-    const modal = document.getElementById('addressConfirmModal');
-    if(modal) {
-        modal.remove();
-    }
-    
-    delete window.acceptAddressConfirm;
-    delete window.cancelAddressConfirm;
-}
-    
+   
 
     // Geocodificar la dirección
     showLoading(true);
@@ -1203,6 +1188,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
