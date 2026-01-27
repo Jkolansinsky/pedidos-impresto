@@ -144,49 +144,81 @@ async function geocodeAddress(address) {
     try {
         console.log('🌍 Iniciando geocodificación para:', address);
         
-        const query = encodeURIComponent(address);
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=mx`;
+        // Limpiar y preparar la dirección
+        const cleanAddress = address.trim();
+        const query = encodeURIComponent(cleanAddress);
+        
+        // Usar Nominatim con parámetros mejorados para México
+        const url = `https://nominatim.openstreetmap.org/search?` +
+                    `format=json` +
+                    `&q=${query}` +
+                    `&limit=5` +  // Obtener varios resultados para elegir el mejor
+                    `&countrycodes=mx` +  // Solo México
+                    `&addressdetails=1` +  // Obtener detalles de la dirección
+                    `&bounded=1` +  // Limitar a un área
+                    `&viewbox=-93.5,-92.3,17.5,18.5`;  // Área de Tabasco aproximadamente
         
         console.log('URL de geocodificación:', url);
         
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'CentroCopiado/1.0' // Requerido por Nominatim
+                'User-Agent': 'CentroCopiado/1.0'
             }
         });
         
         const data = await response.json();
         
-        console.log('Respuesta de geocodificación:', data);
+        console.log('Respuesta completa de geocodificación:', data);
         
         if(data && data.length > 0) {
+            // Tomar el primer resultado (más relevante)
+            const result = data[0];
+            
             const coords = {
-                latitude: parseFloat(data[0].lat),
-                longitude: parseFloat(data[0].lon)
+                latitude: parseFloat(result.lat),
+                longitude: parseFloat(result.lon)
             };
             
             console.log('✅ Coordenadas encontradas:', coords);
-            console.log('Nombre del lugar:', data[0].display_name);
+            console.log('📍 Nombre del lugar:', result.display_name);
+            console.log('📍 Tipo de lugar:', result.type);
+            console.log('📍 Importancia:', result.importance);
+            
+            // Verificar que las coordenadas estén dentro de un rango razonable para Villahermosa/Tabasco
+            const isInTabasco = (
+                coords.latitude >= 17.5 && coords.latitude <= 18.5 &&
+                coords.longitude >= -93.5 && coords.longitude <= -92.3
+            );
+            
+            if(!isInTabasco) {
+                console.warn('⚠️ Las coordenadas parecen estar fuera de Tabasco');
+                console.warn('⚠️ Usando coordenadas por defecto');
+                return {
+                    latitude: 17.9892,
+                    longitude: -92.9475
+                };
+            }
             
             return coords;
         }
         
         console.warn('⚠️ No se encontraron coordenadas, usando ubicación por defecto de Villahermosa');
         
-        // Si no encuentra, retornar coordenadas por defecto (Villahermosa, Tabasco)
+        // Si no encuentra, retornar coordenadas por defecto (Centro de Villahermosa)
         return {
             latitude: 17.9892,
             longitude: -92.9475
         };
     } catch(error) {
         console.error('❌ Error en geocodificación:', error);
-        // Coordenadas por defecto
+        // Coordenadas por defecto (Centro de Villahermosa)
         return {
             latitude: 17.9892,
             longitude: -92.9475
         };
     }
 }
+
 /**
  * Verifica si un pedido fue entregado hoy
  */
@@ -224,6 +256,7 @@ window.addEventListener('beforeunload', function() {
         navigator.geolocation.clearWatch(geoWatchId);
     }
 });
+
 
 
 
