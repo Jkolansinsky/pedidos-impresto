@@ -142,16 +142,36 @@ function initGeolocation() {
  */
 async function geocodeAddress(address) {
     try {
+        console.log('🌍 Iniciando geocodificación para:', address);
+        
         const query = encodeURIComponent(address);
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&countrycodes=mx`;
+        
+        console.log('URL de geocodificación:', url);
+        
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'CentroCopiado/1.0' // Requerido por Nominatim
+            }
+        });
+        
         const data = await response.json();
         
+        console.log('Respuesta de geocodificación:', data);
+        
         if(data && data.length > 0) {
-            return {
+            const coords = {
                 latitude: parseFloat(data[0].lat),
                 longitude: parseFloat(data[0].lon)
             };
+            
+            console.log('✅ Coordenadas encontradas:', coords);
+            console.log('Nombre del lugar:', data[0].display_name);
+            
+            return coords;
         }
+        
+        console.warn('⚠️ No se encontraron coordenadas, usando ubicación por defecto de Villahermosa');
         
         // Si no encuentra, retornar coordenadas por defecto (Villahermosa, Tabasco)
         return {
@@ -159,7 +179,7 @@ async function geocodeAddress(address) {
             longitude: -92.9475
         };
     } catch(error) {
-        console.error('Error en geocodificación:', error);
+        console.error('❌ Error en geocodificación:', error);
         // Coordenadas por defecto
         return {
             latitude: 17.9892,
@@ -167,7 +187,6 @@ async function geocodeAddress(address) {
         };
     }
 }
-
 /**
  * Verifica si un pedido fue entregado hoy
  */
@@ -205,6 +224,7 @@ window.addEventListener('beforeunload', function() {
         navigator.geolocation.clearWatch(geoWatchId);
     }
 });
+
 
 
 
