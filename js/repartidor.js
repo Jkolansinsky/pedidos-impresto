@@ -505,9 +505,9 @@ function displayDeliveries(deliveries, filter) {
                         <button class="btn btn-success" onclick='continueDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
                             <i class="fas fa-map-marked-alt"></i> Ver Ruta
                         </button>
-                        <span style="background: #ffc107; color: #333; padding: 8px 12px; border-radius: 8px; text-align: center; font-size: 0.9em; font-weight: 600;">
-                            <i class="fas fa-shipping-fast"></i> En curso
-                        </span>
+                        <button class="btn btn-danger" onclick='cancelDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})' style="margin-top: 5px;">
+                            <i class="fas fa-times-circle"></i> Cancelar Entrega
+                        </button>
                     ` : ''}
                     ${filter === 'completed' ? `
                         <span class="order-status status-delivered">Entregado</span>
@@ -943,6 +943,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
