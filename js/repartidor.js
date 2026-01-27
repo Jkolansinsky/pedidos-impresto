@@ -17,6 +17,7 @@ let currentLocation = null;
 let videoStream = null;
 let capturedPhoto = null;
 let photoBlob = null;
+let pedidosEnCurso = new Set(); // IDs de pedidos que ya están en curso
 
 // ============================================
 // FUNCIONES DE AUTENTICACIÓN (LOGIN/REGISTRO)
@@ -411,6 +412,14 @@ async function loadDeliveries() {
         
         if(result.success) {
             allDeliveries = result.orders;
+            
+            // Detectar pedidos que ya están en estado "delivering" para este repartidor
+            result.orders.forEach(order => {
+                if(order.status === 'delivering' && order.deliveryPerson === currentUser.username) {
+                    pedidosEnCurso.add(order.folio);
+                }
+            });
+            
             filterDeliveries('ready');
         }
     } catch(error) {
@@ -462,6 +471,9 @@ function displayDeliveries(deliveries, filter) {
         const address = order.address;
         const addressText = address ? `${address.street}, ${address.colony}, ${address.city}` : 'Dirección no disponible';
         
+        // Verificar si este pedido ya está en curso
+        const enCurso = pedidosEnCurso.has(order.folio) || order.status === 'delivering';
+        
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
                 <div style="flex: 1;">
@@ -473,6 +485,7 @@ function displayDeliveries(deliveries, filter) {
                     <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
                         <i class="far fa-clock"></i> ${formatDate(order.date)}
                     </p>
+                    ${enCurso ? '<span class="order-status status-delivering"><i class="fas fa-route"></i> En camino</span>' : ''}
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     ${filter === 'ready' ? `
@@ -480,13 +493,21 @@ function displayDeliveries(deliveries, filter) {
                             <i class="fas fa-hand-holding"></i> Tomar Entrega
                         </button>
                     ` : ''}
-                    ${filter === 'mytaken' ? `
-                        <button class="btn btn-warning" onclick='startDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                    ${filter === 'mytaken' && !enCurso ? `
+                        <button class="btn btn-warning" id="btnIniciar_${order.folio}" onclick='startDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
                             <i class="fas fa-route"></i> Iniciar Ruta
                         </button>
                         <button class="btn btn-danger" onclick='cancelDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})' style="margin-top: 5px;">
                             <i class="fas fa-times-circle"></i> Cancelar
                         </button>
+                    ` : ''}
+                    ${filter === 'mytaken' && enCurso ? `
+                        <button class="btn btn-success" onclick='continueDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-map-marked-alt"></i> Ver Ruta
+                        </button>
+                        <span style="background: #ffc107; color: #333; padding: 8px 12px; border-radius: 8px; text-align: center; font-size: 0.9em; font-weight: 600;">
+                            <i class="fas fa-shipping-fast"></i> En curso
+                        </span>
                     ` : ''}
                     ${filter === 'completed' ? `
                         <span class="order-status status-delivered">Entregado</span>
@@ -527,6 +548,9 @@ async function cancelDelivery(order) {
         const result = await response.json();
         
         if(result.success) {
+            // Quitar de la lista de pedidos en curso
+            pedidosEnCurso.delete(order.folio);
+            
             alert('Entrega cancelada. Otro repartidor podrá tomarla.');
             
             // Detener GPS si estaba activo
@@ -587,11 +611,25 @@ async function takeDelivery(order) {
 // ============================================
 
 async function startDelivery(order) {
+    // Verificar si ya está en curso
+    if(pedidosEnCurso.has(order.folio)) {
+        alert('Este pedido ya está en curso');
+        return;
+    }
+    
     activeDelivery = order;
     
     if(!userCurrentLocation) {
         alert('Esperando ubicación GPS...');
         return;
+    }
+    
+    // Deshabilitar botón inmediatamente
+    const btn = document.getElementById('btnIniciar_' + order.folio);
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+        btn.style.opacity = '0.6';
     }
     
     // Actualizar estado a "delivering"
@@ -612,6 +650,9 @@ async function startDelivery(order) {
         const result = await response.json();
         
         if(result.success) {
+            // Marcar como en curso
+            pedidosEnCurso.add(order.folio);
+            
             // Enviar WhatsApp automático al cliente
             await sendDeliveryStartNotification(order);
             
@@ -620,13 +661,46 @@ async function startDelivery(order) {
             
             showDeliveryMap(order);
         } else {
+            // Si falla, rehabilitar botón
+            if(btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-route"></i> Iniciar Ruta';
+                btn.style.opacity = '1';
+            }
             alert('Error al iniciar entrega: ' + result.message);
         }
     } catch(error) {
+        // Si hay error, rehabilitar botón
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-route"></i> Iniciar Ruta';
+            btn.style.opacity = '1';
+        }
         alert('Error: ' + error.message);
     } finally {
         showLoading(false);
     }
+}
+
+// ============================================
+// CONTINUAR ENTREGA EN CURSO
+// ============================================
+
+function continueDelivery(order) {
+    activeDelivery = order;
+    
+    if(!userCurrentLocation) {
+        alert('Esperando ubicación GPS...');
+        return;
+    }
+    
+    // Reanudar seguimiento GPS si no está activo
+    if(!gpsWatchId) {
+        startGPSTracking(order);
+    }
+    
+    // Mostrar el mapa
+    showDeliveryMap(order);
 }
 
 function startGPSTracking(order) {
@@ -763,11 +837,8 @@ function initDeliveryMap(order) {
 }
 
 function closeActiveDelivery() {
-    // Detener seguimiento GPS
-    if(gpsWatchId) {
-        navigator.geolocation.clearWatch(gpsWatchId);
-        gpsWatchId = null;
-    }
+    // NO detener GPS ni quitar de la lista si solo se cierra el modal
+    // Solo detener si se completa o cancela la entrega
     
     if(deliveryMap) {
         deliveryMap.remove();
@@ -778,8 +849,9 @@ function closeActiveDelivery() {
     destinationMarker = null;
     
     document.getElementById('activeDeliveryModal').classList.remove('active');
-    activeDelivery = null;
-    loadDeliveries();
+    
+    // NO limpiar activeDelivery para poder retomar
+    // activeDelivery = null;
 }
 
 // ============================================
@@ -811,8 +883,29 @@ async function completeDelivery() {
         const result = await response.json();
         
         if(result.success) {
+            // Quitar de la lista de pedidos en curso
+            pedidosEnCurso.delete(activeDelivery.folio);
+            
             alert('✅ Entrega completada exitosamente');
-            closeActiveDelivery();
+            
+            // Detener GPS
+            if(gpsWatchId) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+                gpsWatchId = null;
+            }
+            
+            // Cerrar modal y limpiar
+            if(deliveryMap) {
+                deliveryMap.remove();
+                deliveryMap = null;
+            }
+            deliveryMarker = null;
+            destinationMarker = null;
+            document.getElementById('activeDeliveryModal').classList.remove('active');
+            activeDelivery = null;
+            
+            // Recargar lista
+            loadDeliveries();
         } else {
             alert('Error al completar entrega: ' + result.message);
         }
@@ -850,6 +943,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
