@@ -50,9 +50,9 @@ body {
 }
 
 .btn-logout {
-    background: #dc3545;
-    color: white;
-    border: none;
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
     padding: 8px 20px;
     border-radius: 20px;
     cursor: pointer;
@@ -63,7 +63,9 @@ body {
 }
 
 .btn-logout:hover {
-    background: #c82333;
+    background: #ff0000;   
+    color: white;          
+    border: 2px solid #ff0000;
     transform: translateY(-2px);
 }
 
@@ -814,5 +816,6 @@ table tbody tr:hover {
     }
 
 }
+
 
 
