@@ -955,7 +955,6 @@ function renderDeliveryPersonInfo(deliveryPerson) {
     `;
 }
 
-
 // ============================================
 // CARGA DE DATOS
 // ============================================
@@ -991,6 +990,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
