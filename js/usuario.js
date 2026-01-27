@@ -410,12 +410,12 @@ function renderDeliveryPersonInfo(deliveryPerson) {
                 </div>
                 <p style="margin: 0; font-size: 1.1em; opacity: 0.95;">
                     <i class="fas fa-route"></i> 
-                    <strong>${deliveryName}</strong> está en camino a tu domicilio
+                    <strong>${deliveryName}</strong> está en camino con este pedido
                 </p>
             </div>
             <div style="flex-shrink: 0;">
                 <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 20px; text-align: center;">
-                    <i class="fas fa-clock" style="font-size: 1.2em;"></i>
+                    <i class="fas fa-shipping-fast" style="font-size: 1.2em;"></i>
                     <div style="font-size: 0.9em; margin-top: 5px;">En tránsito</div>
                 </div>
             </div>
