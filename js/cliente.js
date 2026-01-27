@@ -105,6 +105,160 @@ async function confirmAddress() {
     
     const coords = await geocodeAddress(fullAddress);
     
+    console.log('Coordenadas iniciales obtenidas:', coords);
+    
+    showLoading(false);
+
+    // Mostrar mapa de confirmación para que el usuario verifique/ajuste la ubicación
+    const confirmedCoords = await showAddressConfirmationMap(fullAddress, coords);
+    
+    if(!confirmedCoords) {
+        // Usuario canceló, permitir corregir la dirección
+        console.log('Usuario decidió corregir la dirección');
+        return;
+    }
+    
+    console.log('Coordenadas finales confirmadas:', confirmedCoords);
+
+    currentClient.address = {
+        street,
+        colony,
+        city,
+        zip: document.getElementById('deliveryZip').value,
+        references: document.getElementById('deliveryReferences').value,
+        latitude: confirmedCoords.latitude,
+        longitude: confirmedCoords.longitude
+    };
+    
+    console.log('✅ Dirección guardada en currentClient:', currentClient.address);
+
+    document.getElementById('delivery-address-step').classList.add('hidden');
+    document.getElementById('work-config-step').classList.remove('hidden');
+}
+
+
+    // ============================================
+// MAPA DE VERIFICACIÓN DE DIRECCIÓN
+// ============================================
+
+let confirmAddressMap = null;
+let confirmAddressMarker = null;
+let tempCoords = null;
+
+async function showAddressConfirmationMap(address, coords) {
+    return new Promise((resolve) => {
+        // Crear modal de confirmación
+        const modalHTML = `
+            <div id="addressConfirmModal" class="modal active">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-map-marked-alt"></i> Confirma tu ubicación</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p style="margin-bottom: 15px;">
+                            <strong>Dirección ingresada:</strong><br>
+                            ${address}
+                        </p>
+                        <p style="margin-bottom: 15px; color: #666;">
+                            Verifica que el marcador esté en la ubicación correcta de tu domicilio:
+                        </p>
+                        <div id="confirmAddressMap" style="height: 400px; border-radius: 8px; border: 2px solid #667eea; margin-bottom: 20px;"></div>
+                        <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
+                            <i class="fas fa-info-circle"></i> 
+                            Si el marcador no está en tu ubicación exacta, puedes arrastrarlo al lugar correcto.
+                        </p>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn btn-secondary" onclick="cancelAddressConfirm()">
+                                <i class="fas fa-times"></i> Corregir Dirección
+                            </button>
+                            <button class="btn btn-success" onclick="acceptAddressConfirm()">
+                                <i class="fas fa-check"></i> Confirmar Ubicación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Agregar modal al body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Guardar coordenadas temporales
+        tempCoords = { ...coords };
+        
+        // Inicializar mapa después de un pequeño delay
+        setTimeout(() => {
+            confirmAddressMap = L.map('confirmAddressMap').setView([coords.latitude, coords.longitude], 16);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(confirmAddressMap);
+            
+            // Marcador draggable (se puede mover)
+            confirmAddressMarker = L.marker([coords.latitude, coords.longitude], {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color:#dc3545;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 4px 10px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:20px;"></i></div>',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40]
+                })
+            }).addTo(confirmAddressMap);
+            
+            confirmAddressMarker.bindPopup('Arrastra el marcador a tu ubicación exacta').openPopup();
+            
+            // Actualizar coordenadas cuando se mueva el marcador
+            confirmAddressMarker.on('dragend', function(e) {
+                const position = e.target.getLatLng();
+                tempCoords.latitude = position.lat;
+                tempCoords.longitude = position.lng;
+                console.log('📍 Nueva ubicación seleccionada:', tempCoords);
+            });
+            
+            // Definir funciones globales para los botones
+            window.acceptAddressConfirm = () => {
+                console.log('✅ Ubicación confirmada:', tempCoords);
+                cleanupAddressConfirmModal();
+                resolve(tempCoords);
+            };
+            
+            window.cancelAddressConfirm = () => {
+                console.log('❌ Usuario canceló confirmación de ubicación');
+                cleanupAddressConfirmModal();
+                resolve(null);
+            };
+            
+        }, 300);
+    });
+}
+
+function cleanupAddressConfirmModal() {
+    if(confirmAddressMap) {
+        confirmAddressMap.remove();
+        confirmAddressMap = null;
+    }
+    confirmAddressMarker = null;
+    
+    const modal = document.getElementById('addressConfirmModal');
+    if(modal) {
+        modal.remove();
+    }
+    
+    delete window.acceptAddressConfirm;
+    delete window.cancelAddressConfirm;
+}
+    
+
+    // Geocodificar la dirección
+    showLoading(true);
+    const fullAddress = `${street}, ${colony}, ${city}, Tabasco, México`;
+    
+    console.log('=== GEOCODIFICANDO DIRECCIÓN ===');
+    console.log('Dirección completa:', fullAddress);
+    
+    const coords = await geocodeAddress(fullAddress);
+    
     console.log('Coordenadas obtenidas:', coords);
     
     showLoading(false);
@@ -1033,6 +1187,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
