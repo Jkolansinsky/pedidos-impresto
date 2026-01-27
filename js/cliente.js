@@ -592,6 +592,13 @@ async function submitOrder() {
                 console.error('Error subiendo comprobante:', error);
             }
         }
+        console.log('=== DATOS DEL CLIENTE ANTES DE ENVIAR ===');
+        console.log('currentClient completo:', currentClient);
+        console.log('currentClient.address:', currentClient.address);
+   if(currentClient.address) {
+        console.log('Latitude:', currentClient.address.latitude, 'Tipo:', typeof currentClient.address.latitude);
+        console.log('Longitude:', currentClient.address.longitude, 'Tipo:', typeof currentClient.address.longitude);
+  }
         
         const orderData = {
             action: 'createOrder',
@@ -1151,6 +1158,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
