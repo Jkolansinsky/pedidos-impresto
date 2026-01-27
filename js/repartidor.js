@@ -704,8 +704,38 @@ function continueDelivery(order) {
 }
 
 function startGPSTracking(order) {
-    // Iniciar seguimiento continuo de ubicación con opciones mejoradas
+    console.log('🎯 Iniciando seguimiento GPS...');
+    
+    // Primero, obtener ubicación actual de forma única
     if('geolocation' in navigator) {
+        // Obtener ubicación inicial inmediatamente
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('✅ Ubicación inicial obtenida:', currentLocation);
+                
+                // Actualizar en servidor
+                updateLocationOnServer(order.folio, currentLocation);
+                
+                // Actualizar marcador si existe
+                if(deliveryMarker && deliveryMap) {
+                    deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+                }
+            },
+            function(error) {
+                console.error('❌ Error obteniendo ubicación inicial:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+        
+        // Luego iniciar seguimiento continuo con configuración más permisiva
         gpsWatchId = navigator.geolocation.watchPosition(
             function(position) {
                 currentLocation = {
@@ -725,21 +755,19 @@ function startGPSTracking(order) {
                 }
             },
             function(error) {
-                console.error('Error GPS:', error);
-                
-                // Mostrar mensajes más amigables según el tipo de error
+                // Solo mostrar advertencia, no detener el proceso
                 if(error.code === 1) {
                     console.warn('⚠️ Permisos de ubicación denegados');
                 } else if(error.code === 2) {
                     console.warn('⚠️ Ubicación no disponible');
                 } else if(error.code === 3) {
-                    console.warn('⚠️ Timeout de GPS - intentando nuevamente...');
+                    console.warn('⚠️ Timeout de GPS - usando última ubicación conocida');
                 }
             },
             {
-                enableHighAccuracy: true,
-                timeout: 30000,        // Aumentado a 30 segundos
-                maximumAge: 10000      // Aceptar ubicaciones de hasta 10 segundos de antigüedad
+                enableHighAccuracy: false,  // Cambiado a false para ser menos estricto
+                timeout: 60000,              // 60 segundos
+                maximumAge: 30000            // Aceptar ubicaciones de hasta 30 segundos
             }
         );
     }
@@ -811,29 +839,57 @@ function initDeliveryMap(order) {
     console.log('=== INICIANDO MAPA DE ENTREGA ===');
     console.log('📦 Pedido completo:', order);
     console.log('🏠 Objeto address:', order.address);
-
-    // Coordenadas del destino del cliente
+    
+    // Verificar si address existe
     const address = order.address;
     
     if(!address) {
         console.error('❌ ERROR: No hay dirección en el pedido');
         alert('Error: Este pedido no tiene dirección de entrega');
         return;
-    } // <-- ESTA LLAVE FALTABA
+    }
     
-    const destLat = parseFloat(address.latitude) || 17.9892;
-    const destLng = parseFloat(address.longitude) || -92.9475;
-
-    console.log('🏍️ Coordenadas de inicio (repartidor):', { lat: startLat, lng: startLng });
-    console.log('🏠 Coordenadas de destino (cliente):', { lat: destLat, lng: destLng });
-    console.log('📍 Dirección del cliente:', `${address.street}, ${address.colony}, ${address.city}`);
+    // Mostrar valores RAW antes de parsear
+    console.log('📍 RAW latitude:', address.latitude, 'Tipo:', typeof address.latitude);
+    console.log('📍 RAW longitude:', address.longitude, 'Tipo:', typeof address.longitude);
+    
+    // Parsear coordenadas con validación
+    let destLat, destLng;
+    
+    if(address.latitude && address.longitude) {
+        destLat = parseFloat(address.latitude);
+        destLng = parseFloat(address.longitude);
+        console.log('📍 Después de parseFloat - Lat:', destLat, 'Lng:', destLng);
+    } else {
+        console.warn('⚠️ No hay coordenadas en la dirección, usando valores por defecto');
+        destLat = 17.9892;
+        destLng = -92.9475;
+    }
     
     // Verificar que las coordenadas sean válidas
     if(isNaN(destLat) || isNaN(destLng)) {
         console.error('❌ ERROR: Coordenadas inválidas del destino');
+        console.error('destLat:', destLat, 'destLng:', destLng);
         alert('Error: Las coordenadas del destino no son válidas');
         return;
     }
+    
+    // Verificar que estén en el rango de Tabasco/Villahermosa
+    const isInRange = (
+        destLat >= 17.5 && destLat <= 18.5 &&
+        destLng >= -93.5 && destLng <= -92.0
+    );
+    
+    if(!isInRange) {
+        console.warn('⚠️ ADVERTENCIA: Las coordenadas parecen estar fuera de Villahermosa/Tabasco');
+        console.warn('Lat:', destLat, 'debe estar entre 17.5 y 18.5');
+        console.warn('Lng:', destLng, 'debe estar entre -93.5 y -92.0');
+    }
+
+    console.log('🏍️ Coordenadas finales:');
+    console.log('  - Inicio (repartidor):', { lat: startLat, lng: startLng });
+    console.log('  - Destino (cliente):', { lat: destLat, lng: destLng });
+    console.log('📍 Dirección del cliente:', `${address.street}, ${address.colony}, ${address.city}`);
     
     // Crear mapa
     if(deliveryMap) {
@@ -846,14 +902,20 @@ function initDeliveryMap(order) {
         attribution: '© OpenStreetMap contributors'
     }).addTo(deliveryMap);
     
-    // Marcador de destino (casa del cliente)
+    // Marcador de destino (casa del cliente) - con popup que muestra las coordenadas
     destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:18px;"></i></div>',
             iconSize: [35, 35]
         })
-    }).addTo(deliveryMap).bindPopup('Destino: ' + order.client.name);
+    }).addTo(deliveryMap).bindPopup(
+        `<strong>Destino: ${order.client.name}</strong><br>` +
+        `${address.street}, ${address.colony}<br>` +
+        `<small>Lat: ${destLat.toFixed(6)}, Lng: ${destLng.toFixed(6)}</small>`
+    ).openPopup();
+    
+    console.log('🏠 Marcador de destino colocado en:', [destLat, destLng]);
     
     // Marcador del repartidor (moto) - posición real
     deliveryMarker = L.marker([startLat, startLng], {
@@ -862,11 +924,18 @@ function initDeliveryMap(order) {
             html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
             iconSize: [40, 40]
         })
-    }).addTo(deliveryMap).bindPopup('Tu ubicación').openPopup();
+    }).addTo(deliveryMap).bindPopup(
+        `<strong>Tu ubicación</strong><br>` +
+        `<small>Lat: ${startLat.toFixed(6)}, Lng: ${startLng.toFixed(6)}</small>`
+    );
+    
+    console.log('🏍️ Marcador de repartidor colocado en:', [startLat, startLng]);
     
     // Ajustar el mapa para ver ambos marcadores
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
     deliveryMap.fitBounds(bounds, { padding: [50, 50] });
+    
+    console.log('✅ Mapa inicializado correctamente');
 }
 
 function closeActiveDelivery() {
@@ -976,6 +1045,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
