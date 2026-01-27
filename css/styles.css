@@ -206,6 +206,11 @@ body {
     gap: 8px;
 }
 
+.btn:hover {
+    transform: translateY(-2px);
+    
+}
+
 .btn-primary {
     background: linear-gradient(135deg, #004AAD 0%, #007BFF 100%);
     color: white;
@@ -214,6 +219,7 @@ body {
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 74, 173, 0.4);
+   transform: translateY(-2px);
 }
 
 .btn-success {
@@ -223,6 +229,7 @@ body {
 
 .btn-success:hover {
     background: #218838;
+   transform: translateY(-2px);
 }
 
 .btn-danger {
@@ -232,6 +239,7 @@ body {
 
 .btn-danger:hover {
     background: #c82333;
+   transform: translateY(-2px);
 }
 
 .btn-warning {
@@ -241,6 +249,7 @@ body {
 
 .btn-warning:hover {
     background: #e0a800;
+   transform: translateY(-2px);
 }
 
 .btn-secondary {
@@ -250,6 +259,7 @@ body {
 
 .btn-secondary:hover {
     background: #5a6268;
+   transform: translateY(-2px);
 }
 
 .btn-info {
@@ -259,6 +269,7 @@ body {
 
 .btn-info:hover {
     background: #138496;
+   transform: translateY(-2px);
 }
 
 /* ============================================
@@ -816,6 +827,7 @@ table tbody tr:hover {
     }
 
 }
+
 
 
 
