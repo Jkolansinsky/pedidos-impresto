@@ -811,15 +811,29 @@ function initDeliveryMap(order) {
     console.log('=== INICIANDO MAPA DE ENTREGA ===');
     console.log('Pedido completo:', order);
     console.log('Dirección del cliente:', order.address);
-    
+
     // Coordenadas del destino del cliente
     const address = order.address;
+    
+    if(!address) {
+        console.error('❌ ERROR: No hay dirección en el pedido');
+        alert('Error: Este pedido no tiene dirección de entrega');
+        return;
+    
+    // Coordenadas del destino del cliente
     const destLat = address.latitude || 17.9892;
     const destLng = address.longitude || -92.9475;
 
     console.log('Coordenadas de inicio (repartidor):', { lat: startLat, lng: startLng });
     console.log('Coordenadas de destino (cliente):', { lat: destLat, lng: destLng });
+    console.log('📍 Dirección del cliente:', `${address.street}, ${address.colony}, ${address.city}`);
     
+    // Verificar que las coordenadas sean válidas
+    if(isNaN(destLat) || isNaN(destLng)) {
+        console.error('❌ ERROR: Coordenadas inválidas del destino');
+        alert('Error: Las coordenadas del destino no son válidas');
+        return;
+    }
     
     // Crear mapa
     if(deliveryMap) {
@@ -962,6 +976,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
