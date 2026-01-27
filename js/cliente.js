@@ -99,8 +99,22 @@ async function confirmAddress() {
     // Geocodificar la dirección
     showLoading(true);
     const fullAddress = `${street}, ${colony}, ${city}, Tabasco, México`;
+    
+    console.log('=== GEOCODIFICANDO DIRECCIÓN ===');
+    console.log('Dirección completa:', fullAddress);
+    
     const coords = await geocodeAddress(fullAddress);
+    
+    console.log('Coordenadas obtenidas:', coords);
+    
     showLoading(false);
+
+    // Mostrar alerta con las coordenadas para verificación
+    const confirmMsg = `Dirección: ${fullAddress}\n\nCoordenadas encontradas:\nLatitud: ${coords.latitude}\nLongitud: ${coords.longitude}\n\n¿Es correcta la ubicación?\n\n(Si no es correcta, puedes intentar ser más específico con la dirección)`;
+    
+    if(!confirm(confirmMsg)) {
+        return; // Permitir que el usuario corrija la dirección
+    }
 
     currentClient.address = {
         street,
@@ -111,6 +125,8 @@ async function confirmAddress() {
         latitude: coords.latitude,
         longitude: coords.longitude
     };
+    
+    console.log('Dirección guardada en currentClient:', currentClient.address);
 
     document.getElementById('delivery-address-step').classList.add('hidden');
     document.getElementById('work-config-step').classList.remove('hidden');
@@ -1017,6 +1033,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
