@@ -65,7 +65,7 @@ body {
 .btn-logout:hover {
     background: #ff0000;   /* cambia el fondo */
     color: white;          /* cambia el texto */
-    border: 2px solid #ff0000;
+    border: 2px solid #ffffff;
     transform: translateY(-2px);
 }
 
@@ -816,6 +816,7 @@ table tbody tr:hover {
     }
 
 }
+
 
 
 
