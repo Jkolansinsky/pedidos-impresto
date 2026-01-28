@@ -300,9 +300,11 @@ body {
     border: 2px solid #ffffff;
     transform: translateY(-2px);
 }
+
 .btn-secondary {
     background: #6c757d;
     color: white;
+    border: 2px solid #6c757d;
 }
 
 .btn-secondary:hover {    
@@ -330,12 +332,12 @@ body {
     border: 2px solid #fd7e14;
 
 }
+
 .btn-path:hover {
     background: white;
     color: #ff0000;
     border: 2px solid #ff0000;
     transform: translateY(-2px);
-
 }
 
 /* ============================================
@@ -1100,6 +1102,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
