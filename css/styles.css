@@ -783,6 +783,10 @@ table tbody tr:hover {
    RESPONSIVE
    ============================================ */
 
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
 @media (max-width: 768px) {
     .service-type {
         grid-template-columns: 1fr;
@@ -793,43 +797,243 @@ table tbody tr:hover {
         padding: 12px 5px;
     }
 
+    /* HEADER RESPONSIVE */
     .top-header {
         flex-direction: column;
-        gap: 10px;
+        gap: 15px;
+        padding: 15px;
+        text-align: center;
     }
 
+    .top-header .logo {
+        font-size: 1.1em;
+        justify-content: center;
+    }
+
+    .top-header > div:last-child {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .top-header .btn {
+        padding: 10px 15px;
+        font-size: 0.9em;
+        flex: 1;
+        min-width: 120px;
+    }
+
+    /* USER INFO RESPONSIVE */
+    .user-info {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .user-badge {
+        font-size: 0.85em;
+        padding: 6px 12px;
+    }
+
+    .btn-logout {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* CONTAINER RESPONSIVE */
+    .container {
+        margin: 10px;
+        border-radius: 10px;
+    }
+
+    .content {
+        padding: 20px 15px;
+    }
+
+    .header {
+        padding: 20px 15px;
+    }
+
+    .header h1 {
+        font-size: 1.8em;
+    }
+
+    /* MODALES RESPONSIVE */
     .modal-content {
         width: 95%;
         padding: 20px;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 
+    /* TABLAS RESPONSIVE */
     table {
-        font-size: 0.9em;
+        font-size: 0.85em;
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
     }
 
     table th,
     table td {
-        padding: 8px;
+        padding: 8px 5px;
+        font-size: 0.85em;
+    }
+
+    /* FORMULARIOS RESPONSIVE */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px; /* Evita zoom en iOS */
+    }
+
+    /* BOTONES RESPONSIVE */
+    .btn {
+        padding: 12px 20px;
+        font-size: 0.95em;
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* CARDS RESPONSIVE */
+    .service-card {
+        padding: 20px;
+    }
+
+    .order-item,
+    .cart-item {
+        padding: 15px;
+    }
+
+    .order-item > div {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .order-item button {
+        width: 100%;
+    }
+
+    /* TIMELINE RESPONSIVE */
+    .timeline {
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        left: 10px;
+    }
+
+    .timeline-item::before {
+        left: -24px;
+    }
+
+    /* MAPA RESPONSIVE */
+    #map,
+    #deliveryMap,
+    #clientTrackingMap,
+    #confirmAddressMap {
+        height: 300px !important;
+    }
+
+    /* DELIVERY CONTROLS RESPONSIVE */
+    .delivery-controls {
+        padding: 15px;
+    }
+
+    /* PHOTO UPLOAD RESPONSIVE */
+    .photo-upload-container {
+        padding: 15px;
+    }
+
+    /* FILTROS RESPONSIVE */
+    .nav-tabs {
+        flex-wrap: wrap;
+    }
+
+    .nav-tab {
+        flex: 1 1 45%;
+        min-width: 120px;
+    }
+
+    /* CART TOTAL RESPONSIVE */
+    .cart-total {
+        padding: 15px;
+        text-align: center;
+    }
+
+    /* WORK CONFIG RESPONSIVE */
+    #work-config-step select[multiple] {
+        height: auto;
+        min-height: 150px;
     }
 }
 
-@media print {
-    .btn, .nav-tabs, .top-header {
-        display: none !important;
-    }
-    
-    body {
-        background: white;
-    }
-    
-    .container {
-        box-shadow: none;
+/* EXTRA SMALL DEVICES */
+@media (max-width: 480px) {
+    .top-header .logo {
+        font-size: 1em;
     }
 
+    .top-header .btn {
+        min-width: 100px;
+        font-size: 0.85em;
+        padding: 8px 12px;
+    }
+
+    .header h1 {
+        font-size: 1.5em;
+    }
+
+    .btn {
+        font-size: 0.9em;
+        padding: 10px 15px;
+    }
+
+    .service-card i {
+        font-size: 2em;
+    }
+
+    .service-card h3 {
+        font-size: 1.1em;
+    }
+
+    .modal-content {
+        padding: 15px;
+    }
+
+    .nav-tab {
+        flex: 1 1 100%;
+        font-size: 0.85em;
+    }
 }
 
+/* LANDSCAPE MODE */
+@media (max-width: 768px) and (orientation: landscape) {
+    .top-header {
+        flex-direction: row;
+        justify-content: space-between;
+    }
 
+    .top-header > div:last-child {
+        width: auto;
+        flex-wrap: nowrap;
+    }
 
+    .top-header .btn {
+        flex: 0;
+        min-width: auto;
+        white-space: nowrap;
+    }
+
+    #map,
+    #deliveryMap,
+    #clientTrackingMap,
+    #confirmAddressMap {
+        height: 400px !important;
+    }
+}
 
 
 
