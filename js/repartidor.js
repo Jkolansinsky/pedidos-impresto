@@ -689,8 +689,40 @@ async function startDelivery(order) {
 function continueDelivery(order) {
     activeDelivery = order;
     
+    console.log('🔄 Continuando entrega...');
+    console.log('userCurrentLocation:', userCurrentLocation);
+    
+    // Si no hay ubicación, intentar obtenerla
     if(!userCurrentLocation) {
-        alert('Esperando ubicación GPS...');
+        console.log('⚠️ No hay ubicación, solicitando...');
+        showLoading(true);
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                userCurrentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('✅ Ubicación obtenida:', userCurrentLocation);
+                showLoading(false);
+                
+                // Reanudar seguimiento GPS
+                startGPSTracking(order);
+                
+                // Mostrar el mapa
+                showDeliveryMap(order);
+            },
+            function(error) {
+                console.error('❌ Error obteniendo ubicación:', error);
+                showLoading(false);
+                alert('No se pudo obtener tu ubicación. Por favor, activa el GPS y otorga permisos de ubicación.');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            }
+        );
         return;
     }
     
@@ -702,7 +734,6 @@ function continueDelivery(order) {
     // Mostrar el mapa
     showDeliveryMap(order);
 }
-
 function startGPSTracking(order) {
     console.log('🎯 Iniciando seguimiento GPS...');
     
@@ -1045,6 +1076,7 @@ window.addEventListener('beforeunload', function() {
     // Nuevo: Detener cámara si está activa
     stopCamera();
 });
+
 
 
 
