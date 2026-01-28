@@ -233,23 +233,27 @@ body {
 }
 
 .btn-danger {
-    background: #004AAD;
-    color: white;
+    background: white;
+    color: #ff0000;
 }
 
 .btn-danger:hover {
-    background: #c82333;
-   transform: translateY(-2px);
+    background: #ff0000;
+    color: white;
+    border: 2px solid #ffffff;
+    transform: translateY(-2px);
 }
 
 .btn-warning {
-    background: #ffc107;
-    color: #333;
+    background: white;
+    color: #ff0000;
 }
 
 .btn-warning:hover {
-    background: #e0a800;
-   transform: translateY(-2px);
+    background: #ff0000;
+    color: white;
+    border: 2px solid #ffffff;
+    transform: translateY(-2px);
 }
 
 .btn-secondary {
@@ -263,13 +267,15 @@ body {
 }
 
 .btn-info {
-    background: #17a2b8;
-    color: white;
+    background: white;
+    color: #ff0000;
 }
 
 .btn-info:hover {
-    background: #138496;
-   transform: translateY(-2px);
+    background: #ff0000;
+    color: white;
+    border: 2px solid #ffffff;
+    transform: translateY(-2px);
 }
 
 /* ============================================
@@ -1034,6 +1040,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
