@@ -305,9 +305,11 @@ body {
     color: white;
 }
 
-.btn-secondary:hover {
-    background: #5a6268;
-   transform: translateY(-2px);
+.btn-secondary:hover {    
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
 }
 
 .btn-info {
@@ -320,6 +322,20 @@ body {
     color: white;
     border: 2px solid #ffffff;
     transform: translateY(-2px);
+}
+
+.btn-path {
+    background: #fd7e14;    
+    color: white;
+    border: 2px solid #fd7e14;
+
+}
+.btn-path:hover {
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
+
 }
 
 /* ============================================
@@ -1084,6 +1100,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
