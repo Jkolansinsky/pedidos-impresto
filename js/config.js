@@ -152,13 +152,13 @@ async function geocodeAddress(address) {
         const url = `https://nominatim.openstreetmap.org/search?` +
                     `format=json` +
                     `&q=${query}` +
-                    `&limit=5` +  // Obtener varios resultados para elegir el mejor
-                    `&countrycodes=mx` +  // Solo México
-                    `&addressdetails=1` +  // Obtener detalles de la dirección
-                    `&bounded=1` +  // Limitar a un área
-                    `&viewbox=-93.5,-92.3,17.5,18.5`;  // Área de Tabasco aproximadamente
+                    `&limit=5` +
+                    `&countrycodes=mx` +
+                    `&addressdetails=1` +
+                    `&bounded=1` +
+                    `&viewbox=-93.5,17.5,-92.3,18.5`;  // Área de Tabasco
         
-        console.log('URL de geocodificación:', url);
+        console.log('🔗 URL de geocodificación:', url);
         
         const response = await fetch(url, {
             headers: {
@@ -168,7 +168,7 @@ async function geocodeAddress(address) {
         
         const data = await response.json();
         
-        console.log('Respuesta completa de geocodificación:', data);
+        console.log('📦 Respuesta completa de geocodificación:', data);
         
         if(data && data.length > 0) {
             // Tomar el primer resultado (más relevante)
@@ -256,6 +256,7 @@ window.addEventListener('beforeunload', function() {
         navigator.geolocation.clearWatch(geoWatchId);
     }
 });
+
 
 
 
