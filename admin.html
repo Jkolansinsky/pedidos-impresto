@@ -80,11 +80,11 @@
                     
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
-                        <button class="btn btn-info" onclick="filterOrders('new')">Nuevos</button>
-                        <button class="btn" style="background: #6f42c1; color: white;" onclick="filterOrders('assigned')">Asignados</button>
-                        <button class="btn btn-warning" onclick="filterOrders('processing')">En Proceso</button>
+                        <button class="btn btn-infoNuevo" onclick="filterOrders('new')">Nuevos</button>
+                        <button class="btn btn-assing"  onclick="filterOrders('assigned')">Asignados</button>
+                        <button class="btn btn-warningProceso" onclick="filterOrders('processing')">En Proceso</button>
                         <button class="btn btn-success" onclick="filterOrders('ready')">Listos</button>
-                        <button class="btn" style="background: #fd7e14; color: white;" onclick="filterOrders('delivering')">En Camino</button>
+                        <button class="btn btn-path"  onclick="filterOrders('delivering')">En Camino</button>
                         <button class="btn btn-secondary" onclick="filterOrders('delivered')">Entregados Hoy</button>
                     </div>
 
@@ -288,3 +288,4 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
