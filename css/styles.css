@@ -131,8 +131,8 @@ body {
 
 .nav-tab.active {
     background: white;
-    border-bottom: 3px solid #004AAD;
-    color: #004AAD;
+    border-bottom: 3px solid #FF0000;
+    color: #FF0000;
 }
 
 .tab-content {
@@ -1034,6 +1034,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
