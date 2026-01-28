@@ -217,6 +217,7 @@ body {
 }
 
 .btn-primary:hover {
+
     background: white;
     color: #ff0000;
     border: 2px solid #ff0000;
@@ -229,13 +230,56 @@ body {
 }
 
 .btn-success:hover {
-    background: #218838;
-   transform: translateY(-2px);
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
+}
+
+.btn-assing {
+    background: #6f42c1;
+    color: white;
+    border: 2px solid #6f42c1;
+}
+
+.btn-assing:hover {
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
+}
+
+.btn-infoNuevo {
+    background: #24b1f7;
+    color: white;
+    border: 2px solid #24b1f7;
+    
+}
+
+.btn-infoNuevo:hover {
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
+}
+
+.btn-warningProceso {
+    background: #f4fc0a;
+    color: white#ff0000;
+    border: 2px solid #f4fc0a;
+}
+
+.btn-warningProceso:hover {
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    transform: translateY(-2px);
 }
 
 .btn-danger {
     background: white;
     color: #ff0000;
+    
 }
 
 .btn-danger:hover {
@@ -256,7 +300,6 @@ body {
     border: 2px solid #ffffff;
     transform: translateY(-2px);
 }
-
 .btn-secondary {
     background: #6c757d;
     color: white;
@@ -1041,6 +1084,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
