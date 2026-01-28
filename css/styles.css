@@ -212,14 +212,15 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #004AAD 0%, #007BFF 100%);
+    background: linear-gradient(90deg,rgba(255, 0, 0, 1) 0%, rgba(250, 62, 62, 1) 100%, rgba(247, 233, 233, 1) 66%);
     color: white;
 }
 
 .btn-primary:hover {
+    background: white;
+    color: #ff0000;
+    border: 2px solid #ff0000;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 74, 173, 0.4);
-   transform: translateY(-2px);
 }
 
 .btn-success {
@@ -1040,6 +1041,7 @@ table tbody tr:hover {
         height: 400px !important;
     }
 }
+
 
 
 
