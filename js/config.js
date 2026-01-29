@@ -3,7 +3,7 @@
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyUfBmnGp7RgOXPcl-GNnY_kFO2VK-hX5cLQnugrIhwGTZb0v22bQnDulnmzi8BgoarEg/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw27gA2-Bhi2SSPYJr_2QzbPLNWGJLiehTVYRgbfQiddvbx9VggYPhunyYQSEUTELHk/exec';
 
 // Variables globales de geolocalización
 let userCurrentLocation = null;
@@ -256,6 +256,7 @@ window.addEventListener('beforeunload', function() {
         navigator.geolocation.clearWatch(geoWatchId);
     }
 });
+
 
 
 
