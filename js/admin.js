@@ -198,6 +198,9 @@ async function viewOrderDetail(order) {
     const deliveryPersonHTML = (order.status === 'delivering' && deliveryPersonData) ? 
         renderDeliveryPersonInfo(deliveryPersonData) : '';
     
+    // Verificar si el pedido ya fue entregado
+    const isDelivered = order.status === 'delivered';
+    
     // Generar links de archivos
     let filesHTML = '';
     if(order.works && order.works.length > 0) {
@@ -232,6 +235,19 @@ async function viewOrderDetail(order) {
         ${deliveryPersonHTML}
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <h3><i class="fas fa-receipt"></i> ${order.folio}</h3>
+            ${isDelivered ? `
+                <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                    <p style="color: #155724; margin: 0; font-weight: bold;">
+                        <i class="fas fa-check-circle"></i> Este pedido ya fue entregado
+                    </p>
+                    <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
+                        Fecha de entrega: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}
+                    </p>
+                    <p style="color: #856404; margin: 10px 0 0 0; font-size: 0.9em; background: #fff3cd; padding: 10px; border-radius: 5px;">
+                        <i class="fas fa-lock"></i> <strong>Nota:</strong> Los pedidos entregados no se pueden modificar
+                    </p>
+                </div>
+            ` : ''}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
                 <div>
                     <p><strong>Cliente:</strong> ${order.client.name}</p>
@@ -278,6 +294,34 @@ async function viewOrderDetail(order) {
     document.getElementById('orderStatus').value = order.status;
     document.getElementById('assignEmployee').value = order.employee || '';
     document.getElementById('statusNotes').value = '';
+    
+    // Deshabilitar controles si ya fue entregado
+    if(isDelivered) {
+        document.getElementById('orderStatus').disabled = true;
+        document.getElementById('assignEmployee').disabled = true;
+        document.getElementById('statusNotes').disabled = true;
+        
+        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
+        if(updateBtn) {
+            updateBtn.disabled = true;
+            updateBtn.style.opacity = '0.5';
+            updateBtn.style.cursor = 'not-allowed';
+            updateBtn.innerHTML = '<i class="fas fa-lock"></i> Pedido Entregado';
+        }
+    } else {
+        document.getElementById('orderStatus').disabled = false;
+        document.getElementById('assignEmployee').disabled = false;
+        document.getElementById('statusNotes').disabled = false;
+        
+        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
+        if(updateBtn) {
+            updateBtn.disabled = false;
+            updateBtn.style.opacity = '1';
+            updateBtn.style.cursor = 'pointer';
+            updateBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar Estado';
+        }
+    }
+    
     document.getElementById('orderDetailModal').classList.add('active');
 }
 
@@ -342,14 +386,20 @@ function closeOrderDetail() {
 }
 
 async function updateOrderStatus() {
-    const newStatus = document.getElementById('orderStatus').value;
-    const notes = document.getElementById('statusNotes').value.trim();
-    const employee = document.getElementById('assignEmployee').value.trim() || currentUser.username;
-
     if(!currentOrder) {
         alert('No hay pedido seleccionado');
         return;
     }
+
+    // Verificar si ya fue entregado
+    if(currentOrder.status === 'delivered') {
+        alert('Este pedido ya fue entregado. No se puede modificar su estado.');
+        return;
+    }
+
+    const newStatus = document.getElementById('orderStatus').value;
+    const notes = document.getElementById('statusNotes').value.trim();
+    const employee = document.getElementById('assignEmployee').value.trim() || currentUser.username;
 
     showLoading(true);
     try {
@@ -871,6 +921,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
