@@ -178,6 +178,9 @@ async function viewOrderDetail(order) {
     const deliveryPersonHTML = (order.status === 'delivering' && deliveryPersonData) ? 
         renderDeliveryPersonInfo(deliveryPersonData) : '';
     
+    // Verificar si el pedido ya fue entregado
+    const isDelivered = order.status === 'delivered';
+    
     // Generar links de archivos
     let filesHTML = '';
     if(order.works && order.works.length > 0) {
@@ -200,6 +203,16 @@ async function viewOrderDetail(order) {
         ${deliveryPersonHTML}
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <h3><i class="fas fa-receipt"></i> ${order.folio}</h3>
+            ${isDelivered ? `
+                <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                    <p style="color: #155724; margin: 0; font-weight: bold;">
+                        <i class="fas fa-check-circle"></i> Este pedido ya fue entregado
+                    </p>
+                    <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
+                        Fecha de entrega: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}
+                    </p>
+                </div>
+            ` : ''}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
                 <div>
                     <p><strong>Cliente:</strong> ${order.client.name}</p>
@@ -244,6 +257,22 @@ async function viewOrderDetail(order) {
     buildTimeline(order);
     document.getElementById('orderStatus').value = order.status;
     document.getElementById('statusNotes').value = '';
+    
+    // Deshabilitar controles si ya fue entregado
+    if(isDelivered) {
+        document.getElementById('orderStatus').disabled = true;
+        document.getElementById('statusNotes').disabled = true;
+        document.querySelector('#orderDetailModal .btn-success').disabled = true;
+        document.querySelector('#orderDetailModal .btn-success').style.opacity = '0.5';
+        document.querySelector('#orderDetailModal .btn-success').style.cursor = 'not-allowed';
+    } else {
+        document.getElementById('orderStatus').disabled = false;
+        document.getElementById('statusNotes').disabled = false;
+        document.querySelector('#orderDetailModal .btn-success').disabled = false;
+        document.querySelector('#orderDetailModal .btn-success').style.opacity = '1';
+        document.querySelector('#orderDetailModal .btn-success').style.cursor = 'pointer';
+    }
+    
     document.getElementById('orderDetailModal').classList.add('active');
 }
 
@@ -312,13 +341,19 @@ function closeOrderDetail() {
 // ============================================
 
 async function updateOrderStatus() {
-    const newStatus = document.getElementById('orderStatus').value;
-    const notes = document.getElementById('statusNotes').value.trim();
-
     if(!currentOrder) {
         alert('No hay pedido seleccionado');
         return;
     }
+
+    // Verificar si ya fue entregado
+    if(currentOrder.status === 'delivered') {
+        alert('Este pedido ya fue entregado. No se puede modificar su estado.');
+        return;
+    }
+
+    const newStatus = document.getElementById('orderStatus').value;
+    const notes = document.getElementById('statusNotes').value.trim();
 
     if(newStatus === currentOrder.status && !notes) {
         alert('No hay cambios para guardar');
@@ -360,7 +395,7 @@ async function updateOrderStatus() {
 function notifyClient() {
     if(currentOrder && currentOrder.client.phone) {
         const statusText = getStatusText(currentOrder.status);
-        const message = `Hola ${currentOrder.client.name}, tu pedido ${currentOrder.folio} está: ${statusText}`;
+        const message = `Hola ${currentOrder.client.name}, su pedido ${currentOrder.folio} está: ${statusText}`;
         window.open(`https://wa.me/52${currentOrder.client.phone}?text=${encodeURIComponent(message)}`, '_blank');
     }
 }
@@ -449,5 +484,6 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
 
 
