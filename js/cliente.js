@@ -767,11 +767,68 @@ async function trackOrder() {
         showLoading(false);
     }
 }
+
 function displayTracking(order) {
     const results = document.getElementById('trackingResults');
     const statusText = getStatusText(order.status);
     const statusClass = 'status-' + order.status;
     
+    // Verificar si el pedido ya fue entregado
+    const isDelivered = order.status === 'delivered';
+    
+    if(isDelivered) {
+        // Mostrar mensaje de pedido entregado sin historial
+        results.innerHTML = `
+            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3); margin-bottom: 20px;">
+                <div style="font-size: 4em; margin-bottom: 15px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 style="margin: 0 0 10px 0; font-size: 1.8em;">¡Pedido Entregado!</h2>
+                <p style="font-size: 1.2em; margin: 0; opacity: 0.95;">Tu pedido <strong>${order.folio}</strong> fue entregado exitosamente</p>
+            </div>
+
+            <div class="cart-item" style="border-left: 4px solid #28a745;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <h4 style="color: #28a745; margin-bottom: 10px;">
+                            <i class="fas fa-info-circle"></i> Información del Pedido
+                        </h4>
+                        <p><strong>Folio:</strong> ${order.folio}</p>
+                        <p><strong>Cliente:</strong> ${order.client.name}</p>
+                        <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #28a745; margin-bottom: 10px;">
+                            <i class="fas fa-calendar-check"></i> Fechas
+                        </h4>
+                        <p><strong>Fecha de Pedido:</strong><br>${formatDate(order.date)}</p>
+                        <p><strong>Fecha de Entrega:</strong><br>${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #28a745; margin-bottom: 10px;">
+                            <i class="fas fa-dollar-sign"></i> Total
+                        </h4>
+                        <p style="font-size: 1.5em; color: #28a745; font-weight: bold; margin: 0;">$${order.total}</p>
+                        <p style="font-size: 0.9em; color: #666; margin: 5px 0 0 0;">${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 8px; padding: 20px; margin-top: 20px; text-align: center;">
+                <p style="color: #155724; margin: 0; font-size: 1.1em;">
+                    <i class="fas fa-heart"></i> <strong>¡Gracias por tu preferencia!</strong>
+                </p>
+                <p style="color: #155724; margin: 10px 0 0 0; font-size: 0.95em;">
+                    Esperamos verte pronto nuevamente
+                </p>
+            </div>
+        `;
+        
+        // No mostrar mapa ni historial para pedidos entregados
+        return;
+    }
+    
+    // Si NO está entregado, mostrar tracking normal
     results.innerHTML = `
         <div class="cart-item">
             <h3>Pedido ${order.folio}</h3>
@@ -1158,6 +1215,7 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
 
 
 
