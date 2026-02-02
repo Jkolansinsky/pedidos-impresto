@@ -11,37 +11,23 @@ let destinationMarker = null;
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
-
 // ============================================
-// VARIABLES PARA REGISTRO CONTROLADO
+// VARIABLES PARA REGISTRO
 // ============================================
 let videoStream = null;
-let currentCaptureType = null;
-let validatedInvitationCode = null;
-let registrationData = {
-    invitationCode: null,
-    personalInfo: {},
-    documents: {
-        selfie: null,
-        license: null,
-        vehicle: null,
-        background: null
-    },
-    contractAccepted: false
-};
-let pedidosEnCurso = new Set();
+let capturedPhoto = null;
+let photoBlob = null;
+let pedidosEnCurso = new Set(); // IDs de pedidos que ya están en curso
 
 // ============================================
-// FUNCIONES DE NAVEGACIÓN ENTRE TABS
+// FUNCIONES DE AUTENTICACIÓN (LOGIN/REGISTRO)
 // ============================================
 
 function showAuthTab(tab) {
     // Limpiar mensajes de error
-    const loginError = document.getElementById('loginError');
-    const codeError = document.getElementById('codeError');
-    
-    if(loginError) loginError.classList.add('hidden');
-    if(codeError) codeError.classList.add('hidden');
+    document.getElementById('loginError').classList.add('hidden');
+    document.getElementById('registerError').classList.add('hidden');
+    document.getElementById('registerSuccess').classList.add('hidden');
     
     // Cambiar tabs
     document.querySelectorAll('.tab-auth').forEach(t => t.classList.remove('active'));
@@ -53,282 +39,39 @@ function showAuthTab(tab) {
     } else {
         document.getElementById('tabRegister').classList.add('active');
         document.getElementById('registerTab').classList.add('active');
-        // Reset al paso 1
-        goToStep(1);
     }
 }
 
-function goToStep(stepNumber) {
-    // Ocultar todos los pasos
-    document.querySelectorAll('.registration-step').forEach(step => {
-        step.classList.remove('active');
-    });
-    
-    // Mostrar el paso solicitado
-    document.getElementById('step' + stepNumber).classList.add('active');
-    
-    // Scroll al inicio
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 // ============================================
-// PASO 1: VALIDACIÓN DE CÓDIGO DE INVITACIÓN
+// CAPTURA DE FOTO
 // ============================================
 
-async function validateInvitationCode() {
-    const code = document.getElementById('invitationCode').value.trim().toUpperCase();
-    const errorDiv = document.getElementById('codeError');
-    
-    errorDiv.classList.add('hidden');
-    
-    if(!code) {
-        errorDiv.textContent = 'Por favor ingresa el código de invitación';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    showLoading(true);
-    
+async function startCamera() {
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'validateInvitationCode',
-                code: code
-            })
-        });
-        
-        const result = await response.json();
-        
-        if(result.success) {
-            validatedInvitationCode = code;
-            registrationData.invitationCode = code;
-            goToStep(2);
-        } else {
-            errorDiv.textContent = result.message || 'Código de invitación inválido';
-            errorDiv.classList.remove('hidden');
-        }
-    } catch(error) {
-        errorDiv.textContent = 'Error al validar el código: ' + error.message;
-        errorDiv.classList.remove('hidden');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================
-// PASO 2: VALIDACIÓN DE DATOS PERSONALES
-// ============================================
-
-function validateStep2() {
-    const fullName = document.getElementById('regFullName').value.trim();
-    const username = document.getElementById('regUsername').value.trim().toLowerCase();
-    const password = document.getElementById('regPassword').value.trim();
-    const passwordConfirm = document.getElementById('regPasswordConfirm').value.trim();
-    const phone = document.getElementById('regPhone').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const errorDiv = document.getElementById('step2Error');
-    
-    errorDiv.classList.add('hidden');
-    
-    // Validaciones
-    if(!fullName || !username || !password || !passwordConfirm || !phone) {
-        errorDiv.textContent = 'Por favor completa todos los campos obligatorios (*)';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(fullName.length < 5) {
-        errorDiv.textContent = 'El nombre completo debe tener al menos 5 caracteres';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(username.length < 3) {
-        errorDiv.textContent = 'El nombre de usuario debe tener al menos 3 caracteres';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(/\s/.test(username)) {
-        errorDiv.textContent = 'El nombre de usuario no puede contener espacios';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(password.length < 6) {
-        errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(password !== passwordConfirm) {
-        errorDiv.textContent = 'Las contraseñas no coinciden';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(phone.length < 10) {
-        errorDiv.textContent = 'El teléfono debe tener al menos 10 dígitos';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    if(email && !isValidEmail(email)) {
-        errorDiv.textContent = 'El formato del email no es válido';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    // Guardar datos
-    registrationData.personalInfo = {
-        fullName,
-        username,
-        password,
-        phone,
-        email
-    };
-    
-    // Actualizar nombre en contrato
-    document.getElementById('contractName').textContent = fullName;
-    
-    goToStep(3);
-}
-
-function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-// ============================================
-// PASO 3: CARGA DE DOCUMENTOS
-// ============================================
-
-function captureDocument(type) {
-    currentCaptureType = type;
-    document.getElementById('cameraModal').classList.add('active');
-}
-
-function uploadDocument(type) {
-    document.getElementById(type + 'File').click();
-}
-
-async function handleDocumentUpload(type) {
-    const input = document.getElementById(type + 'File');
-    
-    if(input.files.length > 0) {
-        const file = input.files[0];
-        
-        // Validar tipo
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-        if(!validTypes.includes(file.type)) {
-            alert('Por favor selecciona una imagen (JPG, PNG) o PDF válido');
-            return;
-        }
-        
-        // Validar tamaño (máx 10MB)
-        if(file.size > 10 * 1024 * 1024) {
-            alert('El archivo es muy grande. Máximo 10MB');
-            return;
-        }
-        
-        try {
-            showLoading(true);
-            
-            // Convertir a base64
-            const base64 = await fileToBase64(file);
-            
-            // Guardar en registrationData
-            registrationData.documents[type] = {
-                name: file.name,
-                type: file.type,
-                data: base64,
-                size: file.size
-            };
-            
-            // Mostrar preview
-            showDocumentPreview(type, base64, file.type);
-            
-        } catch(error) {
-            alert('Error al procesar el archivo: ' + error.message);
-        } finally {
-            showLoading(false);
-        }
-    }
-}
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            // Extraer solo el base64 sin el prefijo data:...
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-function showDocumentPreview(type, base64Data, mimeType) {
-    const previewDiv = document.getElementById(type + 'Preview');
-    const uploadDiv = document.getElementById(type + 'Upload');
-    const img = document.getElementById(type + 'Img');
-    
-    if(mimeType.startsWith('image/')) {
-        img.src = 'data:' + mimeType + ';base64,' + base64Data;
-    } else {
-        // Para PDFs mostrar un ícono
-        img.src = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="50%" y="50%" font-size="60" text-anchor="middle" fill="#dc3545">📄</text></svg>');
-    }
-    
-    previewDiv.classList.remove('hidden');
-    uploadDiv.classList.add('hidden');
-}
-
-function removeDocument(type) {
-    registrationData.documents[type] = null;
-    
-    const previewDiv = document.getElementById(type + 'Preview');
-    const uploadDiv = document.getElementById(type + 'Upload');
-    const img = document.getElementById(type + 'Img');
-    const fileInput = document.getElementById(type + 'File');
-    
-    img.src = '';
-    previewDiv.classList.add('hidden');
-    uploadDiv.classList.remove('hidden');
-    fileInput.value = '';
-}
-
-// ============================================
-// MODAL DE CÁMARA
-// ============================================
-
-async function startDocumentCamera() {
-    try {
+        // Solicitar acceso a la cámara
         videoStream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+                facingMode: 'user',
+                width: { ideal: 640 },
+                height: { ideal: 480 }
             } 
         });
         
-        const video = document.getElementById('cameraPreview');
+        const video = document.getElementById('videoPreview');
         video.srcObject = videoStream;
         video.style.display = 'block';
         
-        document.getElementById('startCameraBtn').classList.add('hidden');
-        document.getElementById('takePictureBtn').classList.remove('hidden');
+        document.getElementById('takePicBtn').classList.remove('hidden');
         
     } catch(error) {
         console.error('Error accediendo a la cámara:', error);
-        alert('No se pudo acceder a la cámara. Por favor, sube el archivo desde tu dispositivo.');
+        alert('No se pudo acceder a la cámara. Por favor, sube una foto desde archivo.');
     }
 }
 
-function takeDocumentPicture() {
-    const video = document.getElementById('cameraPreview');
-    const canvas = document.getElementById('captureCanvas');
+function takePicture() {
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('photoCanvas');
     const context = canvas.getContext('2d');
     
     // Configurar tamaño del canvas
@@ -338,220 +81,270 @@ function takeDocumentPicture() {
     // Capturar frame del video
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Convertir a blob y luego a base64
-    canvas.toBlob(async function(blob) {
-        try {
-            showLoading(true);
-            
-            const base64 = await blobToBase64(blob);
-            
-            // Guardar en registrationData
-            registrationData.documents[currentCaptureType] = {
-                name: currentCaptureType + '_' + Date.now() + '.jpg',
-                type: 'image/jpeg',
-                data: base64,
-                size: blob.size
-            };
-            
-            // Mostrar preview
-            showDocumentPreview(currentCaptureType, base64, 'image/jpeg');
-            
-            // Cerrar modal
-            closeCameraModal();
-            
-        } catch(error) {
-            alert('Error al procesar la imagen: ' + error.message);
-        } finally {
-            showLoading(false);
+    // Convertir a blob
+    canvas.toBlob(function(blob) {
+        photoBlob = blob;
+        const url = URL.createObjectURL(blob);
+        
+        // Mostrar preview
+        document.getElementById('photoImg').src = url;
+        document.getElementById('photoPreview').classList.remove('hidden');
+        document.getElementById('photoCapture').classList.add('hidden');
+        
+        // Detener cámara
+        stopCamera();
+        
+    }, 'image/jpeg', 0.8);
+}
+
+function handlePhotoUpload() {
+    const input = document.getElementById('photoFileInput');
+    if(input.files.length > 0) {
+        const file = input.files[0];
+        
+        // Validar que sea imagen
+        if(!file.type.startsWith('image/')) {
+            alert('Por favor selecciona una imagen válida');
+            return;
         }
-    }, 'image/jpeg', 0.85);
+        
+        // Validar tamaño (máx 5MB)
+        if(file.size > 5 * 1024 * 1024) {
+            alert('La imagen es muy grande. Máximo 5MB');
+            return;
+        }
+        
+        photoBlob = file;
+        const url = URL.createObjectURL(file);
+        
+        // Mostrar preview
+        document.getElementById('photoImg').src = url;
+        document.getElementById('photoPreview').classList.remove('hidden');
+        document.getElementById('photoCapture').classList.add('hidden');
+    }
 }
 
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
+function removePhoto() {
+    photoBlob = null;
+    document.getElementById('photoImg').src = '';
+    document.getElementById('photoPreview').classList.add('hidden');
+    document.getElementById('photoCapture').classList.remove('hidden');
+    document.getElementById('photoFileInput').value = '';
 }
 
-function closeCameraModal() {
+function stopCamera() {
     if(videoStream) {
         videoStream.getTracks().forEach(track => track.stop());
         videoStream = null;
     }
     
-    const video = document.getElementById('cameraPreview');
+    const video = document.getElementById('videoPreview');
     video.style.display = 'none';
     video.srcObject = null;
     
-    document.getElementById('startCameraBtn').classList.remove('hidden');
-    document.getElementById('takePictureBtn').classList.add('hidden');
-    document.getElementById('cameraModal').classList.remove('active');
-    
-    currentCaptureType = null;
-}
-
-function validateStep3() {
-    const errorDiv = document.getElementById('step3Error');
-    errorDiv.classList.add('hidden');
-    
-    // Verificar que todos los documentos estén cargados
-    const requiredDocs = ['selfie', 'license', 'vehicle', 'background'];
-    const missingDocs = [];
-    
-    for(let doc of requiredDocs) {
-        if(!registrationData.documents[doc]) {
-            missingDocs.push(getDocumentName(doc));
-        }
-    }
-    
-    if(missingDocs.length > 0) {
-        errorDiv.textContent = 'Faltan los siguientes documentos: ' + missingDocs.join(', ');
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-    
-    goToStep(4);
-}
-
-function getDocumentName(type) {
-    const names = {
-        'selfie': 'Selfie con INE',
-        'license': 'Licencia de Conducir',
-        'vehicle': 'Tarjeta de Circulación',
-        'background': 'Carta de No Antecedentes'
-    };
-    return names[type] || type;
+    document.getElementById('takePicBtn').classList.add('hidden');
 }
 
 // ============================================
-// PASO 4: ENVÍO DE SOLICITUD
+// REGISTRO DE REPARTIDOR
 // ============================================
 
-async function submitRegistration() {
-    const errorDiv = document.getElementById('step4Error');
+async function registerDelivery() {
+    const fullName = document.getElementById('regFullName').value.trim();
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value.trim();
+    const passwordConfirm = document.getElementById('regPasswordConfirm').value.trim();
+    const errorDiv = document.getElementById('registerError');
     const successDiv = document.getElementById('registerSuccess');
-    
+
+    // Limpiar mensajes previos
     errorDiv.classList.add('hidden');
     successDiv.classList.add('hidden');
-    
-    // Validar checkboxes
-    const acceptContract = document.getElementById('acceptContract').checked;
-    const acceptPrivacy = document.getElementById('acceptPrivacy').checked;
-    
-    if(!acceptContract) {
-        errorDiv.textContent = 'Debes aceptar el contrato de prestación de servicios';
+
+    // Validaciones
+    if(!fullName || !username || !password || !passwordConfirm) {
+        errorDiv.textContent = 'Por favor completa todos los campos obligatorios';
         errorDiv.classList.remove('hidden');
         return;
     }
-    
-    if(!acceptPrivacy) {
-        errorDiv.textContent = 'Debes aceptar el aviso de privacidad';
+
+    if(username.length < 3) {
+        errorDiv.textContent = 'El nombre de usuario debe tener al menos 3 caracteres';
         errorDiv.classList.remove('hidden');
         return;
     }
-    
-    if(!confirm('¿Estás seguro de enviar tu solicitud de registro? Verifica que toda la información sea correcta.')) {
+
+    if(/\s/.test(username)) {
+        errorDiv.textContent = 'El nombre de usuario no puede contener espacios';
+        errorDiv.classList.remove('hidden');
         return;
     }
-    
+
+    if(password.length < 6) {
+        errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(password !== passwordConfirm) {
+        errorDiv.textContent = 'Las contraseñas no coinciden';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if(!photoBlob) {
+        errorDiv.textContent = 'Debes tomar o subir una foto de tu rostro';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
     showLoading(true);
-    
+
     try {
-        console.log('=== ENVIANDO SOLICITUD DE REGISTRO ===');
+        console.log('=== INICIANDO REGISTRO ===');
+        console.log('Usuario:', username);
+        console.log('Nombre completo:', fullName);
         
-        // Preparar datos completos
-        const registrationPayload = {
-            action: 'submitDeliveryRegistration',
-            invitationCode: registrationData.invitationCode,
-            personalInfo: registrationData.personalInfo,
-            documents: registrationData.documents,
-            contractAccepted: true,
-            privacyAccepted: true,
-            timestamp: new Date().toISOString()
-        };
+        // 1. Subir foto a Drive
+        console.log('Paso 1: Subiendo foto...');
+        const photoData = await uploadPhotoToDrive(photoBlob, username);
         
-        console.log('Payload preparado (sin documentos):', {
-            ...registrationPayload,
-            documents: 'DOCUMENTOS ADJUNTOS'
-        });
+        console.log('Foto subida exitosamente:', photoData);
         
-        // Enviar al backend
+        if(!photoData.success) {
+            throw new Error(photoData.message || 'Error al subir la foto');
+        }
+
+        // 2. Crear usuario en Google Sheets
+        console.log('Paso 2: Creando usuario en Sheets...');
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify(registrationPayload)
+            body: JSON.stringify({
+                action: 'createUser',
+                username: username,
+                password: password,
+                role: 'delivery',
+                name: fullName,
+                photoFileId: photoData.fileId,
+                photoFileUrl: photoData.fileUrl
+            })
         });
-        
+
         const result = await response.json();
+        
+        console.log('Resultado de creación de usuario:', result);
         
         if(result.success) {
             successDiv.innerHTML = `
-                <strong>¡Solicitud Enviada Exitosamente!</strong><br>
-                Tu solicitud ha sido recibida y está en revisión.<br>
-                <strong>Número de solicitud:</strong> ${result.applicationId}<br>
-                <br>
-                Recibirás una notificación cuando tu cuenta sea activada.<br>
-                El proceso de revisión toma entre 24-48 horas hábiles.
+                <strong>¡Registro exitoso!</strong><br>
+                Tu cuenta ha sido creada correctamente.<br>
+                Ahora puedes iniciar sesión con tus credenciales.
             `;
             successDiv.classList.remove('hidden');
             
-            // Limpiar formulario después de 5 segundos
+            // Limpiar formulario
+            document.getElementById('regFullName').value = '';
+            document.getElementById('regUsername').value = '';
+            document.getElementById('regPassword').value = '';
+            document.getElementById('regPasswordConfirm').value = '';
+            removePhoto();
+            
+            // Cambiar a tab de login después de 3 segundos
             setTimeout(() => {
-                resetRegistrationForm();
                 showAuthTab('login');
-            }, 5000);
+                successDiv.classList.add('hidden');
+            }, 3000);
             
         } else {
-            errorDiv.textContent = result.message || 'Error al enviar la solicitud';
+            errorDiv.textContent = result.message || 'Error al crear la cuenta. Por favor intenta nuevamente.';
             errorDiv.classList.remove('hidden');
         }
         
     } catch(error) {
-        console.error('Error:', error);
-        errorDiv.textContent = 'Error al enviar la solicitud: ' + error.message;
+        console.error('=== ERROR EN REGISTRO ===');
+        console.error('Error completo:', error);
+        console.error('Stack:', error.stack);
+        
+        errorDiv.textContent = 'Error al registrar: ' + error.message;
         errorDiv.classList.remove('hidden');
     } finally {
         showLoading(false);
     }
 }
 
-function resetRegistrationForm() {
-    validatedInvitationCode = null;
-    registrationData = {
-        invitationCode: null,
-        personalInfo: {},
-        documents: {
-            selfie: null,
-            license: null,
-            vehicle: null,
-            background: null
-        },
-        contractAccepted: false
-    };
-    
-    // Limpiar campos
-    document.getElementById('invitationCode').value = '';
-    document.getElementById('regFullName').value = '';
-    document.getElementById('regUsername').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regPasswordConfirm').value = '';
-    document.getElementById('regPhone').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('acceptContract').checked = false;
-    document.getElementById('acceptPrivacy').checked = false;
-    
-    // Limpiar documentos
-    ['selfie', 'license', 'vehicle', 'background'].forEach(type => {
-        removeDocument(type);
-    });
-    
-    goToStep(1);
+async function uploadPhotoToDrive(blob, username) {
+    try {
+        console.log('Iniciando subida de foto para:', username);
+        console.log('Tamaño del blob:', blob.size);
+        
+        // Convertir blob a base64
+        const reader = new FileReader();
+        
+        return new Promise((resolve, reject) => {
+            reader.onload = async function(e) {
+                try {
+                    const base64Data = e.target.result.split(',')[1];
+                    
+                    console.log('Base64 generado, longitud:', base64Data.length);
+                    
+                    const uploadData = {
+                        action: 'uploadDriverPhoto',
+                        fileName: `foto_${username}_${Date.now()}.jpg`,
+                        fileData: base64Data,
+                        mimeType: 'image/jpeg',
+                        username: username
+                    };
+                    
+                    console.log('Enviando datos al servidor...');
+                    
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(uploadData)
+                    });
+                    
+                    console.log('Respuesta recibida');
+                    
+                    const result = await response.json();
+                    
+                    console.log('Resultado:', result);
+                    
+                    if(result.success) {
+                        resolve(result);
+                    } else {
+                        reject(new Error(result.message || 'Error desconocido al subir foto'));
+                    }
+                    
+                } catch(error) {
+                    console.error('Error en proceso de subida:', error);
+                    reject(error);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                console.error('Error al leer el blob:', error);
+                reject(new Error('Error al leer la imagen'));
+            };
+            
+            reader.readAsDataURL(blob);
+        });
+        
+    } catch(error) {
+        console.error('Error general en uploadPhotoToDrive:', error);
+        throw error;
+    }
 }
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    const user = checkAuth('delivery');
+    if(user) {
+        showDeliveryPanel(user);
+    }
+    // Si no hay usuario, simplemente muestra el login (no redirige)
+});
 
 // ============================================
 // LOGIN
@@ -561,80 +354,214 @@ async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
     const errorDiv = document.getElementById('loginError');
-    
-    errorDiv.classList.add('hidden');
-    
+
     if(!username || !password) {
-        errorDiv.textContent = 'Por favor ingresa usuario y contraseña';
+        errorDiv.textContent = 'Completa todos los campos';
         errorDiv.classList.remove('hidden');
         return;
     }
-    
+
     showLoading(true);
-    
     try {
-        const response = await fetch(`${SCRIPT_URL}?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=delivery`);
+        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=delivery');
         const result = await response.json();
         
         if(result.success) {
-            // Verificar que el usuario esté activo
-            if(!result.user.active) {
-                errorDiv.textContent = 'Tu cuenta está pendiente de activación. Por favor espera la aprobación del administrador.';
+            if(result.user.role !== 'delivery') {
+                errorDiv.textContent = 'No tienes permisos de repartidor';
                 errorDiv.classList.remove('hidden');
-                showLoading(false);
                 return;
             }
-            
+
+            localStorage.setItem('currentUser', JSON.stringify(result.user));
             currentUser = result.user;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             
-            document.getElementById('currentUserName').textContent = currentUser.name;
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('deliveryPanel').classList.remove('hidden');
-            
-            loadDeliveries();
+            showDeliveryPanel(result.user);
         } else {
-            errorDiv.textContent = result.message || 'Usuario o contraseña incorrectos';
+            errorDiv.textContent = result.message || 'Credenciales incorrectas';
             errorDiv.classList.remove('hidden');
         }
     } catch(error) {
-        errorDiv.textContent = 'Error al iniciar sesión: ' + error.message;
+        errorDiv.textContent = 'Error de conexión: ' + error.message;
         errorDiv.classList.remove('hidden');
     } finally {
         showLoading(false);
     }
 }
 
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-
-window.onload = function() {
-    const user = checkAuth('delivery');
-    if(user) {
-        currentUser = user;
-        document.getElementById('currentUserName').textContent = user.name;
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('deliveryPanel').classList.remove('hidden');
-        loadDeliveries();
-    }
-};
+function showDeliveryPanel(user) {
+    currentUser = user;
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('deliveryPanel').classList.remove('hidden');
+    document.getElementById('currentUserName').textContent = user.username;
+    
+    loadDeliveries();
+    
+    // Actualizar cada 30 segundos
+    updateInterval = setInterval(loadDeliveries, 30000);
+}
 
 // ============================================
-// GESTIÓN DE ENTREGAS (CÓDIGO ORIGINAL)
+// CARGAR ENTREGAS
 // ============================================
 
 async function loadDeliveries() {
-    showLoading(true);
     try {
-        const response = await fetch(`${SCRIPT_URL}?action=getDeliveryOrders&delivery=${currentUser.username}`);
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryOrders&delivery=' + currentUser.username);
         const result = await response.json();
         
         if(result.success) {
-            allDeliveries = result.orders || [];
+            allDeliveries = result.orders;
+            
+            // Detectar pedidos que ya están en estado "delivering" para este repartidor
+            result.orders.forEach(order => {
+                if(order.status === 'delivering' && order.deliveryPerson === currentUser.username) {
+                    pedidosEnCurso.add(order.folio);
+                }
+            });
+            
             filterDeliveries('ready');
+        }
+    } catch(error) {
+        console.error('Error cargando entregas:', error);
+    }
+}
+
+function filterDeliveries(filter) {
+    let filtered = [];
+    
+    if(filter === 'ready') {
+        // Pedidos listos para recoger (estado: ready y serviceType: delivery)
+        filtered = allDeliveries.filter(o => o.status === 'ready' && !o.deliveryPerson);
+    } else if(filter === 'mytaken') {
+        // Mis entregas en curso - incluye AMBOS estados: ready con repartidor asignado Y delivering
+        filtered = allDeliveries.filter(o => 
+            o.deliveryPerson === currentUser.username && 
+            (o.status === 'ready' || o.status === 'delivering')
+        );
+    } else if(filter === 'completed') {
+        // Completadas hoy - usar la función isDeliveredToday
+        filtered = allDeliveries.filter(o => 
+            o.deliveryPerson === currentUser.username && 
+            isDeliveredToday(o)
+        );
+    }
+    
+    displayDeliveries(filtered, filter);
+}
+
+function displayDeliveries(deliveries, filter) {
+    const container = document.getElementById('deliveriesList');
+    container.innerHTML = '';
+    
+    if(deliveries.length === 0) {
+        let message = 'No hay entregas disponibles';
+        if(filter === 'mytaken') message = 'No tienes entregas en curso';
+        if(filter === 'completed') message = 'No hay entregas completadas hoy';
+        
+        container.innerHTML = `<p style="text-align: center; color: #666; padding: 40px;">${message}</p>`;
+        return;
+    }
+    
+    deliveries.forEach(order => {
+        const div = document.createElement('div');
+        div.className = 'order-item';
+        div.style.borderLeft = filter === 'mytaken' ? '4px solid #fd7e14' : '4px solid #28a745';
+        
+        const address = order.address;
+        const addressText = address ? `${address.street}, ${address.colony}, ${address.city}` : 'Dirección no disponible';
+        
+        // Verificar si este pedido ya está en curso
+        const enCurso = pedidosEnCurso.has(order.folio) || order.status === 'delivering';
+        
+        div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4><i class="fas fa-file-alt"></i> ${order.folio}</h4>
+                    <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
+                    <p style="margin: 5px 0;"><i class="fas fa-map-marker-alt"></i> ${addressText}</p>
+                    ${address && address.references ? `<p style="margin: 5px 0; font-size: 0.9em; color: #666;"><em>Ref: ${address.references}</em></p>` : ''}
+                    <p style="margin: 5px 0;">Total: <strong>$${order.total}</strong></p>
+                    <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                        <i class="far fa-clock"></i> ${formatDate(order.date)}
+                    </p>
+                    ${enCurso ? '<span class="order-status status-delivering"><i class="fas fa-route"></i> En camino</span>' : ''}
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${filter === 'ready' ? `
+                        <button class="btn btn-success" onclick='takeDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-hand-holding"></i> Tomar Entrega
+                        </button>
+                    ` : ''}
+                    ${filter === 'mytaken' && !enCurso ? `
+                        <button class="btn btn-warning" id="btnIniciar_${order.folio}" onclick='startDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-route"></i> Iniciar Ruta
+                        </button>
+                        <button class="btn btn-danger" onclick='cancelDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})' style="margin-top: 5px;">
+                            <i class="fas fa-times-circle"></i> Cancelar
+                        </button>
+                    ` : ''}
+                    ${filter === 'mytaken' && enCurso ? `
+                        <button class="btn btn-success" onclick='continueDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                            <i class="fas fa-map-marked-alt"></i> Ver Ruta
+                        </button>
+                        <button class="btn btn-danger" onclick='cancelDelivery(${JSON.stringify(order).replace(/'/g, "&apos;")})' style="margin-top: 5px;">
+                            <i class="fas fa-times-circle"></i> Cancelar Entrega
+                        </button>
+                    ` : ''}
+                    ${filter === 'completed' ? `
+                        <span class="order-status status-delivered">Entregado</span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// ============================================
+// CANCELAR ENTREGA
+// ============================================
+
+async function cancelDelivery(order) {
+    const reason = prompt('¿Por qué motivo cancelas esta entrega?\n(Ej: Problema mecánico, accidente, etc.)');
+    
+    if(!reason) return;
+    
+    if(!confirm(`¿Estás seguro de cancelar la entrega del pedido ${order.folio}?\n\nEsto permitirá que otro repartidor tome el pedido.`)) {
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'cancelDeliveryByDriver',
+                folio: order.folio,
+                deliveryPerson: currentUser.username,
+                reason: reason,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            // Quitar de la lista de pedidos en curso
+            pedidosEnCurso.delete(order.folio);
+            
+            alert('Entrega cancelada. Otro repartidor podrá tomarla.');
+            
+            // Detener GPS si estaba activo
+            if(gpsWatchId) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+                gpsWatchId = null;
+            }
+            
+            loadDeliveries();
         } else {
-            alert('Error al cargar entregas: ' + result.message);
+            alert('Error al cancelar: ' + result.message);
         }
     } catch(error) {
         alert('Error: ' + error.message);
@@ -643,159 +570,241 @@ async function loadDeliveries() {
     }
 }
 
-function filterDeliveries(status) {
-    let filtered = [];
-    
-    if(status === 'ready') {
-        filtered = allDeliveries.filter(o => o.status === 'ready' && o.serviceType === 'domicilio');
-    } else if(status === 'mytaken') {
-        filtered = allDeliveries.filter(o => 
-            o.status === 'delivering' && 
-            o.deliveryPerson === currentUser.username &&
-            o.serviceType === 'domicilio'
-        );
-    } else if(status === 'completed') {
-        filtered = allDeliveries.filter(o => 
-            o.status === 'delivered' && 
-            o.deliveryPerson === currentUser.username &&
-            isDeliveredToday(o) &&
-            o.serviceType === 'domicilio'
-        );
-    }
-    
-    displayDeliveries(filtered);
-}
+// ============================================
+// TOMAR ENTREGA
+// ============================================
 
-function displayDeliveries(deliveries) {
-    const container = document.getElementById('deliveriesList');
-    
-    if(deliveries.length === 0) {
-        container.innerHTML = `
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i>
-                No hay entregas en esta categoría
-            </div>
-        `;
+async function takeDelivery(order) {
+    if(!confirm(`¿Confirmas tomar la entrega del pedido ${order.folio}?`)) {
         return;
     }
-    
-    container.innerHTML = deliveries.map(order => {
-        const statusClass = 'status-' + order.status;
-        const statusText = getStatusText(order.status);
-        
-        const address = safeJSONParse(order.address, {});
-        const addressText = address.street ? 
-            `${address.street}, ${address.colony}, ${address.city || 'Villahermosa'}` : 
-            'Dirección no disponible';
-        
-        const isInProgress = pedidosEnCurso.has(order.folio);
-        
-        return `
-            <div class="order-item">
-                <div class="cart-item-header">
-                    <h4>Pedido #${order.folio}</h4>
-                    <span class="order-status ${statusClass}">${statusText}</span>
-                </div>
-                <div class="cart-item-details">
-                    <strong>Cliente:</strong> ${order.client.name}<br>
-                    <strong>Teléfono:</strong> ${order.client.phone}<br>
-                    <strong>Dirección:</strong> ${addressText}<br>
-                    <strong>Total:</strong> $${parseFloat(order.total).toFixed(2)}
-                </div>
-                ${order.status === 'ready' && !isInProgress ? `
-                    <button class="btn btn-success" onclick="takeDelivery('${order.folio}')">
-                        <i class="fas fa-hand-paper"></i> Tomar Entrega
-                    </button>
-                ` : ''}
-                ${order.status === 'delivering' && order.deliveryPerson === currentUser.username ? `
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="viewActiveDelivery('${order.folio}')">
-                            <i class="fas fa-map-marked-alt"></i> Ver Ruta
-                        </button>
-                        <button class="btn btn-danger" onclick="cancelDelivery('${order.folio}')">
-                            <i class="fas fa-times-circle"></i> Cancelar
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-}
 
-async function takeDelivery(folio) {
-    if(!confirm('¿Deseas tomar esta entrega?')) {
-        return;
-    }
-    
     showLoading(true);
-    
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'assignDelivery',
-                folio: folio,
+                folio: order.folio,
                 deliveryPerson: currentUser.username,
                 timestamp: new Date().toISOString()
             })
         });
-        
+
         const result = await response.json();
         
         if(result.success) {
-            pedidosEnCurso.add(folio);
-            
-            const order = allDeliveries.find(o => o.folio === folio);
-            if(order) {
-                order.status = 'delivering';
-                order.deliveryPerson = currentUser.username;
-                activeDelivery = order;
-                
-                startGPSTracking(folio);
-                
-                filterDeliveries('mytaken');
-                viewActiveDelivery(folio);
-            }
+            alert('Entrega asignada correctamente. Ahora puedes iniciar la ruta.');
+            loadDeliveries();
         } else {
-            alert('Error: ' + result.message);
+            alert('Error al asignar entrega: ' + result.message);
         }
     } catch(error) {
-        alert('Error al tomar entrega: ' + error.message);
+        alert('Error: ' + error.message);
     } finally {
         showLoading(false);
     }
 }
 
-function startGPSTracking(folio) {
-    if(gpsWatchId) {
-        navigator.geolocation.clearWatch(gpsWatchId);
+// ============================================
+// INICIAR ENTREGA CON MAPA
+// ============================================
+
+async function startDelivery(order) {
+    // Verificar si ya está en curso
+    if(pedidosEnCurso.has(order.folio)) {
+        alert('Este pedido ya está en curso');
+        return;
     }
     
-    gpsWatchId = navigator.geolocation.watchPosition(
-        function(position) {
-            currentLocation = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-            };
+    activeDelivery = order;
+    
+    if(!userCurrentLocation) {
+        alert('Esperando ubicación GPS...');
+        return;
+    }
+    
+    // Deshabilitar botón inmediatamente
+    const btn = document.getElementById('btnIniciar_' + order.folio);
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+        btn.style.opacity = '0.6';
+    }
+    
+    // Actualizar estado a "delivering"
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'updateOrderStatus',
+                folio: order.folio,
+                status: 'delivering',
+                employee: currentUser.username,
+                notes: 'Pedido salió para entrega',
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            // Marcar como en curso
+            pedidosEnCurso.add(order.folio);
             
-            updateDeliveryLocation(folio, currentLocation);
+            // Enviar WhatsApp automático al cliente
+            await sendDeliveryStartNotification(order);
             
-            if(deliveryMarker && deliveryMap) {
-                deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+            // Iniciar seguimiento GPS
+            startGPSTracking(order);
+            
+            showDeliveryMap(order);
+        } else {
+            // Si falla, rehabilitar botón
+            if(btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-route"></i> Iniciar Ruta';
+                btn.style.opacity = '1';
             }
-        },
-        function(error) {
-            console.error('Error GPS:', error);
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 5000
+            alert('Error al iniciar entrega: ' + result.message);
         }
-    );
+    } catch(error) {
+        // Si hay error, rehabilitar botón
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-route"></i> Iniciar Ruta';
+            btn.style.opacity = '1';
+        }
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
 }
 
-async function updateDeliveryLocation(folio, location) {
+// ============================================
+// CONTINUAR ENTREGA EN CURSO
+// ============================================
+
+function continueDelivery(order) {
+    activeDelivery = order;
+    
+    console.log('🔄 Continuando entrega...');
+    console.log('userCurrentLocation:', userCurrentLocation);
+    
+    // Si no hay ubicación, intentar obtenerla
+    if(!userCurrentLocation) {
+        console.log('⚠️ No hay ubicación, solicitando...');
+        showLoading(true);
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                userCurrentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('✅ Ubicación obtenida:', userCurrentLocation);
+                showLoading(false);
+                
+                // Reanudar seguimiento GPS
+                startGPSTracking(order);
+                
+                // Mostrar el mapa
+                showDeliveryMap(order);
+            },
+            function(error) {
+                console.error('❌ Error obteniendo ubicación:', error);
+                showLoading(false);
+                alert('No se pudo obtener tu ubicación. Por favor, activa el GPS y otorga permisos de ubicación.');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            }
+        );
+        return;
+    }
+    
+    // Reanudar seguimiento GPS si no está activo
+    if(!gpsWatchId) {
+        startGPSTracking(order);
+    }
+    
+    // Mostrar el mapa
+    showDeliveryMap(order);
+}
+function startGPSTracking(order) {
+    console.log('🎯 Iniciando seguimiento GPS...');
+    
+    // Primero, obtener ubicación actual de forma única
+    if('geolocation' in navigator) {
+        // Obtener ubicación inicial inmediatamente
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                console.log('✅ Ubicación inicial obtenida:', currentLocation);
+                
+                // Actualizar en servidor
+                updateLocationOnServer(order.folio, currentLocation);
+                
+                // Actualizar marcador si existe
+                if(deliveryMarker && deliveryMap) {
+                    deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+                }
+            },
+            function(error) {
+                console.error('❌ Error obteniendo ubicación inicial:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+        
+        // Luego iniciar seguimiento continuo con configuración más permisiva
+        gpsWatchId = navigator.geolocation.watchPosition(
+            function(position) {
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                
+                console.log('📍 Ubicación actualizada:', currentLocation);
+                
+                // Actualizar ubicación en el servidor
+                updateLocationOnServer(order.folio, currentLocation);
+                
+                // Actualizar marcador en mapa
+                if(deliveryMarker && deliveryMap) {
+                    deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+                    deliveryMap.panTo([currentLocation.latitude, currentLocation.longitude]);
+                }
+            },
+            function(error) {
+                // Solo mostrar advertencia, no detener el proceso
+                if(error.code === 1) {
+                    console.warn('⚠️ Permisos de ubicación denegados');
+                } else if(error.code === 2) {
+                    console.warn('⚠️ Ubicación no disponible');
+                } else if(error.code === 3) {
+                    console.warn('⚠️ Timeout de GPS - usando última ubicación conocida');
+                }
+            },
+            {
+                enableHighAccuracy: false,  // Cambiado a false para ser menos estricto
+                timeout: 60000,              // 60 segundos
+                maximumAge: 30000            // Aceptar ubicaciones de hasta 30 segundos
+            }
+        );
+    }
+}
+
+async function updateLocationOnServer(folio, location) {
     try {
         await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -813,62 +822,107 @@ async function updateDeliveryLocation(folio, location) {
     }
 }
 
-function viewActiveDelivery(folio) {
-    const order = allDeliveries.find(o => o.folio === folio);
-    if(!order) return;
+async function sendDeliveryStartNotification(order) {
+    try {
+        // Enviar notificación automática por WhatsApp
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'sendWhatsAppNotification',
+                phone: order.client.phone,
+                folio: order.folio,
+                message: `¡Hola ${order.client.name}! Tu pedido ${order.folio} está en camino. El repartidor salió de nuestra sucursal y llegará pronto. 🚀`
+            })
+        });
+    } catch(error) {
+        console.error('Error enviando WhatsApp:', error);
+    }
+}
+
+function showDeliveryMap(order) {
+    const deliveryInfo = document.getElementById('deliveryInfo');
+    const address = order.address;
     
-    activeDelivery = order;
-    
-    const address = safeJSONParse(order.address, {});
-    
-    document.getElementById('deliveryInfo').innerHTML = `
-        <div class="order-item">
-            <h4>Pedido #${order.folio}</h4>
-            <div class="cart-item-details">
-                <strong>Cliente:</strong> ${order.client.name}<br>
-                <strong>Teléfono:</strong> ${order.client.phone}<br>
-                <strong>Dirección:</strong> ${address.street}, ${address.colony}<br>
-                <strong>Referencias:</strong> ${address.reference || 'No hay referencias'}<br>
-                <strong>Total a cobrar:</strong> $${parseFloat(order.total).toFixed(2)}
-            </div>
+    deliveryInfo.innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h4><i class="fas fa-box"></i> ${order.folio}</h4>
+            <p><strong>Cliente:</strong> ${order.client.name}</p>
+            <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+            <p><strong>Dirección:</strong> ${address.street}, ${address.colony}, ${address.city}</p>
+            ${address.references ? `<p><strong>Referencias:</strong> ${address.references}</p>` : ''}
+            <p><strong>Total a cobrar:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
         </div>
     `;
-    
+
     document.getElementById('activeDeliveryModal').classList.add('active');
     
-    setTimeout(() => {
-        initDeliveryMap(order);
-    }, 300);
+    // Inicializar mapa
+    setTimeout(() => initDeliveryMap(order), 300);
 }
 
 function initDeliveryMap(order) {
     const mapDiv = document.getElementById('deliveryMap');
     
+    // Usar ubicación actual del repartidor
     const startLat = userCurrentLocation ? userCurrentLocation.latitude : 17.989;
     const startLng = userCurrentLocation ? userCurrentLocation.longitude : -92.948;
+
+    console.log('=== INICIANDO MAPA DE ENTREGA ===');
+    console.log('📦 Pedido completo:', order);
+    console.log('🏠 Objeto address:', order.address);
     
+    // Verificar si address existe
     const address = order.address;
     
     if(!address) {
+        console.error('❌ ERROR: No hay dirección en el pedido');
         alert('Error: Este pedido no tiene dirección de entrega');
         return;
     }
     
+    // Mostrar valores RAW antes de parsear
+    console.log('📍 RAW latitude:', address.latitude, 'Tipo:', typeof address.latitude);
+    console.log('📍 RAW longitude:', address.longitude, 'Tipo:', typeof address.longitude);
+    
+    // Parsear coordenadas con validación
     let destLat, destLng;
     
     if(address.latitude && address.longitude) {
         destLat = parseFloat(address.latitude);
         destLng = parseFloat(address.longitude);
+        console.log('📍 Después de parseFloat - Lat:', destLat, 'Lng:', destLng);
     } else {
+        console.warn('⚠️ No hay coordenadas en la dirección, usando valores por defecto');
         destLat = 17.9892;
         destLng = -92.9475;
     }
     
+    // Verificar que las coordenadas sean válidas
     if(isNaN(destLat) || isNaN(destLng)) {
+        console.error('❌ ERROR: Coordenadas inválidas del destino');
+        console.error('destLat:', destLat, 'destLng:', destLng);
         alert('Error: Las coordenadas del destino no son válidas');
         return;
     }
     
+    // Verificar que estén en el rango de Tabasco/Villahermosa
+    const isInRange = (
+        destLat >= 17.5 && destLat <= 18.5 &&
+        destLng >= -93.5 && destLng <= -92.0
+    );
+    
+    if(!isInRange) {
+        console.warn('⚠️ ADVERTENCIA: Las coordenadas parecen estar fuera de Villahermosa/Tabasco');
+        console.warn('Lat:', destLat, 'debe estar entre 17.5 y 18.5');
+        console.warn('Lng:', destLng, 'debe estar entre -93.5 y -92.0');
+    }
+
+    console.log('🏍️ Coordenadas finales:');
+    console.log('  - Inicio (repartidor):', { lat: startLat, lng: startLng });
+    console.log('  - Destino (cliente):', { lat: destLat, lng: destLng });
+    console.log('📍 Dirección del cliente:', `${address.street}, ${address.colony}, ${address.city}`);
+    
+    // Crear mapa
     if(deliveryMap) {
         deliveryMap.remove();
     }
@@ -879,6 +933,7 @@ function initDeliveryMap(order) {
         attribution: '© OpenStreetMap contributors'
     }).addTo(deliveryMap);
     
+    // Marcador de destino (casa del cliente) - con popup que muestra las coordenadas
     destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
@@ -887,22 +942,37 @@ function initDeliveryMap(order) {
         })
     }).addTo(deliveryMap).bindPopup(
         `<strong>Destino: ${order.client.name}</strong><br>` +
-        `${address.street}, ${address.colony}`
+        `${address.street}, ${address.colony}<br>` +
+        `<small>Lat: ${destLat.toFixed(6)}, Lng: ${destLng.toFixed(6)}</small>`
     ).openPopup();
     
+    console.log('🏠 Marcador de destino colocado en:', [destLat, destLng]);
+    
+    // Marcador del repartidor (moto) - posición real
     deliveryMarker = L.marker([startLat, startLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
             iconSize: [40, 40]
         })
-    }).addTo(deliveryMap).bindPopup('Tu ubicación');
+    }).addTo(deliveryMap).bindPopup(
+        `<strong>Tu ubicación</strong><br>` +
+        `<small>Lat: ${startLat.toFixed(6)}, Lng: ${startLng.toFixed(6)}</small>`
+    );
     
+    console.log('🏍️ Marcador de repartidor colocado en:', [startLat, startLng]);
+    
+    // Ajustar el mapa para ver ambos marcadores
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
     deliveryMap.fitBounds(bounds, { padding: [50, 50] });
+    
+    console.log('✅ Mapa inicializado correctamente');
 }
 
 function closeActiveDelivery() {
+    // NO detener GPS ni quitar de la lista si solo se cierra el modal
+    // Solo detener si se completa o cancela la entrega
+    
     if(deliveryMap) {
         deliveryMap.remove();
         deliveryMap = null;
@@ -912,7 +982,14 @@ function closeActiveDelivery() {
     destinationMarker = null;
     
     document.getElementById('activeDeliveryModal').classList.remove('active');
+    
+    // NO limpiar activeDelivery para poder retomar
+    // activeDelivery = null;
 }
+
+// ============================================
+// COMPLETAR ENTREGA
+// ============================================
 
 async function completeDelivery() {
     const notes = document.getElementById('deliveryNotes').value.trim();
@@ -922,9 +999,8 @@ async function completeDelivery() {
             return;
         }
     }
-    
+
     showLoading(true);
-    
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -936,29 +1012,32 @@ async function completeDelivery() {
                 timestamp: new Date().toISOString()
             })
         });
-        
+
         const result = await response.json();
         
         if(result.success) {
+            // Quitar de la lista de pedidos en curso
             pedidosEnCurso.delete(activeDelivery.folio);
             
             alert('✅ Entrega completada exitosamente');
             
+            // Detener GPS
             if(gpsWatchId) {
                 navigator.geolocation.clearWatch(gpsWatchId);
                 gpsWatchId = null;
             }
             
+            // Cerrar modal y limpiar
             if(deliveryMap) {
                 deliveryMap.remove();
                 deliveryMap = null;
             }
-            
             deliveryMarker = null;
             destinationMarker = null;
             document.getElementById('activeDeliveryModal').classList.remove('active');
             activeDelivery = null;
             
+            // Recargar lista
             loadDeliveries();
         } else {
             alert('Error al completar entrega: ' + result.message);
@@ -970,64 +1049,33 @@ async function completeDelivery() {
     }
 }
 
-async function cancelDelivery(folio) {
-    if(!confirm('¿Estás seguro de cancelar esta entrega? Volverá a estar disponible para otros repartidores.')) {
-        return;
-    }
+function cancelActiveDelivery() {
+    if(!activeDelivery) return;
     
-    showLoading(true);
-    
-    try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'cancelDeliveryByDriver',
-                folio: folio,
-                deliveryPerson: currentUser.username
-            })
-        });
-        
-        const result = await response.json();
-        
-        if(result.success) {
-            pedidosEnCurso.delete(folio);
-            
-            if(activeDelivery && activeDelivery.folio === folio) {
-                if(gpsWatchId) {
-                    navigator.geolocation.clearWatch(gpsWatchId);
-                    gpsWatchId = null;
-                }
-                activeDelivery = null;
-                closeActiveDelivery();
-            }
-            
-            loadDeliveries();
-        } else {
-            alert('Error: ' + result.message);
-        }
-    } catch(error) {
-        alert('Error: ' + error.message);
-    } finally {
-        showLoading(false);
-    }
+    closeActiveDelivery();
+    cancelDelivery(activeDelivery);
 }
 
 // ============================================
-// CLEANUP
+// CLEANUP ADICIONAL PARA CÁMARA
 // ============================================
 
+// Modificar la función existente window.addEventListener('beforeunload')
+
+
 window.addEventListener('beforeunload', function() {
+    if(updateInterval) {
+        clearInterval(updateInterval);
+    }
     if(gpsWatchId) {
         navigator.geolocation.clearWatch(gpsWatchId);
     }
     if(deliveryMap) {
         deliveryMap.remove();
     }
-    if(videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
+    // Nuevo: Detener cámara si está activa
+    stopCamera();
 });
-
 
 
 
