@@ -71,6 +71,9 @@
                 <button class="nav-tab" onclick="showAdminTab('reports')">
                     <i class="fas fa-chart-bar"></i> Reportes
                 </button>
+                <button class="nav-tab" onclick="showAdminTab('delivery-requests')">
+                    <i class="fas fa-motorcycle"></i> Solicitudes Repartidores
+                </button>
             </div>
 
             <div class="content">
@@ -123,7 +126,28 @@
                     <button class="btn btn-success" onclick="createNewUser()">
                         <i class="fas fa-save"></i> Crear Usuario
                     </button>
+
+                       <div id="delivery-requests-tab" class="tab-content">
+        <h2><i class="fas fa-clipboard-list"></i> Solicitudes de Repartidores</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="loadDeliveryRequests('pending')">
+                <i class="fas fa-hourglass-half"></i> Pendientes
+            </button>
+            <button class="btn btn-success" onclick="loadDeliveryRequests('approved')">
+                <i class="fas fa-check"></i> Aprobadas
+            </button>
+            <button class="btn btn-danger" onclick="loadDeliveryRequests('rejected')">
+                <i class="fas fa-times"></i> Rechazadas
+            </button>
+        </div>
+        <div id="deliveryRequestsList"></div>
+    </div>
+                    
                 </div>
+
+
+
+             
 
                 <!-- Tab Precios -->
                 <div id="prices-tab" class="tab-content">
@@ -288,6 +312,7 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
 
 
 
