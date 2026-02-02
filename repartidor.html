@@ -9,114 +9,275 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Login -->
-    <!-- Login y Registro -->
-<div id="loginSection">
-    <div class="container" style="max-width: 500px; margin-top: 100px;">
-        <!-- Tabs para Login/Registro -->
-        <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
-            <button id="tabLogin" class="tab-auth active" onclick="showAuthTab('login')">
-                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-            </button>
-            <button id="tabRegister" class="tab-auth" onclick="showAuthTab('register')">
-                <i class="fas fa-user-plus"></i> Registrarse
-            </button>
-        </div>
-
-        <!-- Tab Login -->
-        <div id="loginTab" class="auth-tab active">
-            <div class="header">
-                <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
-                <p>Inicia sesión para gestionar entregas</p>
-            </div>
-            <div class="content">
-                <div class="form-group">
-                    <label>Usuario</label>
-                    <input type="text" id="username" placeholder="Ingresa tu usuario">
-                </div>
-                <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="Ingresa tu contraseña">
-                </div>
-                <div id="loginError" class="alert alert-error hidden"></div>
-                <button class="btn btn-primary" onclick="login()" style="width: 100%;">
+    <!-- ============================================
+         SECCIÓN DE LOGIN
+         ============================================ -->
+    <div id="loginSection">
+        <div class="container" style="max-width: 500px; margin-top: 100px;">
+            <!-- Tabs para Login/Registro -->
+            <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
+                <button id="tabLogin" class="tab-auth active" onclick="showAuthTab('login')">
                     <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                 </button>
-                <div style="margin-top: 20px; text-align: center;">
-                    <a href="index.html" style="color: #667eea;">
-                        <i class="fas fa-arrow-left"></i> Volver al inicio
-                    </a>
-                </div>
+                <button id="tabRegister" class="tab-auth" onclick="showAuthTab('request')">
+                    <i class="fas fa-clipboard-list"></i> Solicitar Registro
+                </button>
             </div>
-        </div>
 
-        <!-- Tab Registro -->
-        <div id="registerTab" class="auth-tab">
-            <div class="header">
-                <h1><i class="fas fa-user-plus"></i> Registro de Repartidor</h1>
-                <p>Crea tu cuenta para comenzar</p>
-            </div>
-            <div class="content">
-                <div class="form-group">
-                    <label>Nombre Completo *</label>
-                    <input type="text" id="regFullName" placeholder="Ej: Juan Pérez López">
+            <!-- Tab Login -->
+            <div id="loginTab" class="auth-tab active">
+                <div class="header">
+                    <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
+                    <p>Inicia sesión para gestionar entregas</p>
                 </div>
-                <div class="form-group">
-                    <label>Nombre de Usuario *</label>
-                    <input type="text" id="regUsername" placeholder="Ej: juan.perez">
-                    <small>Mínimo 3 caracteres, sin espacios</small>
-                </div>
-                <div class="form-group">
-                    <label>Contraseña *</label>
-                    <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres">
-                </div>
-                <div class="form-group">
-                    <label>Confirmar Contraseña *</label>
-                    <input type="password" id="regPasswordConfirm" placeholder="Repite tu contraseña">
-                </div>
-                <div class="form-group">
-                    <label>Foto del Rostro *</label>
-                    <div class="photo-upload-container">
-                        <div id="photoPreview" class="photo-preview hidden">
-                            <img id="photoImg" src="" alt="Vista previa">
-                            <button class="btn btn-danger btn-sm" onclick="removePhoto()" style="margin-top: 10px;">
-                                <i class="fas fa-trash"></i> Cambiar Foto
-                            </button>
-                        </div>
-                        <div id="photoCapture" class="photo-capture">
-                            <video id="videoPreview" autoplay style="width: 100%; max-width: 300px; border-radius: 8px; display: none;"></video>
-                            <canvas id="photoCanvas" style="display: none;"></canvas>
-                            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center;">
-                                <button type="button" class="btn btn-primary" onclick="startCamera()">
-                                    <i class="fas fa-camera"></i> Abrir Cámara
-                                </button>
-                                <button type="button" id="takePicBtn" class="btn btn-success hidden" onclick="takePicture()">
-                                    <i class="fas fa-camera-retro"></i> Tomar Foto
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('photoFileInput').click()">
-                                    <i class="fas fa-upload"></i> Subir Archivo
-                                </button>
-                            </div>
-                            <input type="file" id="photoFileInput" accept="image/*" style="display: none;" onchange="handlePhotoUpload()">
-                        </div>
+                <div class="content">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="username" placeholder="Ingresa tu usuario">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" placeholder="Ingresa tu contraseña">
+                    </div>
+                    <div id="loginError" class="alert alert-error hidden"></div>
+                    <button class="btn btn-primary" onclick="login()" style="width: 100%;">
+                        <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                    </button>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <a href="index.html" style="color: #667eea;">
+                            <i class="fas fa-arrow-left"></i> Volver al inicio
+                        </a>
                     </div>
                 </div>
-                <div id="registerError" class="alert alert-error hidden"></div>
-                <div id="registerSuccess" class="alert alert-success hidden"></div>
-                <button class="btn btn-success" onclick="registerDelivery()" style="width: 100%;">
-                    <i class="fas fa-user-check"></i> Registrarse
-                </button>
-                <div style="margin-top: 20px; text-align: center;">
-                    <a href="index.html" style="color: #667eea;">
-                        <i class="fas fa-arrow-left"></i> Volver al inicio
-                    </a>
+            </div>
+
+            <!-- Tab Solicitud de Registro (NIVEL 1) -->
+            <div id="requestTab" class="auth-tab">
+                <div class="header">
+                    <h1><i class="fas fa-clipboard-list"></i> Solicitud de Registro</h1>
+                    <p>Solicita ser repartidor independiente</p>
+                </div>
+                <div class="content">
+                    <div class="form-group">
+                        <label>Nombre Completo *</label>
+                        <input type="text" id="reqFullName" placeholder="Ej: Juan Pérez López">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono *</label>
+                        <input type="tel" id="reqPhone" placeholder="9931234567">
+                        <small>Recibirás un código QR en este número</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico *</label>
+                        <input type="email" id="reqEmail" placeholder="tu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>¿A qué te dedicas actualmente y por qué quieres registrarte? *</label>
+                        <textarea id="reqMotivation" rows="4" placeholder="Cuéntanos sobre ti..."></textarea>
+                    </div>
+                    <div id="requestError" class="alert alert-error hidden"></div>
+                    <div id="requestSuccess" class="alert alert-success hidden"></div>
+                    <button class="btn btn-success" onclick="submitDeliveryRequest()" style="width: 100%;">
+                        <i class="fas fa-paper-plane"></i> Enviar Solicitud
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Acceso con QR (NIVEL 2) -->
+            <div id="preregisterTab" class="auth-tab hidden">
+                <div class="header">
+                    <h1><i class="fas fa-qrcode"></i> Acceso con Código QR</h1>
+                    <p>Ingresa el código que recibiste por WhatsApp</p>
+                </div>
+                <div class="content">
+                    <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <i class="fas fa-info-circle" style="color: #667eea;"></i>
+                        <strong>¿Cómo funciona?</strong><br>
+                        <small>El administrador revisará tu solicitud y si es aprobada, recibirás un código QR por WhatsApp.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Código QR / Código de Acceso *</label>
+                        <input type="text" id="qrCode" placeholder="Ingresa el código que recibiste">
+                    </div>
+                    <div id="qrError" class="alert alert-error hidden"></div>
+                    <button class="btn btn-primary" onclick="validateQRCode()" style="width: 100%;">
+                        <i class="fas fa-check"></i> Validar Código
+                    </button>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button class="btn btn-secondary" onclick="showAuthTab('request')" style="width: 100%;">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Registro Completo (NIVEL 3) - Documentos y Datos -->
+            <div id="registerTab" class="auth-tab hidden">
+                <div class="header">
+                    <h1><i class="fas fa-file-upload"></i> Registro de Repartidor</h1>
+                    <p>Completa tu información y carga documentos</p>
+                </div>
+                <div class="content">
+                    <!-- Información Personal -->
+                    <h4 style="margin-top: 20px; margin-bottom: 15px;">
+                        <i class="fas fa-user"></i> Información Personal
+                    </h4>
+                    <div class="form-group">
+                        <label>Nombre Completo *</label>
+                        <input type="text" id="regFullName" placeholder="" readonly style="background-color: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono *</label>
+                        <input type="tel" id="regPhone" placeholder="" readonly style="background-color: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico *</label>
+                        <input type="email" id="regEmail" placeholder="" readonly style="background-color: #f0f0f0;">
+                    </div>
+
+                    <!-- Información del Vehículo -->
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">
+                        <i class="fas fa-motorcycle"></i> Información del Vehículo
+                    </h4>
+                    <div class="form-group">
+                        <label>Tipo de Vehículo *</label>
+                        <select id="vehicleType">
+                            <option value="">Selecciona un tipo</option>
+                            <option value="motorcycle">Motocicleta</option>
+                            <option value="scooter">Scooter</option>
+                            <option value="bicycle">Bicicleta</option>
+                            <option value="car">Auto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Número de Placa *</label>
+                        <input type="text" id="licensePlate" placeholder="Ej: ABC-1234">
+                    </div>
+                    <div class="form-group">
+                        <label>Foto del Vehículo / Licencia de Conducir *</label>
+                        <div class="photo-upload-container">
+                            <div id="vehiclePhotoPreview" class="photo-preview hidden">
+                                <img id="vehiclePhotoImg" src="" alt="Vista previa">
+                                <button class="btn btn-danger btn-sm" onclick="removeVehiclePhoto()" style="margin-top: 10px;">
+                                    <i class="fas fa-trash"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="vehiclePhotoCapture" class="photo-capture">
+                                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center;">
+                                    <button type="button" class="btn btn-primary" onclick="document.getElementById('vehicleFileInput').click()">
+                                        <i class="fas fa-upload"></i> Subir Archivo
+                                    </button>
+                                </div>
+                                <input type="file" id="vehicleFileInput" accept="image/*" style="display: none;" onchange="handleVehiclePhotoUpload()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentos -->
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">
+                        <i class="fas fa-id-card"></i> Documentos (PDF o Imagen)
+                    </h4>
+                    
+                    <div class="form-group">
+                        <label>Cédula / DNI / Documento de Identidad *</label>
+                        <div class="file-upload-container">
+                            <div id="idDocPreview" class="file-preview hidden">
+                                <div id="idDocName" style="padding: 10px; background: #e8f5e9; border-radius: 4px; margin-bottom: 10px;"></div>
+                                <button class="btn btn-danger btn-sm" onclick="removeIdDoc()">
+                                    <i class="fas fa-trash"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="idDocCapture" class="file-capture">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('idDocInput').click()">
+                                    <i class="fas fa-upload"></i> Subir Documento
+                                </button>
+                                <input type="file" id="idDocInput" accept=".pdf,image/*" style="display: none;" onchange="handleDocUpload('id')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Licencia de Conducir (Frente) *</label>
+                        <div class="file-upload-container">
+                            <div id="licenseDocPreview" class="file-preview hidden">
+                                <div id="licenseDocName" style="padding: 10px; background: #e8f5e9; border-radius: 4px; margin-bottom: 10px;"></div>
+                                <button class="btn btn-danger btn-sm" onclick="removeLicenseDoc()">
+                                    <i class="fas fa-trash"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="licenseDocCapture" class="file-capture">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('licenseDocInput').click()">
+                                    <i class="fas fa-upload"></i> Subir Documento
+                                </button>
+                                <input type="file" id="licenseDocInput" accept=".pdf,image/*" style="display: none;" onchange="handleDocUpload('license')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Comprobante de Domicilio (últimos 3 meses) *</label>
+                        <div class="file-upload-container">
+                            <div id="addressDocPreview" class="file-preview hidden">
+                                <div id="addressDocName" style="padding: 10px; background: #e8f5e9; border-radius: 4px; margin-bottom: 10px;"></div>
+                                <button class="btn btn-danger btn-sm" onclick="removeAddressDoc()">
+                                    <i class="fas fa-trash"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="addressDocCapture" class="file-capture">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('addressDocInput').click()">
+                                    <i class="fas fa-upload"></i> Subir Documento
+                                </button>
+                                <input type="file" id="addressDocInput" accept=".pdf,image/*" style="display: none;" onchange="handleDocUpload('address')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Foto del Rostro -->
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">
+                        <i class="fas fa-camera"></i> Foto de Identificación
+                    </h4>
+                    <div class="form-group">
+                        <label>Foto de tu Rostro *</label>
+                        <div class="photo-upload-container">
+                            <div id="facePhotoPreview" class="photo-preview hidden">
+                                <img id="facePhotoImg" src="" alt="Vista previa">
+                                <button class="btn btn-danger btn-sm" onclick="removeFacePhoto()" style="margin-top: 10px;">
+                                    <i class="fas fa-trash"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="facePhotoCapture" class="photo-capture">
+                                <video id="videoPreview" autoplay style="width: 100%; max-width: 300px; border-radius: 8px; display: none;"></video>
+                                <canvas id="photoCanvas" style="display: none;"></canvas>
+                                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; justify-content: center;">
+                                    <button type="button" class="btn btn-primary" onclick="startCamera()">
+                                        <i class="fas fa-camera"></i> Abrir Cámara
+                                    </button>
+                                    <button type="button" id="takePicBtn" class="btn btn-success hidden" onclick="takePicture()">
+                                        <i class="fas fa-camera-retro"></i> Tomar Foto
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('photoFileInput').click()">
+                                        <i class="fas fa-upload"></i> Subir Archivo
+                                    </button>
+                                </div>
+                                <input type="file" id="photoFileInput" accept="image/*" style="display: none;" onchange="handlePhotoUpload()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="registerError" class="alert alert-error hidden"></div>
+                    <div id="registerSuccess" class="alert alert-success hidden"></div>
+                    
+                    <button class="btn btn-success" onclick="completeRegistration()" style="width: 100%; margin-top: 20px;">
+                        <i class="fas fa-check-circle"></i> Completar Registro
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-    <!-- Panel Repartidor -->
+    <!-- ============================================
+         PANEL DE REPARTIDOR (después del login)
+         ============================================ -->
     <div id="deliveryPanel" class="hidden">
         <div class="top-header">
             <div class="logo">
@@ -195,9 +356,7 @@
     <script src="js/config.js"></script>
     <script src="js/repartidor.js"></script>
 </body>
-
 </html>
-
 
 
 
