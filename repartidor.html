@@ -16,11 +16,11 @@
         <div class="container" style="max-width: 500px; margin-top: 100px;">
             <!-- Tabs para Login/Registro -->
             <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
-                <button id="tabLogin" class="tab-auth active" onclick="showAuthTab('login')">
-                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                </button>
-                <button id="tabRegister" class="tab-auth" onclick="showAuthTab('request')">
+                <button id="tabRegister" class="tab-auth active" onclick="showAuthTab('request')">
                     <i class="fas fa-clipboard-list"></i> Solicitar Registro
+                </button>
+                <button id="tabLogin" class="tab-auth" onclick="showAuthTab('login')">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                 </button>
             </div>
 
@@ -43,7 +43,10 @@
                     <button class="btn btn-primary" onclick="login()" style="width: 100%;">
                         <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                     </button>
-                    <div style="margin-top: 20px; text-align: center;">
+                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; text-align: center;">
+                        <button type="button" class="btn btn-success" onclick="showAuthTab('request')" style="width: 100%;">
+                            <i class="fas fa-clipboard-list"></i> ¿No tienes cuenta? Solicitar Registro
+                        </button>
                         <a href="index.html" style="color: #667eea;">
                             <i class="fas fa-arrow-left"></i> Volver al inicio
                         </a>
@@ -52,7 +55,7 @@
             </div>
 
             <!-- Tab Solicitud de Registro (NIVEL 1) -->
-            <div id="requestTab" class="auth-tab">
+            <div id="requestTab" class="auth-tab hidden">
                 <div class="header">
                     <h1><i class="fas fa-clipboard-list"></i> Solicitud de Registro</h1>
                     <p>Solicita ser repartidor independiente</p>
@@ -80,6 +83,11 @@
                     <button class="btn btn-success" onclick="submitDeliveryRequest()" style="width: 100%;">
                         <i class="fas fa-paper-plane"></i> Enviar Solicitud
                     </button>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button type="button" class="btn btn-secondary" onclick="showAuthTab('login')" style="width: 100%;">
+                            <i class="fas fa-arrow-left"></i> Volver a Login
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -357,7 +365,6 @@
     <script src="js/repartidor.js"></script>
 </body>
 </html>
-
 
 
 
