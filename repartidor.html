@@ -10,21 +10,12 @@
 </head>
 <body>
     <!-- ============================================
-         SECCIÓN DE LOGIN
+         SECCIÓN DE LOGIN Y REGISTRO
          ============================================ -->
     <div id="loginSection">
         <div class="container" style="max-width: 500px; margin-top: 100px;">
-            <!-- Tabs para Login/Registro -->
-            <div style="display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px;">
-                <button id="tabRegister" class="tab-auth active" onclick="showAuthTab('request')">
-                    <i class="fas fa-clipboard-list"></i> Solicitar Registro
-                </button>
-                <button id="tabLogin" class="tab-auth" onclick="showAuthTab('login')">
-                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                </button>
-            </div>
-
-            <!-- Tab Login -->
+            
+            <!-- Tab Login - VISTA POR DEFECTO -->
             <div id="loginTab" class="auth-tab active">
                 <div class="header">
                     <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
@@ -43,18 +34,18 @@
                     <button class="btn btn-primary" onclick="login()" style="width: 100%;">
                         <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                     </button>
-                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; text-align: center;">
+                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
                         <button type="button" class="btn btn-success" onclick="showAuthTab('request')" style="width: 100%;">
                             <i class="fas fa-clipboard-list"></i> ¿No tienes cuenta? Solicitar Registro
                         </button>
-                        <a href="index.html" style="color: #667eea;">
+                        <a href="index.html" style="color: #667eea; text-align: center;">
                             <i class="fas fa-arrow-left"></i> Volver al inicio
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab Solicitud de Registro (NIVEL 1) -->
+            <!-- Tab Solicitud de Registro (NIVEL 1) - INICIALMENTE OCULTO -->
             <div id="requestTab" class="auth-tab hidden">
                 <div class="header">
                     <h1><i class="fas fa-clipboard-list"></i> Solicitud de Registro</h1>
@@ -91,7 +82,7 @@
                 </div>
             </div>
 
-            <!-- Tab Acceso con QR (NIVEL 2) -->
+            <!-- Tab Acceso con QR (NIVEL 2) - INICIALMENTE OCULTO -->
             <div id="preregisterTab" class="auth-tab hidden">
                 <div class="header">
                     <h1><i class="fas fa-qrcode"></i> Acceso con Código QR</h1>
@@ -112,14 +103,14 @@
                         <i class="fas fa-check"></i> Validar Código
                     </button>
                     <div style="margin-top: 15px; text-align: center;">
-                        <button class="btn btn-secondary" onclick="showAuthTab('request')" style="width: 100%;">
+                        <button type="button" class="btn btn-secondary" onclick="showAuthTab('login')" style="width: 100%;">
                             <i class="fas fa-arrow-left"></i> Volver
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab Registro Completo (NIVEL 3) - Documentos y Datos -->
+            <!-- Tab Registro Completo (NIVEL 3) - DOCUMENTOS - INICIALMENTE OCULTO -->
             <div id="registerTab" class="auth-tab hidden">
                 <div class="header">
                     <h1><i class="fas fa-file-upload"></i> Registro de Repartidor</h1>
@@ -280,6 +271,7 @@
                     </button>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -365,6 +357,5 @@
     <script src="js/repartidor.js"></script>
 </body>
 </html>
-
 
 
