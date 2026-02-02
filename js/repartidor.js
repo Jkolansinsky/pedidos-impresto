@@ -57,7 +57,7 @@ async function login() {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
-                action: 'loginUser',
+                action: 'login',
                 username: username,
                 password: password,
                 role: 'delivery'
@@ -107,7 +107,12 @@ function showAuthTab(tab) {
     if(registerError) registerError.classList.add('hidden');
 
     // Ocultar todos los tabs
-    document.querySelectorAll('.auth-tab').forEach(t => t.classList.add('hidden'));
+    const allTabs = document.querySelectorAll('.auth-tab');
+    if(allTabs) {
+        allTabs.forEach(t => {
+            if(t) t.classList.add('hidden');
+        });
+    }
 
     // Mostrar el tab solicitado
     if(tab === 'login') {
@@ -656,7 +661,7 @@ function checkDeliveryAuth() {
 }
 
 // ============================================
-// FUNCIONES DE ENTREGAS (MANTENER ORIGINALES)
+// FUNCIONES DE ENTREGAS
 // ============================================
 
 async function loadDeliveries() {
@@ -1039,8 +1044,6 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
-
-
 
 
 
