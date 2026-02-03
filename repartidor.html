@@ -8,13 +8,37 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        .auth-tab.hidden {
-            display: none !important;
+        /* CSS ESPECÍFICO PARA LOS TABS - MÁXIMA PRIORIDAD */
+        #loginTab,
+        #requestTab,
+        #preregisterTab,
+        #registerTab {
+            display: none;
+            width: 100%;
         }
-        .auth-tab.active {
+        
+        #loginTab.active,
+        #requestTab.active,
+        #preregisterTab.active,
+        #registerTab.active {
             display: block !important;
         }
+        
+        .photo-preview.hidden,
+        .file-preview.hidden {
+            display: none !important;
+        }
+        
+        .photo-capture:not(.hidden),
+        .file-capture:not(.hidden) {
+            display: block;
+        }
+        
         .alert.hidden {
+            display: none !important;
+        }
+        
+        #takePicBtn.hidden {
             display: none !important;
         }
     </style>
@@ -27,7 +51,7 @@
         <div class="container" style="max-width: 500px; margin-top: 50px;">
             
             <!-- Tab Login - VISTA POR DEFECTO -->
-            <div id="loginTab" class="auth-tab active">
+            <div id="loginTab" class="active">
                 <div class="header">
                     <h1><i class="fas fa-motorcycle"></i> Panel de Repartidor</h1>
                     <p>Inicia sesión para gestionar entregas</p>
@@ -57,7 +81,7 @@
             </div>
 
             <!-- Tab Solicitud de Registro (NIVEL 1) -->
-            <div id="requestTab" class="auth-tab hidden">
+            <div id="requestTab">
                 <div class="header">
                     <h1><i class="fas fa-clipboard-list"></i> Solicitud de Registro</h1>
                     <p>Solicita ser repartidor independiente</p>
@@ -94,7 +118,7 @@
             </div>
 
             <!-- Tab Acceso con QR (NIVEL 2) -->
-            <div id="preregisterTab" class="auth-tab hidden">
+            <div id="preregisterTab">
                 <div class="header">
                     <h1><i class="fas fa-qrcode"></i> Acceso con Código QR</h1>
                     <p>Ingresa el código que recibiste por WhatsApp</p>
@@ -122,12 +146,12 @@
             </div>
 
             <!-- Tab Registro Completo (NIVEL 3) -->
-            <div id="registerTab" class="auth-tab hidden">
+            <div id="registerTab">
                 <div class="header">
                     <h1><i class="fas fa-file-upload"></i> Registro de Repartidor</h1>
                     <p>Completa tu información y carga documentos</p>
                 </div>
-                <div class="content">
+                <div class="content" style="max-height: 80vh; overflow-y: auto;">
                     <!-- Información Personal -->
                     <h4 style="margin-top: 20px; margin-bottom: 15px;">
                         <i class="fas fa-user"></i> Información Personal
@@ -289,7 +313,7 @@
     <!-- ============================================
          PANEL DE REPARTIDOR (después del login)
          ============================================ -->
-    <div id="deliveryPanel" class="hidden">
+    <div id="deliveryPanel" style="display: none;">
         <div class="top-header">
             <div class="logo">
                 <i class="fas fa-motorcycle"></i> Panel de Repartidor
@@ -356,7 +380,7 @@
     </div>
 
     <!-- Loading -->
-    <div id="loading" class="loading hidden">
+    <div id="loading" style="display: none;">
         <div class="loading-content">
             <div class="spinner"></div>
             <p><strong>Procesando...</strong></p>
