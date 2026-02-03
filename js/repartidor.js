@@ -54,16 +54,7 @@ async function login() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'login',
-                username: username,
-                password: password,
-                role: 'delivery'
-            })
-        });
-
+        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&role=delivery');
         const result = await response.json();
 
         if(result.success) {
@@ -72,8 +63,8 @@ async function login() {
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
             // Mostrar panel
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('deliveryPanel').classList.remove('hidden');
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('deliveryPanel').style.display = 'block';
             document.getElementById('currentUserName').textContent = currentUser.name || currentUser.username;
 
             // Inicializar panel
@@ -198,18 +189,7 @@ async function submitDeliveryRequest() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'submitDeliveryRequest',
-                fullName: fullName,
-                phone: phone,
-                email: email,
-                motivation: motivation,
-                timestamp: new Date().toISOString()
-            })
-        });
-
+        const response = await fetch(SCRIPT_URL + '?action=submitDeliveryRequest&fullName=' + encodeURIComponent(fullName) + '&phone=' + encodeURIComponent(phone) + '&email=' + encodeURIComponent(email) + '&motivation=' + encodeURIComponent(motivation) + '&timestamp=' + new Date().toISOString());
         const result = await response.json();
 
         if(result.success) {
@@ -269,14 +249,7 @@ async function validateQRCode() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'validateQRCode',
-                qrCode: qrCode
-            })
-        });
-
+        const response = await fetch(SCRIPT_URL + '?action=validateQRCode&qrCode=' + encodeURIComponent(qrCode));
         const result = await response.json();
 
         if(result.success) {
@@ -693,14 +666,7 @@ async function loadDeliveries() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'getDeliveries',
-                username: currentUser.username
-            })
-        });
-
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveries&username=' + encodeURIComponent(currentUser.username));
         const result = await response.json();
 
         if(result.success) {
