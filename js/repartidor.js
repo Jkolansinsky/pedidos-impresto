@@ -95,7 +95,7 @@ async function login() {
 // ============================================
 
 function showAuthTab(tab) {
-    console.log('showAuthTab llamado con:', tab);
+    console.log('🔄 showAuthTab llamado con:', tab);
     
     // Limpiar mensajes de error
     const loginError = document.getElementById('loginError');
@@ -108,39 +108,47 @@ function showAuthTab(tab) {
     if(qrError) qrError.classList.add('hidden');
     if(registerError) registerError.classList.add('hidden');
 
-    // Ocultar TODOS los tabs
-    console.log('Ocultando todos los tabs...');
+    // PASO 1: Ocultar TODOS los tabs removiendo clase .active
+    console.log('📦 Ocultando todos los tabs...');
     const loginTab = document.getElementById('loginTab');
     const requestTab = document.getElementById('requestTab');
     const preregisterTab = document.getElementById('preregisterTab');
     const registerTab = document.getElementById('registerTab');
     
-    if(loginTab) loginTab.classList.add('hidden');
-    if(requestTab) requestTab.classList.add('hidden');
-    if(preregisterTab) preregisterTab.classList.add('hidden');
-    if(registerTab) registerTab.classList.add('hidden');
+    if(loginTab) loginTab.classList.remove('active');
+    if(requestTab) requestTab.classList.remove('active');
+    if(preregisterTab) preregisterTab.classList.remove('active');
+    if(registerTab) registerTab.classList.remove('active');
 
-    // Mostrar el tab solicitado
-    console.log('Mostrando tab:', tab);
+    // PASO 2: Mostrar el tab solicitado agregando clase .active
+    console.log('📂 Mostrando tab:', tab);
     if(tab === 'login') {
         if(loginTab) {
-            loginTab.classList.remove('hidden');
-            console.log('✅ loginTab mostrado');
+            loginTab.classList.add('active');
+            console.log('✅ loginTab mostrado (active)');
+        } else {
+            console.error('❌ loginTab no existe');
         }
     } else if(tab === 'request') {
         if(requestTab) {
-            requestTab.classList.remove('hidden');
-            console.log('✅ requestTab mostrado');
+            requestTab.classList.add('active');
+            console.log('✅ requestTab mostrado (active)');
+        } else {
+            console.error('❌ requestTab no existe');
         }
     } else if(tab === 'preregister') {
         if(preregisterTab) {
-            preregisterTab.classList.remove('hidden');
-            console.log('✅ preregisterTab mostrado');
+            preregisterTab.classList.add('active');
+            console.log('✅ preregisterTab mostrado (active)');
+        } else {
+            console.error('❌ preregisterTab no existe');
         }
     } else if(tab === 'register') {
         if(registerTab) {
-            registerTab.classList.remove('hidden');
-            console.log('✅ registerTab mostrado');
+            registerTab.classList.add('active');
+            console.log('✅ registerTab mostrado (active)');
+        } else {
+            console.error('❌ registerTab no existe');
         }
     }
 }
@@ -1059,5 +1067,4 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
-
 
