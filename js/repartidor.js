@@ -95,6 +95,8 @@ async function login() {
 // ============================================
 
 function showAuthTab(tab) {
+    console.log('showAuthTab llamado con:', tab);
+    
     // Limpiar mensajes de error
     const loginError = document.getElementById('loginError');
     const requestError = document.getElementById('requestError');
@@ -106,27 +108,40 @@ function showAuthTab(tab) {
     if(qrError) qrError.classList.add('hidden');
     if(registerError) registerError.classList.add('hidden');
 
-    // Ocultar todos los tabs
-    const allTabs = document.querySelectorAll('.auth-tab');
-    if(allTabs) {
-        allTabs.forEach(t => {
-            if(t) t.classList.add('hidden');
-        });
-    }
+    // Ocultar TODOS los tabs
+    console.log('Ocultando todos los tabs...');
+    const loginTab = document.getElementById('loginTab');
+    const requestTab = document.getElementById('requestTab');
+    const preregisterTab = document.getElementById('preregisterTab');
+    const registerTab = document.getElementById('registerTab');
+    
+    if(loginTab) loginTab.classList.add('hidden');
+    if(requestTab) requestTab.classList.add('hidden');
+    if(preregisterTab) preregisterTab.classList.add('hidden');
+    if(registerTab) registerTab.classList.add('hidden');
 
     // Mostrar el tab solicitado
+    console.log('Mostrando tab:', tab);
     if(tab === 'login') {
-        const loginTab = document.getElementById('loginTab');
-        if(loginTab) loginTab.classList.remove('hidden');
+        if(loginTab) {
+            loginTab.classList.remove('hidden');
+            console.log('✅ loginTab mostrado');
+        }
     } else if(tab === 'request') {
-        const requestTab = document.getElementById('requestTab');
-        if(requestTab) requestTab.classList.remove('hidden');
+        if(requestTab) {
+            requestTab.classList.remove('hidden');
+            console.log('✅ requestTab mostrado');
+        }
     } else if(tab === 'preregister') {
-        const preregisterTab = document.getElementById('preregisterTab');
-        if(preregisterTab) preregisterTab.classList.remove('hidden');
+        if(preregisterTab) {
+            preregisterTab.classList.remove('hidden');
+            console.log('✅ preregisterTab mostrado');
+        }
     } else if(tab === 'register') {
-        const registerTab = document.getElementById('registerTab');
-        if(registerTab) registerTab.classList.remove('hidden');
+        if(registerTab) {
+            registerTab.classList.remove('hidden');
+            console.log('✅ registerTab mostrado');
+        }
     }
 }
 
