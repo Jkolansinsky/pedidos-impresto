@@ -54,7 +54,16 @@ async function login() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&role=delivery');
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'login',
+                username: username,
+                password: password,
+                role: 'delivery'
+            })
+        });
+
         const result = await response.json();
 
         if(result.success) {
@@ -189,7 +198,18 @@ async function submitDeliveryRequest() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL + '?action=submitDeliveryRequest&fullName=' + encodeURIComponent(fullName) + '&phone=' + encodeURIComponent(phone) + '&email=' + encodeURIComponent(email) + '&motivation=' + encodeURIComponent(motivation) + '&timestamp=' + new Date().toISOString());
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'submitDeliveryRequest',
+                fullName: fullName,
+                phone: phone,
+                email: email,
+                motivation: motivation,
+                timestamp: new Date().toISOString()
+            })
+        });
+
         const result = await response.json();
 
         if(result.success) {
@@ -249,7 +269,14 @@ async function validateQRCode() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL + '?action=validateQRCode&qrCode=' + encodeURIComponent(qrCode));
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'validateQRCode',
+                qrCode: qrCode
+            })
+        });
+
         const result = await response.json();
 
         if(result.success) {
@@ -666,7 +693,14 @@ async function loadDeliveries() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getDeliveries&username=' + encodeURIComponent(currentUser.username));
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'getDeliveries',
+                username: currentUser.username
+            })
+        });
+
         const result = await response.json();
 
         if(result.success) {
@@ -1033,5 +1067,3 @@ window.addEventListener('beforeunload', function() {
         deliveryMap.remove();
     }
 });
-
-
