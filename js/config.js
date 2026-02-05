@@ -1,11 +1,11 @@
 // ============================================
-// CONFIGURACIÓN GLOBAL
+// CONFIGURACIÃ“N GLOBAL
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz67gjyyxQQ5qZ3qmdUmqEutZwSZS86c31jbpO-V82qYwhgB9h4vIP-IRQcjVOnhuaPlQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx0nRMFeY7yRX1ZO5MuSLpnIQMTUWpaJZmkSyQBdwHW5Z1mwmBvnITXAtsDyyWuqcLqow/exec';
 
-// Variables globales de geolocalización
+// Variables globales de geolocalizaciÃ³n
 let userCurrentLocation = null;
 let geoWatchId = null;
 
@@ -30,7 +30,7 @@ function getStatusText(status) {
     const statusMap = {
         'new': 'Nuevo (Recibido)',
         'assigned': 'Asignado',
-        'processing': 'En Elaboración',
+        'processing': 'En ElaboraciÃ³n',
         'ready': 'Listo para Entrega',
         'delivering': 'En Camino',
         'delivered': 'Entregado'
@@ -63,7 +63,7 @@ function safeJSONParse(str, defaultValue = null) {
 }
 
 /**
- * Cierra sesión
+ * Cierra sesiÃ³n
  */
 function logout() {
     localStorage.removeItem('currentUser');
@@ -91,7 +91,7 @@ function checkAuth(requiredRole) {
 }
 
 /**
- * Solicita permisos de geolocalización al cargar la página
+ * Solicita permisos de geolocalizaciÃ³n al cargar la pÃ¡gina
  */
 function initGeolocation() {
     if('geolocation' in navigator) {
@@ -101,7 +101,7 @@ function initGeolocation() {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 };
-                console.log('Geolocalización activada:', userCurrentLocation);
+                console.log('GeolocalizaciÃ³n activada:', userCurrentLocation);
                 
                 // Iniciar seguimiento continuo
                 geoWatchId = navigator.geolocation.watchPosition(
@@ -122,8 +122,8 @@ function initGeolocation() {
                 );
             },
             function(error) {
-                console.error('Error de geolocalización:', error);
-                alert('Por favor activa la ubicación para usar todas las funcionalidades del sistema');
+                console.error('Error de geolocalizaciÃ³n:', error);
+                alert('Por favor activa la ubicaciÃ³n para usar todas las funcionalidades del sistema');
             },
             {
                 enableHighAccuracy: true,
@@ -132,23 +132,23 @@ function initGeolocation() {
             }
         );
     } else {
-        console.warn('Geolocalización no soportada');
-        alert('Tu navegador no soporta geolocalización');
+        console.warn('GeolocalizaciÃ³n no soportada');
+        alert('Tu navegador no soporta geolocalizaciÃ³n');
     }
 }
 
 /**
- * Geocodificar dirección a coordenadas usando Nominatim (OpenStreetMap)
+ * Geocodificar direcciÃ³n a coordenadas usando Nominatim (OpenStreetMap)
  */
 async function geocodeAddress(address) {
     try {
-        console.log('🌍 Iniciando geocodificación para:', address);
+        console.log('ðŸŒ Iniciando geocodificaciÃ³n para:', address);
         
-        // Limpiar y preparar la dirección
+        // Limpiar y preparar la direcciÃ³n
         const cleanAddress = address.trim();
         const query = encodeURIComponent(cleanAddress);
         
-        // Usar Nominatim con parámetros mejorados para México
+        // Usar Nominatim con parÃ¡metros mejorados para MÃ©xico
         const url = `https://nominatim.openstreetmap.org/search?` +
                     `format=json` +
                     `&q=${query}` +
@@ -156,9 +156,9 @@ async function geocodeAddress(address) {
                     `&countrycodes=mx` +
                     `&addressdetails=1` +
                     `&bounded=1` +
-                    `&viewbox=-93.5,17.5,-92.3,18.5`;  // Área de Tabasco
+                    `&viewbox=-93.5,17.5,-92.3,18.5`;  // Ãrea de Tabasco
         
-        console.log('🔗 URL de geocodificación:', url);
+        console.log('ðŸ”— URL de geocodificaciÃ³n:', url);
         
         const response = await fetch(url, {
             headers: {
@@ -168,10 +168,10 @@ async function geocodeAddress(address) {
         
         const data = await response.json();
         
-        console.log('📦 Respuesta completa de geocodificación:', data);
+        console.log('ðŸ“¦ Respuesta completa de geocodificaciÃ³n:', data);
         
         if(data && data.length > 0) {
-            // Tomar el primer resultado (más relevante)
+            // Tomar el primer resultado (mÃ¡s relevante)
             const result = data[0];
             
             const coords = {
@@ -179,20 +179,20 @@ async function geocodeAddress(address) {
                 longitude: parseFloat(result.lon)
             };
             
-            console.log('✅ Coordenadas encontradas:', coords);
-            console.log('📍 Nombre del lugar:', result.display_name);
-            console.log('📍 Tipo de lugar:', result.type);
-            console.log('📍 Importancia:', result.importance);
+            console.log('âœ… Coordenadas encontradas:', coords);
+            console.log('ðŸ“ Nombre del lugar:', result.display_name);
+            console.log('ðŸ“ Tipo de lugar:', result.type);
+            console.log('ðŸ“ Importancia:', result.importance);
             
-            // Verificar que las coordenadas estén dentro de un rango razonable para Villahermosa/Tabasco
+            // Verificar que las coordenadas estÃ©n dentro de un rango razonable para Villahermosa/Tabasco
             const isInTabasco = (
                 coords.latitude >= 17.5 && coords.latitude <= 18.5 &&
                 coords.longitude >= -93.5 && coords.longitude <= -92.3
             );
             
             if(!isInTabasco) {
-                console.warn('⚠️ Las coordenadas parecen estar fuera de Tabasco');
-                console.warn('⚠️ Usando coordenadas por defecto');
+                console.warn('âš ï¸ Las coordenadas parecen estar fuera de Tabasco');
+                console.warn('âš ï¸ Usando coordenadas por defecto');
                 return {
                     latitude: 17.9892,
                     longitude: -92.9475
@@ -202,7 +202,7 @@ async function geocodeAddress(address) {
             return coords;
         }
         
-        console.warn('⚠️ No se encontraron coordenadas, usando ubicación por defecto de Villahermosa');
+        console.warn('âš ï¸ No se encontraron coordenadas, usando ubicaciÃ³n por defecto de Villahermosa');
         
         // Si no encuentra, retornar coordenadas por defecto (Centro de Villahermosa)
         return {
@@ -210,7 +210,7 @@ async function geocodeAddress(address) {
             longitude: -92.9475
         };
     } catch(error) {
-        console.error('❌ Error en geocodificación:', error);
+        console.error('âŒ Error en geocodificaciÃ³n:', error);
         // Coordenadas por defecto (Centro de Villahermosa)
         return {
             latitude: 17.9892,
@@ -245,17 +245,44 @@ function isDeliveredToday(order) {
     return false;
 }
 
-// Inicializar geolocalización al cargar cualquier página
+// Inicializar geolocalizaciÃ³n al cargar cualquier pÃ¡gina
 document.addEventListener('DOMContentLoaded', function() {
     initGeolocation();
 });
 
-// Limpiar el watch cuando se cierre la página
+// Limpiar el watch cuando se cierre la pÃ¡gina
 window.addEventListener('beforeunload', function() {
     if(geoWatchId) {
         navigator.geolocation.clearWatch(geoWatchId);
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
