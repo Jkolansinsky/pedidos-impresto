@@ -914,106 +914,6 @@ function renderDeliveryPersonInfo(deliveryPerson) {
     `;
 }
 
-
-function loadDeliveryRequests(status) {
-        showLoading(true);
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'getDeliveryRequests',
-                status: status
-            })
-        })
-        .then(r => r.json())
-        .then(result => {
-            if(result.success) {
-                renderDeliveryRequests(result.requests);
-            }
-        })
-        .finally(() => showLoading(false));
-    }
-
-    function renderDeliveryRequests(requests) {
-        let html = '<div style="display: grid; gap: 15px;">';
-        
-        requests.forEach(req => {
-            html += `
-                <div class="card" style="padding: 20px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <div>
-                            <h4>${req.fullName}</h4>
-                            <p>📱 ${req.phone}</p>
-                            <p>📧 ${req.email}</p>
-                            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                                ${req.motivation}
-                            </p>
-                        </div>
-                        <div>
-                            <button class="btn btn-success btn-sm" 
-                                onclick="approveDeliveryRequest('${req.fullName}', '${req.phone}')">
-                                <i class="fas fa-check"></i> Aprobar
-                            </button>
-                            <button class="btn btn-danger btn-sm" style="margin-top: 10px;"
-                                onclick="rejectDeliveryRequest('${req.fullName}', '${req.phone}')">
-                                <i class="fas fa-times"></i> Rechazar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        document.getElementById('deliveryRequestsList').innerHTML = html;
-    }
-
-    function approveDeliveryRequest(name, phone) {
-        showLoading(true);
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'approveDeliveryRequest',
-                fullName: name,
-                phone: phone
-            })
-        })
-        .then(r => r.json())
-        .then(result => {
-            if(result.success) {
-                alert('✅ Solicitud aprobada. QR enviado a: ' + result.email);
-                loadDeliveryRequests('pending');
-            } else {
-                alert('Error: ' + result.message);
-            }
-        })
-        .finally(() => showLoading(false));
-    }
-
-    function rejectDeliveryRequest(name, phone) {
-        const reason = prompt('¿Razón del rechazo?', 'Documentación incompleta');
-        if(!reason) return;
-        
-        showLoading(true);
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'rejectDeliveryRequest',
-                fullName: name,
-                phone: phone,
-                reason: reason
-            })
-        })
-        .then(r => r.json())
-        .then(result => {
-            if(result.success) {
-                alert('❌ Solicitud rechazada');
-                loadDeliveryRequests('pending');
-            }
-        })
-        .finally(() => showLoading(false));
-    }
-
-
 // ============================================
 // REPORTES
 // ============================================
@@ -1021,6 +921,15 @@ function loadDeliveryRequests(status) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
+
+
+
+
+
+
+
+
 
 
 
