@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - Centro de Copiado</title>
+    <title>Panel de AdministraciÃ³n - Centro de Copiado</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <link rel="stylesheet" href="css/styles.css">
@@ -13,7 +13,7 @@
     <div id="loginSection">
         <div class="container" style="max-width: 500px; margin-top: 100px;">
             <div class="header">
-                <h1><i class="fas fa-user-shield"></i> Panel de Administración</h1>
+                <h1><i class="fas fa-user-shield"></i> Panel de AdministraciÃ³n</h1>
                 <p>Acceso solo para administradores</p>
             </div>
             <div class="content">
@@ -22,12 +22,12 @@
                     <input type="text" id="username" placeholder="admin">
                 </div>
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="••••••••">
+                    <label>ContraseÃ±a</label>
+                    <input type="password" id="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                 </div>
                 <div id="loginError" class="alert alert-error hidden"></div>
                 <button class="btn btn-primary" onclick="login()" style="width: 100%;">
-                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                    <i class="fas fa-sign-in-alt"></i> Iniciar SesiÃ³n
                 </button>
                 <div style="margin-top: 20px; text-align: center;">
                     <a href="index.html" style="color: #667eea;">
@@ -42,14 +42,14 @@
     <div id="adminPanel" class="hidden">
         <div class="top-header">
             <div class="logo">
-                <i class="fas fa-user-shield"></i> Panel de Administración
+                <i class="fas fa-user-shield"></i> Panel de AdministraciÃ³n
             </div>
             <div class="user-info">
                 <span class="user-badge">
                     <i class="fas fa-shield-alt"></i> <span id="currentUserName"></span>
                 </span>
                 <button class="btn-logout" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    <i class="fas fa-sign-out-alt"></i> Cerrar SesiÃ³n
                 </button>
             </div>
         </div>
@@ -71,15 +71,12 @@
                 <button class="nav-tab" onclick="showAdminTab('reports')">
                     <i class="fas fa-chart-bar"></i> Reportes
                 </button>
-                <button class="nav-tab" onclick="showAdminTab('delivery-requests')">
-                    <i class="fas fa-motorcycle"></i> Solicitudes Repartidores
-                </button>
             </div>
 
             <div class="content">
                 <!-- Tab Pedidos -->
                 <div id="orders-tab" class="tab-content active">
-                    <h2><i class="fas fa-tasks"></i> Gestión de Pedidos</h2>
+                    <h2><i class="fas fa-tasks"></i> GestiÃ³n de Pedidos</h2>
                     
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
@@ -96,7 +93,7 @@
 
                 <!-- Tab Usuarios -->
                 <div id="users-tab" class="tab-content">
-                    <h2><i class="fas fa-users"></i> Gestión de Usuarios</h2>
+                    <h2><i class="fas fa-users"></i> GestiÃ³n de Usuarios</h2>
                     
                     <div id="usersTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -108,8 +105,8 @@
                         <input type="text" id="newUsername" placeholder="Ej: juan.perez">
                     </div>
                     <div class="form-group">
-                        <label>Contraseña *</label>
-                        <input type="password" id="newPassword" placeholder="Contraseña segura">
+                        <label>ContraseÃ±a *</label>
+                        <input type="password" id="newPassword" placeholder="ContraseÃ±a segura">
                     </div>
                     <div class="form-group">
                         <label>Rol *</label>
@@ -121,37 +118,16 @@
                     </div>
                     <div class="form-group">
                         <label>Nombre Completo *</label>
-                        <input type="text" id="newUserFullName" placeholder="Ej: Juan Pérez López">
+                        <input type="text" id="newUserFullName" placeholder="Ej: Juan PÃ©rez LÃ³pez">
                     </div>
                     <button class="btn btn-success" onclick="createNewUser()">
                         <i class="fas fa-save"></i> Crear Usuario
                     </button>
-
-                       <div id="delivery-requests-tab" class="tab-content">
-        <h2><i class="fas fa-clipboard-list"></i> Solicitudes de Repartidores</h2>
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button class="btn btn-primary" onclick="loadDeliveryRequests('pending')">
-                <i class="fas fa-hourglass-half"></i> Pendientes
-            </button>
-            <button class="btn btn-success" onclick="loadDeliveryRequests('approved')">
-                <i class="fas fa-check"></i> Aprobadas
-            </button>
-            <button class="btn btn-danger" onclick="loadDeliveryRequests('rejected')">
-                <i class="fas fa-times"></i> Rechazadas
-            </button>
-        </div>
-        <div id="deliveryRequestsList"></div>
-    </div>
-                    
                 </div>
-
-
-
-             
 
                 <!-- Tab Precios -->
                 <div id="prices-tab" class="tab-content">
-                    <h2><i class="fas fa-dollar-sign"></i> Gestión de Precios</h2>
+                    <h2><i class="fas fa-dollar-sign"></i> GestiÃ³n de Precios</h2>
                     
                     <div id="pricesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -159,12 +135,12 @@
                     
                     <h3><i class="fas fa-edit"></i> Agregar/Editar Precio</h3>
                     <div class="form-group">
-                        <label>Categoría *</label>
+                        <label>CategorÃ­a *</label>
                         <input type="text" id="priceCategory" placeholder="Ej: CARTA, VINIL, ACABADO">
                         <small>Ejemplos: CARTA, OFICIO, VINIL, LONAS, ACABADO, DELIVERY_FEE</small>
                     </div>
                     <div class="form-group">
-                        <label>Subcategoría</label>
+                        <label>SubcategorÃ­a</label>
                         <input type="text" id="priceSubcategory" placeholder="Ej: BN_BOND, COLOR_BOND">
                         <small>Para acabados: ENGARGOLADO, ENMICADO, etc.</small>
                     </div>
@@ -179,7 +155,7 @@
 
                 <!-- Tab Sucursales -->
                 <div id="branches-tab" class="tab-content">
-                    <h2><i class="fas fa-store"></i> Gestión de Sucursales</h2>
+                    <h2><i class="fas fa-store"></i> GestiÃ³n de Sucursales</h2>
                     
                     <div id="branchesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -191,17 +167,17 @@
                         <input type="text" id="branchName" placeholder="Ej: Tamulte">
                     </div>
                     <div class="form-group">
-                        <label>Dirección *</label>
-                        <input type="text" id="branchAddress" placeholder="Dirección completa">
+                        <label>DirecciÃ³n *</label>
+                        <input type="text" id="branchAddress" placeholder="DirecciÃ³n completa">
                     </div>
                     <div class="form-group">
-                        <label>Teléfono *</label>
+                        <label>TelÃ©fono *</label>
                         <input type="text" id="branchPhone" placeholder="9931234567">
                     </div>
                     <div class="form-group">
                         <label>Email de la Sucursal *</label>
                         <input type="email" id="branchEmail" placeholder="sucursal@centrocopiado.com">
-                        <small>Los pedidos se enviarán a este correo</small>
+                        <small>Los pedidos se enviarÃ¡n a este correo</small>
                     </div>
                     <div class="form-group">
                         <label>Latitud (opcional)</label>
@@ -229,7 +205,7 @@
                     <div class="form-group">
                         <label>Tipo de Reporte</label>
                         <select id="reportType">
-                            <option value="daily">Por Día</option>
+                            <option value="daily">Por DÃ­a</option>
                             <option value="client">Por Cliente</option>
                             <option value="service">Por Tipo de Servicio</option>
                             <option value="employee">Por Empleado</option>
@@ -257,7 +233,7 @@
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
-                <button class="close-modal" onclick="closeOrderDetail()">×</button>
+                <button class="close-modal" onclick="closeOrderDetail()">Ã—</button>
             </div>
             <div id="orderDetailContent"></div>
             
@@ -273,7 +249,7 @@
                     <select id="orderStatus">
                         <option value="new">Nuevo (Recibido)</option>
                         <option value="assigned">Asignado a Empleado</option>
-                        <option value="processing">En Elaboración</option>
+                        <option value="processing">En ElaboraciÃ³n</option>
                         <option value="ready">Listo para Entrega</option>
                         <option value="delivering">En Camino</option>
                         <option value="delivered">Entregado</option>
@@ -312,6 +288,7 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
 
 
 
