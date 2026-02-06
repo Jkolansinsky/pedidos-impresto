@@ -1180,20 +1180,23 @@ async function generateDocsLink(requestId) {
         return;
     }
     
-    // Verificar que tenga token
     if(!req.docsToken) {
         alert('Error: Esta solicitud no tiene token generado');
         return;
     }
     
-    // Construir el link
-    const baseUrl = window.location.origin;
+    // OPCIÓN 1: URL fija (RECOMENDADO)
+    const baseUrl = 'https://TU-DOMINIO.com';  // ← CAMBIAR AQUÍ
+    
+    // OPCIÓN 2: Detectar automáticamente
+    // const baseUrl = window.location.origin;
+    
     const docsLink = `${baseUrl}/repartidor.html?action=complete-docs&token=${req.docsToken}`;
     
-    // Generar link de QR
+    console.log('Link generado:', docsLink);  // Para verificar
+    
     const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(docsLink)}`;
     
-    // Mostrar modal
     showLinkModal(req, docsLink, qrUrl, 'docs');
 }
 
@@ -1565,6 +1568,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
