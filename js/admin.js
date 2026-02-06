@@ -1186,7 +1186,7 @@ async function generateDocsLink(requestId) {
     }
     
     // OPCIÓN 1: URL fija (RECOMENDADO)
-    const baseUrl = 'https://TU-DOMINIO.com';  // ← CAMBIAR AQUÍ
+    const baseUrl = 'https://jkolansinsky.github.io/pedidos-impresto';  // ← CAMBIAR AQUÍ
     
     // OPCIÓN 2: Detectar automáticamente
     // const baseUrl = window.location.origin;
@@ -1568,6 +1568,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
