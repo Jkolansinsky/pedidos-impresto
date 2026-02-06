@@ -926,12 +926,646 @@ function filterRequests(status) {
 }
 
 // ============================================
+// GESTIÓN DE SOLICITUDES DE REPARTIDOR
+// ============================================
+
+// Variable global para almacenar solicitudes
+let allDeliveryRequests = [];
+
+// ============================================
+// CARGAR SOLICITUDES
+// ============================================
+
+async function loadDeliveryRequests() {
+    showLoading(true);
+    
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getAllDeliveryRequests');
+        const result = await response.json();
+        
+        if(!result.success) {
+            alert('Error al cargar solicitudes: ' + result.message);
+            return;
+        }
+        
+        allDeliveryRequests = result.requests || [];
+        displayDeliveryRequests(allDeliveryRequests);
+        
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayDeliveryRequests(requests) {
+    const container = document.getElementById('requestsTable');
+    
+    if(requests.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No hay solicitudes de repartidor</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Ocupación</th>
+                        <th>Estado</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    requests.forEach(req => {
+        const statusBadge = getRequestStatusBadge(req.status);
+        const dateFormatted = formatDate(req.dateRequested);
+        
+        html += `
+            <tr>
+                <td><small>${req.requestId}</small></td>
+                <td><strong>${req.fullName}</strong></td>
+                <td>${req.phone}</td>
+                <td><small>${req.email}</small></td>
+                <td><small>${req.currentJob}</small></td>
+                <td>${statusBadge}</td>
+                <td>${dateFormatted}</td>
+                <td>
+                    ${getRequestActions(req)}
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function getRequestStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="status-badge status-warning">⏳ Pendiente</span>',
+        'docs_sent': '<span class="status-badge status-info">📄 Docs Enviados</span>',
+        'approved': '<span class="status-badge status-success">✅ Aprobado</span>',
+        'rejected': '<span class="status-badge status-danger">❌ Rechazado</span>'
+    };
+    return badges[status] || status;
+}
+
+function getRequestActions(req) {
+    let actions = '';
+    
+    // Botón para ver detalles (siempre disponible)
+    actions += `
+        <button class="btn btn-secondary btn-sm" onclick="viewRequestDetails('${req.requestId}')" title="Ver detalles">
+            <i class="fas fa-eye"></i>
+        </button>
+    `;
+    
+    // Acciones según el estado
+    if(req.status === 'pending') {
+        actions += `
+            <button class="btn btn-primary btn-sm" onclick="generateDocsLink('${req.requestId}')" title="Generar link para documentos">
+                <i class="fas fa-link"></i> Link
+            </button>
+        `;
+    } else if(req.status === 'docs_sent') {
+        actions += `
+            <button class="btn btn-success btn-sm" onclick="reviewDocuments('${req.requestId}')" title="Revisar documentos">
+                <i class="fas fa-folder-open"></i> Revisar
+            </button>
+        `;
+    } else if(req.status === 'approved') {
+        actions += `
+            <button class="btn btn-info btn-sm" onclick="viewUserCreationLink('${req.requestId}')" title="Ver link de creación de usuario">
+                <i class="fas fa-user-check"></i> Ver Link
+            </button>
+        `;
+    }
+    
+    return actions;
+}
+
+function filterRequests(status) {
+    if(status === 'all') {
+        displayDeliveryRequests(allDeliveryRequests);
+    } else {
+        const filtered = allDeliveryRequests.filter(req => req.status === status);
+        displayDeliveryRequests(filtered);
+    }
+}
+
+// ============================================
+// VER DETALLES DE SOLICITUD
+// ============================================
+
+function viewRequestDetails(requestId) {
+    const req = allDeliveryRequests.find(r => r.requestId === requestId);
+    if(!req) {
+        alert('Solicitud no encontrada');
+        return;
+    }
+    
+    const modalHtml = `
+        <div class="modal active" id="requestDetailModal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-circle"></i> Detalles de Solicitud</h3>
+                    <button class="close-modal" onclick="closeRequestDetailModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="info-section">
+                        <h4><i class="fas fa-id-card"></i> Información Personal</h4>
+                        <p><strong>ID Solicitud:</strong> ${req.requestId}</p>
+                        <p><strong>Nombre Completo:</strong> ${req.fullName}</p>
+                        <p><strong>Teléfono:</strong> ${req.phone}</p>
+                        <p><strong>Email:</strong> ${req.email}</p>
+                        <p><strong>Ocupación Actual:</strong> ${req.currentJob}</p>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4><i class="fas fa-question-circle"></i> Motivación</h4>
+                        <p style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #667eea;">
+                            "${req.reason}"
+                        </p>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4><i class="fas fa-clock"></i> Fechas</h4>
+                        <p><strong>Fecha de Solicitud:</strong> ${formatDate(req.dateRequested)}</p>
+                        ${req.docsDate ? `<p><strong>Documentos Enviados:</strong> ${formatDate(req.docsDate)}</p>` : ''}
+                        ${req.approvedDate ? `<p><strong>Fecha de Aprobación:</strong> ${formatDate(req.approvedDate)}</p>` : ''}
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4><i class="fas fa-info-circle"></i> Estado Actual</h4>
+                        <p>${getRequestStatusBadge(req.status)}</p>
+                        ${req.adminNotes ? `<p><strong>Notas:</strong> ${req.adminNotes}</p>` : ''}
+                    </div>
+                    
+                    ${req.status === 'docs_sent' || req.status === 'approved' ? `
+                        <div class="info-section">
+                            <h4><i class="fas fa-file-alt"></i> Documentos</h4>
+                            ${req.licenseId ? `
+                                <p>
+                                    <a href="https://drive.google.com/file/d/${req.licenseId}/view" target="_blank" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-id-card"></i> Ver Licencia
+                                    </a>
+                                </p>
+                            ` : ''}
+                            ${req.circulationId ? `
+                                <p>
+                                    <a href="https://drive.google.com/file/d/${req.circulationId}/view" target="_blank" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-file"></i> Ver Tarjeta de Circulación
+                                    </a>
+                                </p>
+                            ` : ''}
+                            ${req.photoId ? `
+                                <p>
+                                    <a href="https://drive.google.com/file/d/${req.photoId}/view" target="_blank" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-camera"></i> Ver Selfie
+                                    </a>
+                                </p>
+                            ` : ''}
+                            ${req.contractAccepted ? `
+                                <p style="color: #28a745;">
+                                    <i class="fas fa-check-circle"></i> Contrato aceptado
+                                </p>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="closeRequestDetailModal()">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeRequestDetailModal() {
+    const modal = document.getElementById('requestDetailModal');
+    if(modal) modal.remove();
+}
+
+// ============================================
+// GENERAR LINK DE DOCUMENTOS
+// ============================================
+
+async function generateDocsLink(requestId) {
+    const req = allDeliveryRequests.find(r => r.requestId === requestId);
+    if(!req) {
+        alert('Solicitud no encontrada');
+        return;
+    }
+    
+    // Verificar que tenga token
+    if(!req.docsToken) {
+        alert('Error: Esta solicitud no tiene token generado');
+        return;
+    }
+    
+    // Construir el link
+    const baseUrl = window.location.origin;
+    const docsLink = `${baseUrl}/repartidor.html?action=complete-docs&token=${req.docsToken}`;
+    
+    // Generar link de QR
+    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(docsLink)}`;
+    
+    // Mostrar modal
+    showLinkModal(req, docsLink, qrUrl, 'docs');
+}
+
+function showLinkModal(req, link, qrUrl, type) {
+    const isDocsLink = type === 'docs';
+    const title = isDocsLink ? 'Link para Subir Documentos' : 'Link para Crear Usuario';
+    const instructions = isDocsLink ? 
+        'El repartidor podrá subir su licencia, tarjeta de circulación y selfie.' :
+        'El repartidor podrá crear su usuario y contraseña para acceder al sistema.';
+    
+    const modalHtml = `
+        <div class="modal active" id="linkModal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-link"></i> ${title}</h3>
+                    <button class="close-modal" onclick="closeLinkModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px;">
+                        <h4 style="margin: 0; color: #667eea;">
+                            <i class="fas fa-user"></i> ${req.fullName}
+                        </h4>
+                        <p style="margin: 5px 0 0 0; color: #666;">
+                            <i class="fas fa-phone"></i> ${req.phone}
+                        </p>
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                        <p style="margin: 0;">
+                            <i class="fas fa-info-circle"></i> <strong>Importante:</strong> ${instructions}
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">
+                            <i class="fas fa-link"></i> Link:
+                        </label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="generatedLink" value="${link}" 
+                                   readonly style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; font-size: 0.9em;">
+                            <button class="btn btn-primary" onclick="copyGeneratedLink()">
+                                <i class="fas fa-copy"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">
+                            <i class="fas fa-qrcode"></i> Código QR:
+                        </label>
+                        <img src="${qrUrl}" alt="QR Code" style="border: 2px solid #ddd; border-radius: 8px; padding: 10px; background: white;">
+                        <br>
+                        <a href="${qrUrl}" download="QR-${req.requestId}.png" class="btn btn-success" style="margin-top: 10px;">
+                            <i class="fas fa-download"></i> Descargar QR
+                        </a>
+                    </div>
+                    
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0;">
+                            <i class="fas fa-envelope"></i> Mensaje de WhatsApp
+                        </h4>
+                        <textarea id="whatsappMessage" rows="8" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit;" readonly>¡Hola ${req.fullName}! 👋
+
+Tu solicitud para ser repartidor ha sido revisada.
+
+${isDocsLink ? 
+`Por favor, completa tu registro subiendo los siguientes documentos:
+✅ Licencia de conducir
+✅ Tarjeta de circulación
+✅ Selfie de verificación` : 
+`¡Felicidades! Tu solicitud ha sido aprobada. 🎉
+
+Ahora crea tu usuario y contraseña para acceder al sistema.`}
+
+Puedes escanear este QR o abrir el link:
+
+${link}
+
+Este enlace es válido por 7 días.
+
+¡Gracias! 🚗</textarea>
+                        <button class="btn btn-secondary btn-sm" onclick="copyWhatsAppMessage()" style="margin-top: 10px; width: 100%;">
+                            <i class="fas fa-copy"></i> Copiar Mensaje
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="sendViaWhatsApp('${req.phone}', '${req.fullName}', '${link}', ${isDocsLink})" style="flex: 1;">
+                            <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeLinkModal()">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function copyGeneratedLink() {
+    const input = document.getElementById('generatedLink');
+    input.select();
+    document.execCommand('copy');
+    
+    // Feedback visual
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Copiado';
+    button.style.background = '#28a745';
+    
+    setTimeout(() => {
+        button.innerHTML = originalHTML;
+        button.style.background = '';
+    }, 2000);
+}
+
+function copyWhatsAppMessage() {
+    const textarea = document.getElementById('whatsappMessage');
+    textarea.select();
+    document.execCommand('copy');
+    
+    // Feedback visual
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Mensaje Copiado';
+    button.style.background = '#28a745';
+    
+    setTimeout(() => {
+        button.innerHTML = originalHTML;
+        button.style.background = '';
+    }, 2000);
+}
+
+function sendViaWhatsApp(phone, name, link, isDocsLink) {
+    // Limpiar número
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Mensaje
+    const message = isDocsLink ?
+        `¡Hola ${name}! 👋
+
+Tu solicitud para ser repartidor ha sido revisada.
+
+Por favor, completa tu registro subiendo los siguientes documentos:
+✅ Licencia de conducir
+✅ Tarjeta de circulación
+✅ Selfie de verificación
+
+Puedes escanear este QR o abrir el link:
+
+${link}
+
+Este enlace es válido por 7 días.
+
+¡Gracias! 🚗` :
+        `¡Hola ${name}! 👋
+
+¡Felicidades! Tu solicitud ha sido aprobada. 🎉
+
+Ahora crea tu usuario y contraseña para acceder al sistema:
+
+${link}
+
+Este enlace es válido por 7 días.
+
+¡Bienvenido al equipo! 🚗`;
+    
+    // Abrir WhatsApp
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+}
+
+function closeLinkModal() {
+    const modal = document.getElementById('linkModal');
+    if(modal) modal.remove();
+}
+
+// ============================================
+// REVISAR DOCUMENTOS Y APROBAR/RECHAZAR
+// ============================================
+
+function reviewDocuments(requestId) {
+    const req = allDeliveryRequests.find(r => r.requestId === requestId);
+    if(!req) {
+        alert('Solicitud no encontrada');
+        return;
+    }
+    
+    const modalHtml = `
+        <div class="modal active" id="reviewModal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-folder-open"></i> Revisar Documentos</h3>
+                    <button class="close-modal" onclick="closeReviewModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h4>${req.fullName}</h4>
+                        <p>${req.phone} • ${req.email}</p>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4><i class="fas fa-file-alt"></i> Documentos Subidos</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                            ${req.licenseId ? `
+                                <a href="https://drive.google.com/file/d/${req.licenseId}/view" target="_blank" 
+                                   class="doc-card" style="display: block; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; text-decoration: none; color: inherit; border: 2px solid #ddd;">
+                                    <i class="fas fa-id-card" style="font-size: 2em; color: #667eea; margin-bottom: 10px;"></i>
+                                    <p style="margin: 0; font-weight: bold;">Licencia de Conducir</p>
+                                    <small style="color: #666;">Click para ver</small>
+                                </a>
+                            ` : '<p>❌ Licencia no subida</p>'}
+                            
+                            ${req.circulationId ? `
+                                <a href="https://drive.google.com/file/d/${req.circulationId}/view" target="_blank" 
+                                   class="doc-card" style="display: block; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; text-decoration: none; color: inherit; border: 2px solid #ddd;">
+                                    <i class="fas fa-file" style="font-size: 2em; color: #667eea; margin-bottom: 10px;"></i>
+                                    <p style="margin: 0; font-weight: bold;">Tarjeta de Circulación</p>
+                                    <small style="color: #666;">Click para ver</small>
+                                </a>
+                            ` : '<p>❌ Tarjeta no subida</p>'}
+                            
+                            ${req.photoId ? `
+                                <a href="https://drive.google.com/file/d/${req.photoId}/view" target="_blank" 
+                                   class="doc-card" style="display: block; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; text-decoration: none; color: inherit; border: 2px solid #ddd;">
+                                    <i class="fas fa-camera" style="font-size: 2em; color: #667eea; margin-bottom: 10px;"></i>
+                                    <p style="margin: 0; font-weight: bold;">Selfie de Verificación</p>
+                                    <small style="color: #666;">Click para ver</small>
+                                </a>
+                            ` : '<p>❌ Selfie no subida</p>'}
+                        </div>
+                        
+                        ${req.contractAccepted ? `
+                            <p style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 5px; color: #155724;">
+                                <i class="fas fa-check-circle"></i> <strong>Contrato aceptado</strong>
+                            </p>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4><i class="fas fa-sticky-note"></i> Notas Administrativas (opcional)</h4>
+                        <textarea id="adminNotes" rows="3" placeholder="Agregar notas sobre esta solicitud..." 
+                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">${req.adminNotes || ''}</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="approveRequest('${requestId}')" style="flex: 1;">
+                            <i class="fas fa-check-circle"></i> Aprobar Solicitud
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectRequest('${requestId}')" style="flex: 1;">
+                            <i class="fas fa-times-circle"></i> Rechazar Solicitud
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeReviewModal()">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if(modal) modal.remove();
+}
+
+async function approveRequest(requestId) {
+    if(!confirm('¿Estás seguro de aprobar esta solicitud?\n\nSe enviará un link al repartidor para crear su usuario.')) {
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const notes = document.getElementById('adminNotes')?.value || '';
+        
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'approveDeliveryRequest',
+                requestId: requestId,
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('✅ Solicitud aprobada exitosamente\n\nSe ha enviado un email al repartidor con el link para crear su usuario.');
+            closeReviewModal();
+            loadDeliveryRequests(); // Recargar lista
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function rejectRequest(requestId) {
+    const reason = prompt('¿Por qué se rechaza esta solicitud?\n\n(Este mensaje se enviará al solicitante)');
+    
+    if(!reason) {
+        alert('Debes proporcionar un motivo de rechazo');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const notes = document.getElementById('adminNotes')?.value || '';
+        
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'rejectDeliveryRequest',
+                requestId: requestId,
+                reason: reason,
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if(result.success) {
+            alert('Solicitud rechazada');
+            closeReviewModal();
+            loadDeliveryRequests(); // Recargar lista
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch(error) {
+        alert('Error: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================
+// VER LINK DE CREACIÓN DE USUARIO (para aprobados)
+// ============================================
+
+async function viewUserCreationLink(requestId) {
+    const req = allDeliveryRequests.find(r => r.requestId === requestId);
+    if(!req || !req.userToken) {
+        alert('Error: No se encontró el token de creación de usuario');
+        return;
+    }
+    
+    const baseUrl = window.location.origin;
+    const userLink = `${baseUrl}/repartidor.html?action=create-user&token=${req.userToken}`;
+    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(userLink)}`;
+    
+    showLinkModal(req, userLink, qrUrl, 'user');
+}
+
+// ============================================
 // REPORTES
 // ============================================
 
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
