@@ -1628,6 +1628,48 @@ textarea[readonly]:focus {
     }
 }
 
+.doc-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.doc-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    border-color: #667eea !important;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table thead {
+    background: #667eea;
+    color: white;
+}
+
+.data-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.875em;
+}
 
 
 
