@@ -914,6 +914,17 @@ function renderDeliveryPersonInfo(deliveryPerson) {
     `;
 }
 
+
+// Filtrar solicitudes por estado
+function filterRequests(status) {
+    if(status === 'all') {
+        displayDeliveryRequests(allDeliveryRequests);
+    } else {
+        const filtered = allDeliveryRequests.filter(req => req.status === status);
+        displayDeliveryRequests(filtered);
+    }
+}
+
 // ============================================
 // REPORTES
 // ============================================
@@ -921,6 +932,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
