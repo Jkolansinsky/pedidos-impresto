@@ -71,6 +71,9 @@
                 <button class="nav-tab" onclick="showAdminTab('reports')">
                     <i class="fas fa-chart-bar"></i> Reportes
                 </button>
+                <button class="nav-tab" onclick="showAdminTab('requests')">
+                    <i class="fas fa-user-clock"></i> Solicitudes Repartidor
+                </button>
             </div>
 
             <div class="content">
@@ -227,6 +230,41 @@
             </div>
         </div>
     </div>
+    <!-- Tab Solicitudes Repartidor -->
+<div id="requests-tab" class="tab-content">
+    <h2><i class="fas fa-user-clock"></i> Solicitudes de Repartidor</h2>
+    
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+        <h4 style="margin-top: 0;"><i class="fas fa-info-circle"></i> Proceso de Registro</h4>
+        <ol style="margin: 10px 0; padding-left: 25px;">
+            <li><strong>Pendiente:</strong> Genera y envía el link de documentos por WhatsApp</li>
+            <li><strong>Docs Enviados:</strong> Revisa los documentos en Google Drive</li>
+            <li><strong>Aprobar/Rechazar:</strong> Decide si el repartidor es apto</li>
+            <li><strong>Aprobado:</strong> El repartidor recibe link para crear su usuario</li>
+        </ol>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="loadDeliveryRequests()">
+            <i class="fas fa-sync"></i> Actualizar
+        </button>
+        <button class="btn btn-info" onclick="filterRequests('all')">
+            Todas
+        </button>
+        <button class="btn btn-warning" onclick="filterRequests('pending')">
+            Pendientes
+        </button>
+        <button class="btn btn-success" onclick="filterRequests('docs_sent')">
+            Docs Enviados
+        </button>
+        <button class="btn btn-secondary" onclick="filterRequests('approved')">
+            Aprobadas
+        </button>
+    </div>
+    
+    <div id="requestsTable"></div>
+</div>
+
 
     <!-- Modal de Detalle (igual que usuario) -->
     <div id="orderDetailModal" class="modal">
@@ -288,6 +326,7 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
 
 
 
