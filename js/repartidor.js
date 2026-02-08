@@ -182,59 +182,46 @@ async function validateTokenAndShowForm(token, formType) {
 // ============================================
 
 async function submitFullRegistration() {
-    const token = document.getElementById('regToken').value;
     const licenseFile = document.getElementById('licenseFile').files[0];
     const circulationFile = document.getElementById('circulationFile').files[0];
-    const acceptContract = document.getElementById('acceptContract').checked;
-    const errorDiv = document.getElementById('fullRegError');
-    const successDiv = document.getElementById('fullRegSuccess');
-
-    // Limpiar mensajes
-    errorDiv.classList.add('hidden');
-    successDiv.classList.add('hidden');
-
-    // Validaciones
+    const contractAccepted = document.getElementById('contractAccepted').checked;
+    
+    // Validar que todos los archivos estén seleccionados
     if(!licenseFile) {
-        errorDiv.textContent = 'Debes subir tu licencia de conducir';
-        errorDiv.classList.remove('hidden');
+        alert('❌ Por favor selecciona tu licencia de conducir');
         return;
     }
-
+    
     if(!circulationFile) {
-        errorDiv.textContent = 'Debes subir tu tarjeta de circulación';
-        errorDiv.classList.remove('hidden');
+        alert('❌ Por favor selecciona tu tarjeta de circulación');
         return;
     }
-
-    if(!photoBlob) {
-        errorDiv.textContent = 'Debes tomar o subir tu selfie de verificación';
-        errorDiv.classList.remove('hidden');
+    
+    if(!capturedPhoto) {
+        alert('❌ Por favor toma tu selfie de verificación');
         return;
     }
-
-    if(!acceptContract) {
-        errorDiv.textContent = 'Debes aceptar el contrato de prestación de servicios';
-        errorDiv.classList.remove('hidden');
+    
+    if(!contractAccepted) {
+        alert('❌ Debes aceptar el contrato para continuar');
         return;
     }
-
-    // Validar tamaños
-    if(licenseFile.size > 5 * 1024 * 1024) {
-        errorDiv.textContent = 'La licencia es muy grande. Máximo 5MB';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-
-    if(circulationFile.size > 5 * 1024 * 1024) {
-        errorDiv.textContent = 'La tarjeta de circulación es muy grande. Máximo 5MB';
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-
+    
     showLoading(true);
-
+    
     try {
-        // 1. Subir licencia
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        if(!token) {
+            alert('❌ Token no encontrado');
+            return;
+        }
+        
+        console.log('🔄 Iniciando subida de documentos...');
+        
+        // 1. SUBIR LICENCIA
+        console.log('📄 Subiendo licencia...');
         const licenseData = await fileToBase64(licenseFile);
         const licenseResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -247,15 +234,22 @@ async function submitFullRegistration() {
                 fileData: licenseData
             })
         });
+        
         const licenseResult = await licenseResponse.json();
+        console.log('Licencia response:', licenseResult);
         
         if(!licenseResult.success) {
-            throw new Error('Error al subir licencia');
+            alert('❌ Error al subir licencia: ' + licenseResult.message);
+            return;
         }
-
-        // 2. Subir tarjeta de circulación
-        const circData = await fileToBase64(circulationFile);
-        const circResponse = await fetch(SCRIPT_URL, {
+        
+        const licenseId = licenseResult.fileId;
+        console.log('✅ Licencia subida. ID:', licenseId);
+        
+        // 2. SUBIR CIRCULACIÓN
+        console.log('📄 Subiendo tarjeta de circulación...');
+        const circulationData = await fileToBase64(circulationFile);
+        const circulationResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'uploadDeliveryDocument',
@@ -263,67 +257,93 @@ async function submitFullRegistration() {
                 documentType: 'circulation',
                 fileName: circulationFile.name,
                 mimeType: circulationFile.type,
-                fileData: circData
+                fileData: circulationData
             })
         });
-        const circResult = await circResponse.json();
         
-        if(!circResult.success) {
-            throw new Error('Error al subir tarjeta de circulación');
+        const circulationResult = await circulationResponse.json();
+        console.log('Circulación response:', circulationResult);
+        
+        if(!circulationResult.success) {
+            alert('❌ Error al subir circulación: ' + circulationResult.message);
+            return;
         }
-
-        // 3. Subir selfie
-        const photoData = await blobToBase64(photoBlob);
+        
+        const circulationId = circulationResult.fileId;
+        console.log('✅ Circulación subida. ID:', circulationId);
+        
+        // 3. SUBIR SELFIE
+        console.log('📸 Subiendo selfie...');
+        const photoData = capturedPhoto.split(',')[1]; // Quitar "data:image/jpeg;base64,"
         const photoResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'uploadDeliveryDocument',
                 token: token,
                 documentType: 'photo',
-                fileName: 'selfie_' + Date.now() + '.jpg',
+                fileName: 'selfie_verificacion.jpg',
                 mimeType: 'image/jpeg',
                 fileData: photoData
             })
         });
+        
         const photoResult = await photoResponse.json();
+        console.log('Selfie response:', photoResult);
         
         if(!photoResult.success) {
-            throw new Error('Error al subir foto');
+            alert('❌ Error al subir selfie: ' + photoResult.message);
+            return;
         }
-
-        // 4. Actualizar estado a "documentos enviados"
-        const finalResponse = await fetch(SCRIPT_URL, {
+        
+        const photoId = photoResult.fileId;
+        console.log('✅ Selfie subida. ID:', photoId);
+        
+        // 4. COMPLETAR REGISTRO
+        console.log('💾 Completando registro...');
+        const completeResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'completeDeliveryDocuments',
                 token: token,
-                licenseId: licenseResult.fileId,
-                circulationId: circResult.fileId,
-                photoId: photoResult.fileId,
-                contractAccepted: true
+                licenseId: licenseId,
+                circulationId: circulationId,
+                photoId: photoId
             })
         });
-
-        const finalResult = await finalResponse.json();
-
-        if(finalResult.success) {
-            successDiv.innerHTML = '<strong>¡Documentos enviados exitosamente!</strong><br>El administrador revisará tu información. Te contactaremos pronto.';
-            successDiv.classList.remove('hidden');
+        
+        const completeResult = await completeResponse.json();
+        console.log('Complete response:', completeResult);
+        
+        if(completeResult.success) {
+            alert('✅ ¡Documentos enviados exitosamente!\n\nRecibirás un correo cuando tu solicitud sea revisada.');
             
-            // Limpiar formulario
+            // Redirigir al login después de 2 segundos
             setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 3000);
+                window.location.href = 'repartidor.html';
+            }, 2000);
         } else {
-            errorDiv.textContent = finalResult.message || 'Error al completar registro';
-            errorDiv.classList.remove('hidden');
+            alert('❌ Error al completar registro: ' + completeResult.message);
         }
+        
     } catch(error) {
-        errorDiv.textContent = 'Error: ' + error.message;
-        errorDiv.classList.remove('hidden');
+        console.error('❌ Error:', error);
+        alert('❌ Error: ' + error.message);
     } finally {
         showLoading(false);
     }
+}
+
+// Función auxiliar para convertir File a Base64
+async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1]; // Quitar "data:...;base64,"
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 // ============================================
@@ -1025,4 +1045,5 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
