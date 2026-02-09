@@ -218,8 +218,8 @@ async function submitFullRegistration() {
         return;
     }
     
-    // Verificar checkbox del contrato (si existe)
-    const contractCheckbox = document.getElementById('contractAccepted');
+    // Verificar checkbox del contrato (CAMBIO AQUÍ ✅)
+    const contractCheckbox = document.getElementById('acceptContract'); // ← CORREGIDO
     if(contractCheckbox && !contractCheckbox.checked) {
         alert('❌ Debes aceptar el contrato para continuar');
         return;
@@ -383,6 +383,29 @@ async function submitFullRegistration() {
     } finally {
         showLoading(false);
     }
+}
+
+// ============================================
+// FUNCIÓN AUXILIAR: Convertir archivo a Base64
+// ============================================
+
+async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+            // Extraer solo la parte base64 (quitar "data:tipo;base64,")
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        
+        reader.onerror = (error) => {
+            console.error('Error leyendo archivo:', error);
+            reject(error);
+        };
+        
+        reader.readAsDataURL(file);
+    });
 }
 
 // ============================================
@@ -1107,6 +1130,7 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
 
 
