@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de AdministraciÃ³n - Centro de Copiado</title>
+    <title>Panel de Administración - Centro de Copiado</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <link rel="stylesheet" href="css/styles.css">
@@ -14,7 +14,7 @@
     <div id="loginSection">
         <div class="container" style="max-width: 500px; margin-top: 100px;">
             <div class="header">
-                <h1><i class="fas fa-user-shield"></i> Panel de AdministraciÃ³n</h1>
+                <h1><i class="fas fa-user-shield"></i> Panel de Administración</h1>
                 <p>Acceso solo para administradores</p>
             </div>
             <div class="content">
@@ -23,12 +23,12 @@
                     <input type="text" id="username" placeholder="admin">
                 </div>
                 <div class="form-group">
-                    <label>ContraseÃ±a</label>
+                    <label>Contraseña</label>
                     <input type="password" id="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                 </div>
                 <div id="loginError" class="alert alert-error hidden"></div>
                 <button class="btn btn-primary" onclick="login()" style="width: 100%;">
-                    <i class="fas fa-sign-in-alt"></i> Iniciar SesiÃ³n
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                 </button>
                 <div style="margin-top: 20px; text-align: center;">
                     <a href="index.html" style="color: #667eea;">
@@ -43,14 +43,14 @@
     <div id="adminPanel" class="hidden">
         <div class="top-header">
             <div class="logo">
-                <i class="fas fa-user-shield"></i> Panel de AdministraciÃ³n
+                <i class="fas fa-user-shield"></i> Panel de Administración
             </div>
             <div class="user-info">
                 <span class="user-badge">
                     <i class="fas fa-shield-alt"></i> <span id="currentUserName"></span>
                 </span>
                 <button class="btn-logout" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar SesiÃ³n
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                 </button>
             </div>
         </div>
@@ -80,7 +80,7 @@
             <div class="content">
                 <!-- Tab Pedidos -->
                 <div id="orders-tab" class="tab-content active">
-                    <h2><i class="fas fa-tasks"></i> GestiÃ³n de Pedidos</h2>
+                    <h2><i class="fas fa-tasks"></i> Gestión de Pedidos</h2>
                     
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
@@ -97,7 +97,7 @@
 
                 <!-- Tab Usuarios -->
                 <div id="users-tab" class="tab-content">
-                    <h2><i class="fas fa-users"></i> GestiÃ³n de Usuarios</h2>
+                    <h2><i class="fas fa-users"></i> Gestión de Usuarios</h2>
                     
                     <div id="usersTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -109,7 +109,7 @@
                         <input type="text" id="newUsername" placeholder="Ej: juan.perez">
                     </div>
                     <div class="form-group">
-                        <label>ContraseÃ±a *</label>
+                        <label>Contraseña *</label>
                         <input type="password" id="newPassword" placeholder="ContraseÃ±a segura">
                     </div>
                     <div class="form-group">
@@ -131,7 +131,7 @@
 
                 <!-- Tab Precios -->
                 <div id="prices-tab" class="tab-content">
-                    <h2><i class="fas fa-dollar-sign"></i> GestiÃ³n de Precios</h2>
+                    <h2><i class="fas fa-dollar-sign"></i> Gestión de Precios</h2>
                     
                     <div id="pricesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -139,7 +139,7 @@
                     
                     <h3><i class="fas fa-edit"></i> Agregar/Editar Precio</h3>
                     <div class="form-group">
-                        <label>CategorÃ­a *</label>
+                        <label>Categorí­a *</label>
                         <input type="text" id="priceCategory" placeholder="Ej: CARTA, VINIL, ACABADO">
                         <small>Ejemplos: CARTA, OFICIO, VINIL, LONAS, ACABADO, DELIVERY_FEE</small>
                     </div>
@@ -159,7 +159,7 @@
 
                 <!-- Tab Sucursales -->
                 <div id="branches-tab" class="tab-content">
-                    <h2><i class="fas fa-store"></i> GestiÃ³n de Sucursales</h2>
+                    <h2><i class="fas fa-store"></i> Gestión de Sucursales</h2>
                     
                     <div id="branchesTable" style="overflow-x: auto; margin-bottom: 30px;"></div>
                     
@@ -171,17 +171,17 @@
                         <input type="text" id="branchName" placeholder="Ej: Tamulte">
                     </div>
                     <div class="form-group">
-                        <label>DirecciÃ³n *</label>
+                        <label>Dirección *</label>
                         <input type="text" id="branchAddress" placeholder="DirecciÃ³n completa">
                     </div>
                     <div class="form-group">
-                        <label>TelÃ©fono *</label>
+                        <label>Teléfono *</label>
                         <input type="text" id="branchPhone" placeholder="9931234567">
                     </div>
                     <div class="form-group">
                         <label>Email de la Sucursal *</label>
                         <input type="email" id="branchEmail" placeholder="sucursal@centrocopiado.com">
-                        <small>Los pedidos se enviarÃ¡n a este correo</small>
+                        <small>Los pedidos se enviarán a este correo</small>
                     </div>
                     <div class="form-group">
                         <label>Latitud (opcional)</label>
@@ -288,7 +288,7 @@
                     <select id="orderStatus">
                         <option value="new">Nuevo (Recibido)</option>
                         <option value="assigned">Asignado a Empleado</option>
-                        <option value="processing">En ElaboraciÃ³n</option>
+                        <option value="processing">En Elaboración</option>
                         <option value="ready">Listo para Entrega</option>
                         <option value="delivering">En Camino</option>
                         <option value="delivered">Entregado</option>
@@ -327,6 +327,7 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
 
 
 
