@@ -408,28 +408,7 @@ async function fileToBase64(file) {
     });
 }
 
-// ============================================
-// FUNCIÓN AUXILIAR: Convertir archivo a Base64
-// ============================================
 
-async function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = () => {
-            // Extraer solo la parte base64 (quitar "data:tipo;base64,")
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        
-        reader.onerror = (error) => {
-            console.error('Error leyendo archivo:', error);
-            reject(error);
-        };
-        
-        reader.readAsDataURL(file);
-    });
-}
 
 // ============================================
 // CREAR USUARIO Y CONTRASEÑA
@@ -572,23 +551,35 @@ function takePicture() {
     const canvas = document.getElementById('photoCanvas');
     const context = canvas.getContext('2d');
     
+    // Configurar tamaño del canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
+    // Capturar frame del video
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
+    // Convertir a Data URL (base64) Y blob
+    capturedPhoto = canvas.toDataURL('image/jpeg', 0.8); // ← AGREGADO: Guardar en capturedPhoto
+    
+    console.log('✅ Foto capturada y guardada en capturedPhoto');
+    console.log('Tamaño:', capturedPhoto.length, 'caracteres');
+    
+    // Convertir a blob también (para compatibilidad)
     canvas.toBlob(function(blob) {
         photoBlob = blob;
         const url = URL.createObjectURL(blob);
         
+        // Mostrar preview
         document.getElementById('photoImg').src = url;
         document.getElementById('photoPreview').classList.remove('hidden');
         document.getElementById('photoCapture').classList.add('hidden');
         
+        // Detener cámara
         stopCamera();
         
     }, 'image/jpeg', 0.8);
 }
+
 
 function handlePhotoUpload() {
     const input = document.getElementById('photoFileInput');
@@ -1130,6 +1121,7 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
 
 
