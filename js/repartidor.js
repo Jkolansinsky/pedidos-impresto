@@ -178,15 +178,31 @@ async function validateTokenAndShowForm(token, formType) {
 }
 
 // ============================================
-// ENVIAR DOCUMENTOS COMPLETOS
+// ENVIAR DOCUMENTOS COMPLETOS (NUEVO SISTEMA)
 // ============================================
 
 async function submitFullRegistration() {
-    const licenseFile = document.getElementById('licenseFile').files[0];
-    const circulationFile = document.getElementById('circulationFile').files[0];
-    const contractAccepted = document.getElementById('contractAccepted').checked;
+    // Obtener archivos seleccionados
+    const licenseInput = document.getElementById('licenseFile');
+    const circulationInput = document.getElementById('circulationFile');
+    const photoInput = document.getElementById('photoFile');
     
-    // Validar que todos los archivos estén seleccionados
+    // Verificar que los inputs existan
+    if(!licenseInput || !circulationInput || !photoInput) {
+        alert('❌ Error: Formulario no cargado correctamente');
+        console.error('Inputs no encontrados:', {
+            license: !!licenseInput,
+            circulation: !!circulationInput,
+            photo: !!photoInput
+        });
+        return;
+    }
+    
+    const licenseFile = licenseInput.files[0];
+    const circulationFile = circulationInput.files[0];
+    const photoFile = photoInput.files[0];
+    
+    // Validar archivos
     if(!licenseFile) {
         alert('❌ Por favor selecciona tu licencia de conducir');
         return;
@@ -197,12 +213,14 @@ async function submitFullRegistration() {
         return;
     }
     
-    if(!capturedPhoto) {
-        alert('❌ Por favor toma tu selfie de verificación');
+    if(!photoFile && !capturedPhoto) {
+        alert('❌ Por favor toma tu selfie o sube una foto de tu rostro');
         return;
     }
     
-    if(!contractAccepted) {
+    // Verificar checkbox del contrato (si existe)
+    const contractCheckbox = document.getElementById('contractAccepted');
+    if(contractCheckbox && !contractCheckbox.checked) {
         alert('❌ Debes aceptar el contrato para continuar');
         return;
     }
@@ -210,19 +228,26 @@ async function submitFullRegistration() {
     showLoading(true);
     
     try {
+        // Obtener token de la URL
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         
         if(!token) {
-            alert('❌ Token no encontrado');
+            alert('❌ Token no encontrado en la URL');
+            showLoading(false);
             return;
         }
         
         console.log('🔄 Iniciando subida de documentos...');
+        console.log('Token:', token);
         
-        // 1. SUBIR LICENCIA
-        console.log('📄 Subiendo licencia...');
+        // ============================================
+        // 1. SUBIR LICENCIA DE CONDUCIR
+        // ============================================
+        
+        console.log('📄 Subiendo licencia de conducir...');
         const licenseData = await fileToBase64(licenseFile);
+        
         const licenseResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -236,19 +261,24 @@ async function submitFullRegistration() {
         });
         
         const licenseResult = await licenseResponse.json();
-        console.log('Licencia response:', licenseResult);
+        console.log('Respuesta licencia:', licenseResult);
         
         if(!licenseResult.success) {
             alert('❌ Error al subir licencia: ' + licenseResult.message);
+            showLoading(false);
             return;
         }
         
         const licenseId = licenseResult.fileId;
         console.log('✅ Licencia subida. ID:', licenseId);
         
-        // 2. SUBIR CIRCULACIÓN
+        // ============================================
+        // 2. SUBIR TARJETA DE CIRCULACIÓN
+        // ============================================
+        
         console.log('📄 Subiendo tarjeta de circulación...');
         const circulationData = await fileToBase64(circulationFile);
+        
         const circulationResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -262,44 +292,66 @@ async function submitFullRegistration() {
         });
         
         const circulationResult = await circulationResponse.json();
-        console.log('Circulación response:', circulationResult);
+        console.log('Respuesta circulación:', circulationResult);
         
         if(!circulationResult.success) {
-            alert('❌ Error al subir circulación: ' + circulationResult.message);
+            alert('❌ Error al subir tarjeta de circulación: ' + circulationResult.message);
+            showLoading(false);
             return;
         }
         
         const circulationId = circulationResult.fileId;
         console.log('✅ Circulación subida. ID:', circulationId);
         
-        // 3. SUBIR SELFIE
+        // ============================================
+        // 3. SUBIR SELFIE (foto capturada o archivo)
+        // ============================================
+        
         console.log('📸 Subiendo selfie...');
-        const photoData = capturedPhoto.split(',')[1]; // Quitar "data:image/jpeg;base64,"
+        let photoData, photoFileName, photoMimeType;
+        
+        // Usar foto capturada si existe, si no usar archivo subido
+        if(capturedPhoto) {
+            photoData = capturedPhoto.split(',')[1]; // Quitar "data:image/jpeg;base64,"
+            photoFileName = 'selfie_verificacion.jpg';
+            photoMimeType = 'image/jpeg';
+            console.log('Usando foto capturada con cámara');
+        } else {
+            photoData = await fileToBase64(photoFile);
+            photoFileName = photoFile.name;
+            photoMimeType = photoFile.type;
+            console.log('Usando foto subida como archivo');
+        }
+        
         const photoResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'uploadDeliveryDocument',
                 token: token,
                 documentType: 'photo',
-                fileName: 'selfie_verificacion.jpg',
-                mimeType: 'image/jpeg',
+                fileName: photoFileName,
+                mimeType: photoMimeType,
                 fileData: photoData
             })
         });
         
         const photoResult = await photoResponse.json();
-        console.log('Selfie response:', photoResult);
+        console.log('Respuesta selfie:', photoResult);
         
         if(!photoResult.success) {
             alert('❌ Error al subir selfie: ' + photoResult.message);
+            showLoading(false);
             return;
         }
         
         const photoId = photoResult.fileId;
         console.log('✅ Selfie subida. ID:', photoId);
         
-        // 4. COMPLETAR REGISTRO
-        console.log('💾 Completando registro...');
+        // ============================================
+        // 4. COMPLETAR REGISTRO CON TODOS LOS IDs
+        // ============================================
+        
+        console.log('💾 Completando registro en Google Sheets...');
         const completeResponse = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -312,10 +364,10 @@ async function submitFullRegistration() {
         });
         
         const completeResult = await completeResponse.json();
-        console.log('Complete response:', completeResult);
+        console.log('Respuesta completar:', completeResult);
         
         if(completeResult.success) {
-            alert('✅ ¡Documentos enviados exitosamente!\n\nRecibirás un correo cuando tu solicitud sea revisada.');
+            alert('✅ ¡Documentos enviados exitosamente!\n\nRecibirás un correo cuando tu solicitud sea revisada y aprobada.');
             
             // Redirigir al login después de 2 segundos
             setTimeout(() => {
@@ -326,22 +378,32 @@ async function submitFullRegistration() {
         }
         
     } catch(error) {
-        console.error('❌ Error:', error);
-        alert('❌ Error: ' + error.message);
+        console.error('❌ Error completo:', error);
+        alert('❌ Error al enviar documentos: ' + error.message);
     } finally {
         showLoading(false);
     }
 }
 
-// Función auxiliar para convertir File a Base64
+// ============================================
+// FUNCIÓN AUXILIAR: Convertir archivo a Base64
+// ============================================
+
 async function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
+        
         reader.onload = () => {
-            const base64 = reader.result.split(',')[1]; // Quitar "data:...;base64,"
+            // Extraer solo la parte base64 (quitar "data:tipo;base64,")
+            const base64 = reader.result.split(',')[1];
             resolve(base64);
         };
-        reader.onerror = reject;
+        
+        reader.onerror = (error) => {
+            console.error('Error leyendo archivo:', error);
+            reject(error);
+        };
+        
         reader.readAsDataURL(file);
     });
 }
@@ -1045,5 +1107,6 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
 
