@@ -105,7 +105,7 @@ async function submitRequest() {
         const result = await response.json();
 
         if(result.success) {
-            successDiv.innerHTML = '<strong>¡Solicitud enviada!</strong><br>Te contactaremos pronto vía WhatsApp al número proporcionado para continuar con el proceso.';
+            successDiv.innerHTML = '<strong>¡Solicitud enviada!</strong><br>Te contactaremos pronto vía WhatsApp al número proporcionado y al Email para continuar con el proceso.';
             successDiv.classList.remove('hidden');
             
             // Limpiar formulario
@@ -1121,6 +1121,7 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
 
 
