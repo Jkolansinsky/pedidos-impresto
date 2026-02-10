@@ -114,63 +114,143 @@ async function loadOrders() {
     }
 }
 
-function displayOrders(orders) {
-    const container = document.getElementById('ordersList');
-    container.innerHTML = '';
+async function viewOrderDetail(order) {
+    currentOrder = order;
     
-    if(orders.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No hay pedidos</p>';
-        return;
+    // Obtener datos del repartidor si está en entrega
+    deliveryPersonData = null;
+    if(order.deliveryPerson && (order.status === 'delivering' || order.status === 'ready')) {
+        deliveryPersonData = await getDeliveryPersonData(order.deliveryPerson);
     }
     
-    orders.forEach(order => {
-        const div = document.createElement('div');
-        div.className = 'order-item';
-        
-        const statusText = getStatusText(order.status);
-        const statusClass = 'status-' + order.status;
-        const employeeName = order.employee || 'Sin asignar';
-        
-        // Verificar retraso
-        let isDelayed = false;
-        if(order.status === 'delivering' && order.history) {
-            const deliveringEvent = order.history.find(h => h.status === 'delivering');
-            if(deliveringEvent) {
-                const startTime = new Date(deliveringEvent.timestamp);
-                const now = new Date();
-                const hoursDiff = (now - startTime) / (1000 * 60 * 60);
-                if(hoursDiff > 1) {
-                    isDelayed = true;
-                }
+    const deliveryPersonHTML = (order.status === 'delivering' && deliveryPersonData) ? 
+        renderDeliveryPersonInfo(deliveryPersonData) : '';
+    
+    // Verificar si el pedido ya fue entregado
+    const isDelivered = order.status === 'delivered';
+    
+    // Generar links de archivos
+    let filesHTML = '';
+    if(order.works && order.works.length > 0) {
+        filesHTML = order.works.map((work, idx) => {
+            if(work.fileUrl) {
+                return `
+                    <div style="margin: 5px 0;">
+                        <a href="${work.fileUrl}" target="_blank" style="color: #667eea; text-decoration: none;">
+                            <i class="fas fa-download"></i> Descargar ${work.fileName}
+                        </a>
+                    </div>
+                `;
             }
-        }
-        
-        if(isDelayed) {
-            div.style.background = '#ffe6e6';
-            div.style.borderLeft = '4px solid #dc3545';
-        }
-        
-        div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
-                <div style="flex: 1;">
-                    <h4><i class="fas fa-file-alt"></i> ${order.folio} ${isDelayed ? '<span style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> RETRASO +1HR</span>' : ''}</h4>
-                    <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
-                    <p style="margin: 5px 0;">Total: <strong>${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
-                    <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
-                        <i class="far fa-clock"></i> ${formatDate(order.date)}
-                    </p>
-                    <p style="margin: 5px 0;">
-                        <i class="fas fa-user"></i> Empleado: <strong>${employeeName}</strong>
-                    </p>
-                    <span class="order-status ${statusClass}">${statusText}</span>
-                </div>
-                <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
-                    <i class="fas fa-eye"></i> Ver Detalle
-                </button>
+            return '';
+        }).join('');
+    }
+    
+    // Link del comprobante de pago
+    let proofHTML = '';
+    if(order.proofFileUrl) {
+        proofHTML = `
+            <div style="margin-top: 10px;">
+                <a href="${order.proofFileUrl}" target="_blank" style="color: #28a745; text-decoration: none;">
+                    <i class="fas fa-file-invoice-dollar"></i> Ver Comprobante de Pago
+                </a>
             </div>
         `;
-        container.appendChild(div);
-    });
+    }
+    
+    const detailContent = document.getElementById('orderDetailContent');
+    detailContent.innerHTML = `
+        ${deliveryPersonHTML}
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3><i class="fas fa-receipt"></i> ${order.folio}</h3>
+            ${isDelivered ? `
+                <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                    <p style="color: #155724; margin: 0; font-weight: bold;">
+                        <i class="fas fa-check-circle"></i> Este pedido ya fue entregado
+                    </p>
+                    <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
+                        Fecha de entrega: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}
+                    </p>
+                    <p style="color: #856404; margin: 10px 0 0 0; font-size: 0.9em; background: #fff3cd; padding: 10px; border-radius: 5px;">
+                        <i class="fas fa-lock"></i> <strong>Nota:</strong> Los pedidos entregados no se pueden modificar
+                    </p>
+                </div>
+            ` : ''}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div>
+                    <p><strong>Cliente:</strong> ${order.client.name}</p>
+                    <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+                    <p><strong>Email:</strong> ${order.client.email || 'N/A'}</p>
+                </div>
+                <div>
+                    <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
+                    <p><strong>Servicio:</strong> ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                    <p><strong>Método de Pago:</strong> ${order.paymentMethod}</p>
+                    ${proofHTML}
+                </div>
+                <div>
+                    <p><strong>Subtotal:</strong> $${order.subtotal}</p>
+                    <p><strong>Entrega:</strong> $${order.deliveryCost || 0}</p>
+                    <p><strong>Total:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
+                </div>
+            </div>
+            ${filesHTML ? `
+                <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                    <h4 style="margin-bottom: 10px;"><i class="fas fa-file-download"></i> Archivos del Cliente</h4>
+                    ${filesHTML}
+                </div>
+            ` : ''}
+        </div>
+
+        <h4><i class="fas fa-list"></i> Trabajos Solicitados</h4>
+        <div style="margin-bottom: 20px;">
+            ${order.works.map((work, idx) => `
+                <div class="cart-item" style="margin-bottom: 10px;">
+                    <p><strong>${idx + 1}. ${work.fileName}</strong></p>
+                    <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
+                    ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
+                    ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
+                    ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
+                    ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
+                    <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    buildTimeline(order);
+    document.getElementById('orderStatus').value = order.status;
+    document.getElementById('assignEmployee').value = order.employee || '';
+    document.getElementById('statusNotes').value = '';
+    
+    // Deshabilitar controles si ya fue entregado
+    if(isDelivered) {
+        document.getElementById('orderStatus').disabled = true;
+        document.getElementById('assignEmployee').disabled = true;
+        document.getElementById('statusNotes').disabled = true;
+        
+        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
+        if(updateBtn) {
+            updateBtn.disabled = true;
+            updateBtn.style.opacity = '0.5';
+            updateBtn.style.cursor = 'not-allowed';
+            updateBtn.innerHTML = '<i class="fas fa-lock"></i> Pedido Entregado';
+        }
+    } else {
+        document.getElementById('orderStatus').disabled = false;
+        document.getElementById('assignEmployee').disabled = false;
+        document.getElementById('statusNotes').disabled = false;
+        
+        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
+        if(updateBtn) {
+            updateBtn.disabled = false;
+            updateBtn.style.opacity = '1';
+            updateBtn.style.cursor = 'pointer';
+            updateBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar Estado';
+        }
+    }
+    
+    document.getElementById('orderDetailModal').classList.add('active');
 }
 
 function filterOrders(status) {
@@ -1515,6 +1595,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
