@@ -96,22 +96,68 @@ function showAdminTab(tabName) {
 // GESTIÓN DE PEDIDOS
 // ============================================
 
-async function loadOrders() {
-    showLoading(true);
-    try {
-        const response = await fetch(SCRIPT_URL + '?action=getAllOrders');
-        const result = await response.json();
-        
-        if(result.success) {
-            allOrders = result.orders;
-            displayOrders(result.orders);
-        }
-    } catch(error) {
-        console.error('Error cargando pedidos:', error);
-        alert('Error al cargar pedidos');
-    } finally {
-        showLoading(false);
+function displayOrders(orders) {
+    const container = document.getElementById('ordersList'); // o el ID que uses para mostrar los pedidos
+    
+    if(!container) {
+        console.error('Contenedor de pedidos no encontrado');
+        return;
     }
+    
+    if(!orders || orders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No hay pedidos</p></div>';
+        return;
+    }
+    
+    let html = '';
+    orders.forEach(order => {
+        const statusClass = getStatusClass(order.status);
+        const statusText = getStatusText(order.status);
+        
+        html += `
+            <div class="order-card" onclick="viewOrderDetail(${JSON.stringify(order).replace(/"/g, '&quot;')})">
+                <div class="order-header">
+                    <div>
+                        <strong>${order.folio}</strong>
+                        <span class="status-badge status-${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="text-muted">${formatDate(order.date)}</div>
+                </div>
+                <div class="order-body">
+                    <p><strong>Cliente:</strong> ${order.client.name}</p>
+                    <p><strong>Teléfono:</strong> ${order.client.phone}</p>
+                    <p><strong>Total:</strong> $${order.total}</p>
+                    ${order.employee ? `<p><strong>Empleado:</strong> ${order.employee}</p>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getStatusClass(status) {
+    const statusMap = {
+        'new': 'primary',
+        'in_progress': 'warning',
+        'ready': 'success',
+        'delivering': 'path',
+        'delivered': 'secondary',
+        'cancelled': 'danger'
+    };
+    return statusMap[status] || 'secondary';
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'new': 'Nuevo',
+        'in_progress': 'En Proceso',
+        'ready': 'Listo',
+        'delivering': 'En Camino',
+        'delivered': 'Entregado',
+        'cancelled': 'Cancelado'
+    };
+    return statusMap[status] || status;
 }
 
 async function viewOrderDetail(order) {
@@ -1595,6 +1641,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
