@@ -1581,7 +1581,7 @@ async function viewUserCreationLink(requestId) {
         return;
     }
     
-    const baseUrl = window.location.origin;
+    const baseUrl = 'https://jkolansinsky.github.io/pedidos-impresto';  // ← CORREGIDO
     const userLink = `${baseUrl}/repartidor.html?action=create-user&token=${req.userToken}`;
     const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(userLink)}`;
     
@@ -1595,6 +1595,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
