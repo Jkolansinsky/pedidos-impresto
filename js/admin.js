@@ -102,31 +102,16 @@ function showAdminTab(tabName) {
 async function loadOrders() {
     showLoading(true);
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getOrders');
+        const response = await fetch(SCRIPT_URL + '?action=getAllOrders');
         const result = await response.json();
         
-        console.log('Pedidos obtenidos:', result);
-        
         if(result.success) {
-            allOrders = result.orders || [];
-            displayOrders(allOrders);
-        } else {
-            console.error('Error en respuesta:', result.message);
-            document.getElementById('ordersList').innerHTML = `
-                <div class="alert alert-error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    Error al cargar pedidos: ${result.message}
-                </div>
-            `;
+            allOrders = result.orders;
+            displayOrders(result.orders);
         }
     } catch(error) {
         console.error('Error cargando pedidos:', error);
-        document.getElementById('ordersList').innerHTML = `
-            <div class="alert alert-error">
-                <i class="fas fa-exclamation-circle"></i>
-                Error de conexión: ${error.message}
-            </div>
-        `;
+        alert('Error al cargar pedidos');
     } finally {
         showLoading(false);
     }
@@ -1681,6 +1666,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
