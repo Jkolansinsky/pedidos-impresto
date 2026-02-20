@@ -77,19 +77,39 @@ function showUserPanel(user) {
 // CARGAR PEDIDOS
 // ============================================
 
+// ============================================
+// FUNCIÓN loadOrders() CORREGIDA PARA ADMIN.JS
+// AGREGAR DESPUÉS DE LA LÍNEA 90 (después de showAdminTab)
+// ============================================
+
 async function loadOrders() {
     showLoading(true);
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getOrders&employee=' + currentUser.username);
+        const response = await fetch(SCRIPT_URL + '?action=getOrders');
         const result = await response.json();
         
+        console.log('Pedidos obtenidos:', result);
+        
         if(result.success) {
-            allOrders = result.orders;
-            displayOrders(result.orders);
+            allOrders = result.orders || [];
+            displayOrders(allOrders);
+        } else {
+            console.error('Error en respuesta:', result.message);
+            document.getElementById('ordersList').innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Error al cargar pedidos: ${result.message}
+                </div>
+            `;
         }
     } catch(error) {
         console.error('Error cargando pedidos:', error);
-        alert('Error al cargar pedidos');
+        document.getElementById('ordersList').innerHTML = `
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
+                Error de conexión: ${error.message}
+            </div>
+        `;
     } finally {
         showLoading(false);
     }
@@ -486,6 +506,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
 
 
 
