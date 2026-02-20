@@ -70,6 +70,8 @@ function showAdminPanel(user) {
     loadOrders();
 }
 
+
+
 // ============================================
 // NAVEGACIÓN
 // ============================================
@@ -89,6 +91,44 @@ function showAdminTab(tabName) {
         loadPricesTable();
     } else if(tabName === 'branches') {
         loadBranchesTable();
+    }
+}
+
+// ============================================
+// FUNCIÓN loadOrders() CORREGIDA PARA ADMIN.JS
+// AGREGAR DESPUÉS DE LA LÍNEA 90 (después de showAdminTab)
+// ============================================
+
+async function loadOrders() {
+    showLoading(true);
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getOrders');
+        const result = await response.json();
+        
+        console.log('Pedidos obtenidos:', result);
+        
+        if(result.success) {
+            allOrders = result.orders || [];
+            displayOrders(allOrders);
+        } else {
+            console.error('Error en respuesta:', result.message);
+            document.getElementById('ordersList').innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Error al cargar pedidos: ${result.message}
+                </div>
+            `;
+        }
+    } catch(error) {
+        console.error('Error cargando pedidos:', error);
+        document.getElementById('ordersList').innerHTML = `
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
+                Error de conexión: ${error.message}
+            </div>
+        `;
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -1641,6 +1681,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
