@@ -35,9 +35,11 @@ async function login() {
     }
 
     showLoading(true);
-    try {
-        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=usuario');
+    try {        
+        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=user');
         const result = await response.json();
+
+        console.log('Respuesta del servidor:', result);
         
         if(result.success) {
             if(result.user.role !== 'user') {
@@ -484,6 +486,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
 
 
 
