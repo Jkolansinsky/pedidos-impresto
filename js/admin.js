@@ -122,43 +122,59 @@ async function loadOrders() {
 // ============================================
 
 function displayOrders(orders) {
-    const container = document.getElementById('ordersList'); // o el ID que uses para mostrar los pedidos
+    const container = document.getElementById('ordersList');
+    container.innerHTML = '';
     
-    if(!container) {
-        console.error('Contenedor de pedidos no encontrado');
+    if(orders.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No hay pedidos asignados</p>';
         return;
     }
     
-    if(!orders || orders.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No hay pedidos</p></div>';
-        return;
-    }
-    
-    let html = '';
     orders.forEach(order => {
-        const statusClass = getStatusClass(order.status);
-        const statusText = getStatusText(order.status);
+        const div = document.createElement('div');
+        div.className = 'order-item';
         
-        html += `
-            <div class="order-card" onclick="viewOrderDetail(${JSON.stringify(order).replace(/"/g, '&quot;')})">
-                <div class="order-header">
-                    <div>
-                        <strong>${order.folio}</strong>
-                        <span class="status-badge status-${statusClass}">${statusText}</span>
-                    </div>
-                    <div class="text-muted">${formatDate(order.date)}</div>
+        const statusText = getStatusText(order.status);
+        const statusClass = 'status-' + order.status;
+        
+        // Verificar si hay retraso (más de 1 hora en entrega)
+        let isDelayed = false;
+        if(order.status === 'delivering' && order.history) {
+            const deliveringEvent = order.history.find(h => h.status === 'delivering');
+            if(deliveringEvent) {
+                const startTime = new Date(deliveringEvent.timestamp);
+                const now = new Date();
+                const hoursDiff = (now - startTime) / (1000 * 60 * 60);
+                if(hoursDiff > 1) {
+                    isDelayed = true;
+                }
+            }
+        }
+        
+        // Aplicar fondo rojo si hay retraso
+        if(isDelayed) {
+            div.style.background = '#ffe6e6';
+            div.style.borderLeft = '4px solid #dc3545';
+        }
+        
+        div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4><i class="fas fa-file-alt"></i> ${order.folio} ${isDelayed ? '<span style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> RETRASO</span>' : ''}</h4>
+                    <p style="margin: 5px 0;"><strong>${order.client.name}</strong> - ${order.client.phone}</p>
+                    <p style="margin: 5px 0;">Total: <strong>${order.total}</strong> | ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
+                    <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                        <i class="far fa-clock"></i> ${formatDate(order.date)}
+                    </p>
+                    <span class="order-status ${statusClass}">${statusText}</span>
                 </div>
-                <div class="order-body">
-                    <p><strong>Cliente:</strong> ${order.client.name}</p>
-                    <p><strong>Teléfono:</strong> ${order.client.phone}</p>
-                    <p><strong>Total:</strong> $${order.total}</p>
-                    ${order.employee ? `<p><strong>Empleado:</strong> ${order.employee}</p>` : ''}
-                </div>
+                <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
+                    <i class="fas fa-eye"></i> Ver Detalle
+                </button>
             </div>
         `;
+        container.appendChild(div);
     });
-    
-    container.innerHTML = html;
 }
 
 function getStatusClass(status) {
@@ -1666,6 +1682,7 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
 
 
 
