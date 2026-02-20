@@ -188,7 +188,7 @@ function filterOrders(status) {
 // DETALLE DE PEDIDO
 // ============================================
 
-async function viewOrderDetail(order) {
+async function viewOrderDetail(orders) {
     currentOrder = order;
     
     // Obtener datos del repartidor si está en entrega
@@ -506,6 +506,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
 
 
 
