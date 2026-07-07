@@ -114,11 +114,18 @@
                     </div>
                     <div class="form-group">
                         <label>Rol *</label>
-                        <select id="newUserRole">
-                            <option value="user">Usuario (Empleado)</option>
+                        <select id="newUserRole" onchange="toggleNewUserBranchField()">
+                            <option value="user">Usuario (Sucursal)</option>
                             <option value="delivery">Repartidor</option>
                             <option value="admin">Administrador</option>
                         </select>
+                    </div>
+                    <div class="form-group" id="newUserBranchGroup">
+                        <label>Sucursal *</label>
+                        <select id="newUserBranch">
+                            <option value="">Selecciona una sucursal...</option>
+                        </select>
+                        <small>Este usuario solo verá los pedidos de esta sucursal</small>
                     </div>
                     <div class="form-group">
                         <label>Nombre Completo *</label>
@@ -327,6 +334,16 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
 
 
 
