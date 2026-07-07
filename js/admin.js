@@ -36,7 +36,10 @@ async function login() {
 
     showLoading(true);
     try {
-        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=admin');
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'login', username: username, password: password, type: 'admin' })
+        });
         const result = await response.json();
         
         if(result.success) {
@@ -62,12 +65,24 @@ async function login() {
     }
 }
 
+let adminAutoRefreshId = null;
+
 function showAdminPanel(user) {
     currentUser = user;
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('adminPanel').classList.remove('hidden');
     document.getElementById('currentUserName').textContent = user.username;
     loadOrders();
+
+    // Auto-actualización: refresca la lista de pedidos cada 20s sin recargar la página
+    if(adminAutoRefreshId) clearInterval(adminAutoRefreshId);
+    adminAutoRefreshId = setInterval(() => {
+        // Solo refrescar en automático si está viendo la pestaña de pedidos
+        const ordersTab = document.getElementById('orders-tab');
+        if(ordersTab && ordersTab.classList.contains('active')) {
+            loadOrders(true);
+        }
+    }, 20000);
 }
 
 
@@ -87,6 +102,8 @@ function showAdminTab(tabName) {
         loadOrders();
     } else if(tabName === 'users') {
         loadUsersTable();
+        populateNewUserBranchSelect();
+        toggleNewUserBranchField();
     } else if(tabName === 'prices') {
         loadPricesTable();
     } else if(tabName === 'branches') {
@@ -99,8 +116,8 @@ function showAdminTab(tabName) {
 // AGREGAR DESPUÉS DE LA LÍNEA 90 (después de showAdminTab)
 // ============================================
 
-async function loadOrders() {
-    showLoading(true);
+async function loadOrders(silent) {
+    if(!silent) showLoading(true);
     try {
         const response = await fetch(SCRIPT_URL + '?action=getAllOrders');
         const result = await response.json();
@@ -111,9 +128,9 @@ async function loadOrders() {
         }
     } catch(error) {
         console.error('Error cargando pedidos:', error);
-        alert('Error al cargar pedidos');
+        if(!silent) alert('Error al cargar pedidos');
     } finally {
-        showLoading(false);
+        if(!silent) showLoading(false);
     }
 }
 
@@ -575,6 +592,7 @@ async function loadUsersTable() {
                             <th>Usuario</th>
                             <th>Nombre Completo</th>
                             <th>Rol</th>
+                            <th>Sucursal</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -588,12 +606,14 @@ async function loadUsersTable() {
                 const statusBadge = user.active ? 
                     '<span class="order-status status-ready">Activo</span>' : 
                     '<span class="order-status status-delivered">Inactivo</span>';
+                const branchText = user.role === 'user' ? (user.branch || '<span style="color:#c00">Sin asignar</span>') : '—';
                 
                 html += `
                     <tr>
                         <td><strong>${user.username}</strong></td>
                         <td>${user.name}</td>
                         <td>${roleText}</td>
+                        <td>${branchText}</td>
                         <td>${statusBadge}</td>
                         <td>
                             <button class="btn btn-warning" style="padding: 5px 10px; font-size: 0.9em;" 
@@ -621,32 +641,48 @@ async function loadUsersTable() {
     }
 }
 
-function editUser(user) {
+async function editUser(user) {
     const newPassword = prompt(`Cambiar contraseña para ${user.username} (dejar vacío para no cambiar):`);
-    
-    if(newPassword !== null) {
-        updateUserPassword(user.username, newPassword);
+    if(newPassword === null) return;
+
+    let newBranch = user.branch || '';
+    if(user.role === 'user') {
+        const branches = await getBranchNamesForPrompt();
+        newBranch = prompt(
+            `Sucursal asignada a ${user.username}.\nOpciones disponibles: ${branches.join(', ') || '(no hay sucursales registradas)'}\n\nEscribe el nombre EXACTO de la sucursal:`,
+            user.branch || ''
+        );
+        if(newBranch === null) return; // canceló
     }
+
+    updateUserPassword(user.username, newPassword, newBranch, user.role);
 }
 
-async function updateUserPassword(username, password) {
-    if(!password) return;
-    
+async function getBranchNamesForPrompt() {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getBranches');
+        const result = await response.json();
+        if(result.success) return result.branches.map(b => b.name);
+    } catch(e) { /* ignore */ }
+    return [];
+}
+
+async function updateUserPassword(username, password, branch, role) {
     showLoading(true);
     try {
+        const payload = { action: 'updateUser', username: username };
+        if(password) payload.password = password;
+        if(role === 'user') payload.branch = branch || '';
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify({
-                action: 'updateUser',
-                username: username,
-                password: password
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
         
         if(result.success) {
-            alert('Contraseña actualizada correctamente');
+            alert('Usuario actualizado correctamente');
             loadUsersTable();
         } else {
             alert('Error: ' + result.message);
@@ -686,11 +722,26 @@ async function deactivateUser(username) {
     }
 }
 
+function toggleNewUserBranchField() {
+    const role = document.getElementById('newUserRole').value;
+    const group = document.getElementById('newUserBranchGroup');
+    if(group) group.style.display = (role === 'user') ? '' : 'none';
+}
+
+async function populateNewUserBranchSelect() {
+    const select = document.getElementById('newUserBranch');
+    if(!select) return;
+    const branches = await getBranchNamesForPrompt();
+    select.innerHTML = '<option value="">Selecciona una sucursal...</option>' +
+        branches.map(name => `<option value="${name}">${name}</option>`).join('');
+}
+
 async function createNewUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value.trim();
     const role = document.getElementById('newUserRole').value;
     const name = document.getElementById('newUserFullName').value.trim();
+    const branch = document.getElementById('newUserBranch') ? document.getElementById('newUserBranch').value : '';
 
     if(!username || !password || !name) {
         alert('Completa todos los campos obligatorios');
@@ -707,6 +758,11 @@ async function createNewUser() {
         return;
     }
 
+    if(role === 'user' && !branch) {
+        alert('Selecciona la sucursal para este usuario');
+        return;
+    }
+
     showLoading(true);
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -716,7 +772,8 @@ async function createNewUser() {
                 username: username,
                 password: password,
                 role: role,
-                name: name
+                name: name,
+                branch: role === 'user' ? branch : ''
             })
         });
 
@@ -728,6 +785,8 @@ async function createNewUser() {
             document.getElementById('newPassword').value = '';
             document.getElementById('newUserRole').value = 'user';
             document.getElementById('newUserFullName').value = '';
+            if(document.getElementById('newUserBranch')) document.getElementById('newUserBranch').value = '';
+            toggleNewUserBranchField();
             loadUsersTable();
         } else {
             alert('Error: ' + result.message);
@@ -1683,9 +1742,6 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
-
-
-
 
 
 
