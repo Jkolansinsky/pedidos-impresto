@@ -646,7 +646,10 @@ async function login() {
     showLoading(true);
 
     try {
-        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=delivery');
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'login', username: username, password: password, type: 'delivery' })
+        });
         const result = await response.json();
 
         if(result.success && result.user) {
@@ -665,6 +668,10 @@ async function login() {
             document.getElementById('currentUserName').textContent = currentUser.name || currentUser.username;
 
             loadDeliveries();
+
+            // Auto-actualización: refresca las entregas cada 15s sin recargar la página
+            if(deliveryAutoRefreshId) clearInterval(deliveryAutoRefreshId);
+            deliveryAutoRefreshId = setInterval(() => loadDeliveries(true), 15000);
         } else {
             errorDiv.textContent = result.message || 'Usuario o contraseña incorrectos';
             errorDiv.classList.remove('hidden');
@@ -685,26 +692,30 @@ async function login() {
 // [AQUÍ VAN TODAS LAS FUNCIONES RESTANTES DEL ARCHIVO ORIGINAL]
 // Las copio exactamente como están en el archivo original...
 
-async function loadDeliveries() {
-    showLoading(true);
+let deliveryAutoRefreshId = null;
+let currentDeliveryFilter = 'ready';
+
+async function loadDeliveries(silent) {
+    if(!silent) showLoading(true);
     try {
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryOrders&delivery=' + currentUser.username);
         const result = await response.json();
 
         if(result.success) {
             allDeliveries = result.orders || [];
-            filterDeliveries('ready');
-        } else {
+            filterDeliveries(currentDeliveryFilter);
+        } else if(!silent) {
             alert('Error al cargar entregas: ' + result.message);
         }
     } catch(error) {
-        alert('Error: ' + error.message);
+        if(!silent) alert('Error: ' + error.message);
     } finally {
-        showLoading(false);
+        if(!silent) showLoading(false);
     }
 }
 
 function filterDeliveries(filter) {
+    currentDeliveryFilter = filter;
     let filtered = [];
 
     if(filter === 'ready') {
@@ -1106,6 +1117,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('deliveryPanel').classList.remove('hidden');
         document.getElementById('currentUserName').textContent = currentUser.name || currentUser.username;
         loadDeliveries();
+
+        if(deliveryAutoRefreshId) clearInterval(deliveryAutoRefreshId);
+        deliveryAutoRefreshId = setInterval(() => loadDeliveries(true), 15000);
     }
 });
 
@@ -1121,6 +1135,7 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
 
 
 
