@@ -3,7 +3,7 @@
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIJ9_kVqjqTB0arWXy1zD5rMTtFQeyQRp9JE0q7wujrOydDb2oPbp8_BjWRjKQFUIakg/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpmxKn9q12o4UvGluztsCSqUGXyR1We0HxULIrMv52nqoZ8vYtiNT4VukN1ysI59VsLw/exec';
 
 // Variables globales de geolocalizaciÃ³n
 let userCurrentLocation = null;
