@@ -124,7 +124,7 @@ async function loadOrders(silent) {
         
         if(result.success) {
             allOrders = result.orders;
-            displayOrders(result.orders);
+            displayOrders(getTodayOrdersSorted());
         }
     } catch(error) {
         console.error('Error cargando pedidos:', error);
@@ -218,21 +218,59 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
-async function viewOrderDetail(orders) {
-    currentOrder = order;
-    
-    // Obtener datos del repartidor si está en entrega
-    deliveryPersonData = null;
+async function getOrderDeliveryInfo(order) {
     if(order.deliveryPerson && (order.status === 'delivering' || order.status === 'ready')) {
-        deliveryPersonData = await getDeliveryPersonData(order.deliveryPerson);
+        return await getDeliveryPersonData(order.deliveryPerson);
     }
-    
-    const deliveryPersonHTML = (order.status === 'delivering' && deliveryPersonData) ? 
+    return null;
+}
+
+function isOrderFromToday(order) {
+    if(!order.date) return false;
+    const d = new Date(order.date);
+    const today = new Date();
+    return d.getFullYear() === today.getFullYear() &&
+           d.getMonth() === today.getMonth() &&
+           d.getDate() === today.getDate();
+}
+
+// Pone los pedidos "delivered" al final, sin desordenar el resto entre sí
+function sortDeliveredLast(orders) {
+    return [...orders].sort((a, b) => {
+        const aDelivered = a.status === 'delivered' ? 1 : 0;
+        const bDelivered = b.status === 'delivered' ? 1 : 0;
+        return aDelivered - bDelivered;
+    });
+}
+
+function getTodayOrdersSorted() {
+    return sortDeliveredLast(allOrders.filter(isOrderFromToday));
+}
+
+function filterOrders(status) {
+    if(status === 'all') {
+        displayOrders(getTodayOrdersSorted());
+    } else if(status === 'delivered') {
+        // Filtrar solo entregados hoy
+        const deliveredToday = allOrders.filter(o => isDeliveredToday(o));
+        displayOrders(deliveredToday);
+    } else {
+        const filtered = allOrders.filter(o => o.status === status);
+        displayOrders(filtered);
+    }
+}
+
+async function viewOrderDetail(order) {
+    currentOrder = order;
+
+    // Obtener datos del repartidor si está en entrega
+    const deliveryPersonData = await getOrderDeliveryInfo(order);
+    const deliveryPersonHTML = (order.status === 'delivering' && deliveryPersonData) ?
         renderDeliveryPersonInfo(deliveryPersonData) : '';
-    
+
     // Verificar si el pedido ya fue entregado
     const isDelivered = order.status === 'delivered';
-    
+
     // Generar links de archivos
     let filesHTML = '';
     if(order.works && order.works.length > 0) {
@@ -249,7 +287,7 @@ async function viewOrderDetail(orders) {
             return '';
         }).join('');
     }
-    
+
     // Link del comprobante de pago
     let proofHTML = '';
     if(order.proofFileUrl) {
@@ -261,7 +299,7 @@ async function viewOrderDetail(orders) {
             </div>
         `;
     }
-    
+
     const detailContent = document.getElementById('orderDetailContent');
     detailContent.innerHTML = `
         ${deliveryPersonHTML}
@@ -326,14 +364,13 @@ async function viewOrderDetail(orders) {
     document.getElementById('orderStatus').value = order.status;
     document.getElementById('assignEmployee').value = order.employee || '';
     document.getElementById('statusNotes').value = '';
-    
+
     // Deshabilitar controles si ya fue entregado
+    const updateBtn = document.querySelector('#orderDetailModal .btn-success');
     if(isDelivered) {
         document.getElementById('orderStatus').disabled = true;
         document.getElementById('assignEmployee').disabled = true;
         document.getElementById('statusNotes').disabled = true;
-        
-        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
         if(updateBtn) {
             updateBtn.disabled = true;
             updateBtn.style.opacity = '0.5';
@@ -344,8 +381,6 @@ async function viewOrderDetail(orders) {
         document.getElementById('orderStatus').disabled = false;
         document.getElementById('assignEmployee').disabled = false;
         document.getElementById('statusNotes').disabled = false;
-        
-        const updateBtn = document.querySelector('#orderDetailModal .btn-success');
         if(updateBtn) {
             updateBtn.disabled = false;
             updateBtn.style.opacity = '1';
@@ -353,108 +388,10 @@ async function viewOrderDetail(orders) {
             updateBtn.innerHTML = '<i class="fas fa-save"></i> Actualizar Estado';
         }
     }
-    
+
     document.getElementById('orderDetailModal').classList.add('active');
 }
 
-
-function filterOrders(status) {
-    if(status === 'all') {
-        displayOrders(allOrders);
-    } else if(status === 'delivered') {
-        // Filtrar solo entregados hoy
-        const deliveredToday = allOrders.filter(o => isDeliveredToday(o));
-        displayOrders(deliveredToday);
-    } else {
-        const filtered = allOrders.filter(o => o.status === status);
-        displayOrders(filtered);
-    }
-}
-
-function viewOrderDetail(order) {
-    currentOrder = order;
-    
-    // Generar links de archivos
-    let filesHTML = '';
-    if(order.works && order.works.length > 0) {
-        filesHTML = order.works.map((work, idx) => {
-            if(work.fileUrl) {
-                return `
-                    <div style="margin: 5px 0;">
-                        <a href="${work.fileUrl}" target="_blank" style="color: #667eea; text-decoration: none;">
-                            <i class="fas fa-download"></i> Descargar ${work.fileName}
-                        </a>
-                    </div>
-                `;
-            }
-            return '';
-        }).join('');
-    }
-    
-    // Link del comprobante de pago
-    let proofHTML = '';
-    if(order.proofFileUrl) {
-        proofHTML = `
-            <div style="margin-top: 10px;">
-                <a href="${order.proofFileUrl}" target="_blank" style="color: #28a745; text-decoration: none;">
-                    <i class="fas fa-file-invoice-dollar"></i> Ver Comprobante de Pago
-                </a>
-            </div>
-        `;
-    }
-    
-    const detailContent = document.getElementById('orderDetailContent');
-    detailContent.innerHTML = `
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3><i class="fas fa-receipt"></i> ${order.folio}</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
-                <div>
-                    <p><strong>Cliente:</strong> ${order.client.name}</p>
-                    <p><strong>TelÃ©fono:</strong> ${order.client.phone}</p>
-                    <p><strong>Email:</strong> ${order.client.email || 'N/A'}</p>
-                </div>
-                <div>
-                    <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
-                    <p><strong>Servicio:</strong> ${order.serviceType === 'pickup' ? 'Pick-up en ' + order.branch : 'Entrega a Domicilio'}</p>
-                    <p><strong>MÃ©todo de Pago:</strong> ${order.paymentMethod}</p>
-                    ${proofHTML}
-                </div>
-                <div>
-                    <p><strong>Subtotal:</strong> $${order.subtotal}</p>
-                    <p><strong>Entrega:</strong> $${order.deliveryCost || 0}</p>
-                    <p><strong>Total:</strong> <span style="color: #667eea; font-size: 1.2em;">$${order.total}</span></p>
-                </div>
-            </div>
-            ${filesHTML ? `
-                <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
-                    <h4 style="margin-bottom: 10px;"><i class="fas fa-file-download"></i> Archivos del Cliente</h4>
-                    ${filesHTML}
-                </div>
-            ` : ''}
-        </div>
-
-        <h4><i class="fas fa-list"></i> Trabajos Solicitados</h4>
-        <div style="margin-bottom: 20px;">
-            ${order.works.map((work, idx) => `
-                <div class="cart-item" style="margin-bottom: 10px;">
-                    <p><strong>${idx + 1}. ${work.fileName}</strong></p>
-                    <p>Cantidad: ${work.copies} | Tipo: ${work.printType}</p>
-                    ${work.color ? `<p>Color: ${work.color} | Papel: ${work.paperType}</p>` : ''}
-                    ${work.vinilType ? `<p>Vinil: ${work.vinilType}</p>` : ''}
-                    ${work.finishing && work.finishing.length > 0 ? `<p>Acabado: ${work.finishing.join(', ')}</p>` : ''}
-                    ${work.observations ? `<p><em>Obs: ${work.observations}</em></p>` : ''}
-                    <p style="text-align: right;"><strong>$${work.price.toFixed(2)}</strong></p>
-                </div>
-            `).join('')}
-        </div>
-    `;
-
-    buildTimeline(order);
-    document.getElementById('orderStatus').value = order.status;
-    document.getElementById('assignEmployee').value = order.employee || '';
-    document.getElementById('statusNotes').value = '';
-    document.getElementById('orderDetailModal').classList.add('active');
-}
 
 
 function buildTimeline(order) {
@@ -1742,35 +1679,6 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

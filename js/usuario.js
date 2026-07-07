@@ -108,7 +108,7 @@ async function loadOrders(silent) {
         
         if(result.success) {
             allOrders = result.orders || [];
-            displayOrders(allOrders);
+            displayOrders(getTodayOrdersSorted());
         } else if(!silent) {
             console.error('Error en respuesta:', result.message);
             document.getElementById('ordersList').innerHTML = `
@@ -131,6 +131,28 @@ async function loadOrders(silent) {
     } finally {
         if(!silent) showLoading(false);
     }
+}
+
+function isOrderFromToday(order) {
+    if(!order.date) return false;
+    const d = new Date(order.date);
+    const today = new Date();
+    return d.getFullYear() === today.getFullYear() &&
+           d.getMonth() === today.getMonth() &&
+           d.getDate() === today.getDate();
+}
+
+// Pone los pedidos "delivered" al final, sin desordenar el resto entre sí
+function sortDeliveredLast(orders) {
+    return [...orders].sort((a, b) => {
+        const aDelivered = a.status === 'delivered' ? 1 : 0;
+        const bDelivered = b.status === 'delivered' ? 1 : 0;
+        return aDelivered - bDelivered;
+    });
+}
+
+function getTodayOrdersSorted() {
+    return sortDeliveredLast(allOrders.filter(isOrderFromToday));
 }
 
 function displayOrders(orders) {
@@ -191,7 +213,7 @@ function displayOrders(orders) {
 
 function filterOrders(status) {
     if(status === 'all') {
-        displayOrders(allOrders);
+        displayOrders(getTodayOrdersSorted());
     } else if(status === 'delivered') {
         // Filtrar solo entregados hoy
         const deliveredToday = allOrders.filter(o => isDeliveredToday(o));
@@ -206,7 +228,7 @@ function filterOrders(status) {
 // DETALLE DE PEDIDO
 // ============================================
 
-async function viewOrderDetail(orders) {
+async function viewOrderDetail(order) {
     currentOrder = order;
     
     // Obtener datos del repartidor si está en entrega
@@ -524,15 +546,6 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
-
-
-
-
-
-
-
-
-
 
 
 
