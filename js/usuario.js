@@ -36,7 +36,10 @@ async function login() {
 
     showLoading(true);
     try {        
-        const response = await fetch(SCRIPT_URL + '?action=login&username=' + username + '&password=' + password + '&type=user');
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'login', username: username, password: password, type: 'user' })
+        });
         const result = await response.json();
 
         console.log('Respuesta del servidor:', result);
@@ -65,27 +68,40 @@ async function login() {
     }
 }
 
+let userAutoRefreshId = null;
+
 function showUserPanel(user) {
     currentUser = user;
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('userPanel').classList.remove('hidden');
     document.getElementById('currentUserName').textContent = user.username;
+
+    if(!user.branch) {
+        document.getElementById('ordersList').innerHTML = `
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
+                Tu usuario no tiene una sucursal asignada. Pide a un administrador que te asigne una en el panel de Usuarios.
+            </div>
+        `;
+        return;
+    }
+
     loadOrders();
+
+    // Auto-actualización: refresca los pedidos de la sucursal cada 20s sin recargar la página
+    if(userAutoRefreshId) clearInterval(userAutoRefreshId);
+    userAutoRefreshId = setInterval(() => loadOrders(true), 20000);
 }
 
 // ============================================
-// CARGAR PEDIDOS
+// CARGAR PEDIDOS (solo los de la sucursal del usuario logueado)
 // ============================================
 
-// ============================================
-// FUNCIÓN loadOrders() CORREGIDA PARA ADMIN.JS
-// AGREGAR DESPUÉS DE LA LÍNEA 90 (después de showAdminTab)
-// ============================================
-
-async function loadOrders() {
-    showLoading(true);
+async function loadOrders(silent) {
+    if(!currentUser || !currentUser.branch) return;
+    if(!silent) showLoading(true);
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getOrders');
+        const response = await fetch(SCRIPT_URL + '?action=getOrders&branch=' + encodeURIComponent(currentUser.branch));
         const result = await response.json();
         
         console.log('Pedidos obtenidos:', result);
@@ -93,7 +109,7 @@ async function loadOrders() {
         if(result.success) {
             allOrders = result.orders || [];
             displayOrders(allOrders);
-        } else {
+        } else if(!silent) {
             console.error('Error en respuesta:', result.message);
             document.getElementById('ordersList').innerHTML = `
                 <div class="alert alert-error">
@@ -104,14 +120,16 @@ async function loadOrders() {
         }
     } catch(error) {
         console.error('Error cargando pedidos:', error);
-        document.getElementById('ordersList').innerHTML = `
-            <div class="alert alert-error">
-                <i class="fas fa-exclamation-circle"></i>
-                Error de conexión: ${error.message}
-            </div>
-        `;
+        if(!silent) {
+            document.getElementById('ordersList').innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Error de conexión: ${error.message}
+                </div>
+            `;
+        }
     } finally {
-        showLoading(false);
+        if(!silent) showLoading(false);
     }
 }
 
@@ -506,6 +524,7 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
 
 
 
