@@ -391,6 +391,55 @@ async function uploadFileToDrive(file, folio, index) {
     }
 }
 
+async function uploadPaymentProof(file, folio) {
+    try {
+        const reader = new FileReader();
+        
+        return new Promise((resolve, reject) => {
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                
+                const uploadData = {
+                    action: 'uploadPaymentProof',
+                    fileName: file.name,
+                    fileData: base64Data,
+                    mimeType: file.type,
+                    folio: folio
+                };
+                
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(uploadData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if(result.success) {
+                        resolve({
+                            fileId: result.fileId,
+                            fileUrl: result.fileUrl,
+                            fileName: result.fileName
+                        });
+                    } else {
+                        reject(new Error('Error al subir comprobante: ' + result.message));
+                    }
+                } catch(error) {
+                    reject(error);
+                }
+            };
+            
+            reader.onerror = function() {
+                reject(new Error('Error al leer el archivo'));
+            };
+            
+            reader.readAsDataURL(file);
+        });
+    } catch(error) {
+        throw error;
+    }
+}
+
 // ============================================
 // CARRITO
 // ============================================
@@ -587,7 +636,7 @@ async function submitOrder() {
         let proofFileInfo = null;
         if(currentProof) {
             try {
-                proofFileInfo = await uploadFileToDrive(currentProof, folio, 'comprobante');
+                proofFileInfo = await uploadPaymentProof(currentProof, folio);
             } catch(error) {
                 console.error('Error subiendo comprobante:', error);
             }
@@ -1158,6 +1207,27 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
