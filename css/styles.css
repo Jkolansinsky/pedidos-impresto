@@ -19,7 +19,7 @@ body {
    ============================================ */
 
 .top-header {
-    background: #FF0000;
+    background: linear-gradient(to right, hsl(162, 98%, 19%), #01a35a);
     color: white;
     padding: 15px 30px;
     display: flex;
@@ -83,7 +83,7 @@ body {
 }
 
 .header {
-    background: #FF0000;
+    background: linear-gradient(to right, hsl(162, 98%, 19%), #01a35a);
     color: white;
     padding: 30px;
     text-align: center;
