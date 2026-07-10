@@ -225,13 +225,13 @@ body {
 }
 
 .btn-success {
-    background: #28a745;
+    background: #0a571c;
     color: white;
 }
 
 .btn-success:hover {
     background: white;
-    color: #016043;
+    color: #0a571c;
     border: 2px solid #016043;
     transform: translateY(-2px);
 }
