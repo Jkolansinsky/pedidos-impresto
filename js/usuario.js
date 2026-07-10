@@ -228,6 +228,14 @@ function filterOrders(status) {
 // DETALLE DE PEDIDO
 // ============================================
 
+function autoFillAssignedEmployee() {
+    const status = document.getElementById('orderStatus').value;
+    const employeeInput = document.getElementById('assignEmployee');
+    if(status === 'assigned' && employeeInput && !employeeInput.value.trim()) {
+        employeeInput.value = currentUser.username;
+    }
+}
+
 async function viewOrderDetail(order) {
     currentOrder = order;
     
@@ -318,17 +326,21 @@ async function viewOrderDetail(order) {
 
     buildTimeline(order);
     document.getElementById('orderStatus').value = order.status;
+    document.getElementById('assignEmployee').value = order.employee || '';
     document.getElementById('statusNotes').value = '';
+    autoFillAssignedEmployee();
     
     // Deshabilitar controles si ya fue entregado
     if(isDelivered) {
         document.getElementById('orderStatus').disabled = true;
+        document.getElementById('assignEmployee').disabled = true;
         document.getElementById('statusNotes').disabled = true;
         document.querySelector('#orderDetailModal .btn-success').disabled = true;
         document.querySelector('#orderDetailModal .btn-success').style.opacity = '0.5';
         document.querySelector('#orderDetailModal .btn-success').style.cursor = 'not-allowed';
     } else {
         document.getElementById('orderStatus').disabled = false;
+        document.getElementById('assignEmployee').disabled = false;
         document.getElementById('statusNotes').disabled = false;
         document.querySelector('#orderDetailModal .btn-success').disabled = false;
         document.querySelector('#orderDetailModal .btn-success').style.opacity = '1';
@@ -416,6 +428,7 @@ async function updateOrderStatus() {
 
     const newStatus = document.getElementById('orderStatus').value;
     const notes = document.getElementById('statusNotes').value.trim();
+    const employee = document.getElementById('assignEmployee').value.trim() || currentUser.username;
 
     if(newStatus === currentOrder.status && !notes) {
         alert('No hay cambios para guardar');
@@ -428,7 +441,7 @@ async function updateOrderStatus() {
             action: 'updateOrderStatus',
             folio: currentOrder.folio,
             status: newStatus,
-            employee: currentUser.username,
+            employee: employee,
             notes: notes,
             timestamp: new Date().toISOString()
         };
@@ -546,6 +559,13 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
+
+
+
+
+
+
+
 
 
 
