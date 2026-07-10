@@ -814,8 +814,107 @@ function resetAll() {
 }
 
 // ============================================
-// TRACKING
+// NOTIFICACIONES (burbujas de cambio de estatus)
 // ============================================
+
+let statusWatcherId = null;
+let statusWatcherLastStatus = null;
+let statusWatcherFolio = null;
+
+function ensureToastContainer() {
+    let container = document.getElementById('statusToastContainer');
+    if(!container) {
+        container = document.createElement('div');
+        container.id = 'statusToastContainer';
+        container.style.cssText = 'position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; max-width:340px;';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+function showStatusToast(title, message, type) {
+    const container = ensureToastContainer();
+    const colors = {
+        info: { bg: '#667eea', icon: 'fa-info-circle' },
+        success: { bg: '#28a745', icon: 'fa-check-circle' },
+        celebrate: { bg: '#ff9800', icon: 'fa-gift' }
+    };
+    const style = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `background:${style.bg}; color:white; padding:16px 18px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.25); animation: slideInToast 0.35s ease-out;`;
+    toast.innerHTML = `
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+            <i class="fas ${style.icon}" style="font-size:1.3em; margin-top:2px;"></i>
+            <div>
+                <div style="font-weight:bold; margin-bottom:3px;">${title}</div>
+                <div style="font-size:0.9em; opacity:0.95;">${message}</div>
+            </div>
+        </div>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s, transform 0.4s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 400);
+    }, 8000);
+
+    // Inyectar la animación una sola vez
+    if(!document.getElementById('statusToastStyle')) {
+        const styleTag = document.createElement('style');
+        styleTag.id = 'statusToastStyle';
+        styleTag.textContent = '@keyframes slideInToast { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }';
+        document.head.appendChild(styleTag);
+    }
+}
+
+function startStatusWatcher(folio, initialStatus) {
+    if(statusWatcherId) clearInterval(statusWatcherId);
+    statusWatcherFolio = folio;
+    statusWatcherLastStatus = initialStatus;
+
+    if(initialStatus === 'delivered') {
+        return; // ya está entregado, no hay nada que vigilar
+    }
+
+    statusWatcherId = setInterval(async () => {
+        try {
+            const response = await fetch(SCRIPT_URL + '?action=trackOrder&folio=' + statusWatcherFolio);
+            const result = await response.json();
+            if(!result.success) return;
+
+            const newStatus = result.order.status;
+            if(newStatus !== statusWatcherLastStatus) {
+                statusWatcherLastStatus = newStatus;
+                notifyStatusChange(newStatus);
+                displayTracking(result.order); // refrescar la tarjeta con la info más reciente
+
+                if(newStatus === 'delivered') {
+                    clearInterval(statusWatcherId);
+                    statusWatcherId = null;
+                }
+            }
+        } catch(error) {
+            console.error('Error revisando cambios de estatus:', error);
+        }
+    }, 25000);
+}
+
+function notifyStatusChange(status) {
+    const messages = {
+        'assigned': ['Tu pedido fue asignado', 'Un miembro de nuestro equipo ya está por comenzar a trabajar tu pedido.', 'info'],
+        'processing': ['¡Tu pedido se está elaborando!', 'Estamos trabajando en tu pedido en este momento.', 'info'],
+        'ready': ['¡Tu pedido está listo!', 'Ya puedes pasar a recogerlo a la sucursal.', 'success'],
+        'delivering': ['¡Tu pedido va en camino!', 'Un repartidor va hacia tu dirección. Puedes ver su ubicación en tiempo real aquí abajo.', 'success'],
+        'delivered': ['¡Gracias por tu compra! 🎉', 'Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas. ¡Nos encantaría volver a atenderte pronto!', 'celebrate']
+    };
+    const [title, message, type] = messages[status] || ['Tu pedido se actualizó', getStatusText(status), 'info'];
+    showStatusToast(title, message, type);
+}
+
+
 
 async function trackOrder() {
     const folio = document.getElementById('trackingFolio').value.trim();
@@ -836,6 +935,7 @@ async function trackOrder() {
         
         if(result.success) {
             displayTracking(result.order);
+            startStatusWatcher(folio, result.order.status);
         } else {
             alert('Pedido no encontrado');
         }
@@ -850,6 +950,17 @@ function displayTracking(order) {
     const statusText = getStatusText(order.status);
     const statusClass = 'status-' + order.status;
     
+    const thankYouBanner = order.status === 'delivered' ? `
+        <div style="background: linear-gradient(135deg, #ff9800, #ff5722); color: white; border-radius: 10px; padding: 20px; margin-top: 15px; text-align: center;">
+            <div style="font-size: 2em; margin-bottom: 5px;">🎉</div>
+            <h3 style="margin: 0 0 8px 0;">¡Gracias por tu compra!</h3>
+            <p style="margin: 0; opacity: 0.95;">
+                Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas.
+                ¡Nos encantaría volver a atenderte pronto!
+            </p>
+        </div>
+    ` : '';
+    
     results.innerHTML = `
         <div class="cart-item">
             <h3>Pedido ${order.folio}</h3>
@@ -859,6 +970,7 @@ function displayTracking(order) {
             <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
             ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
         </div>
+        ${thankYouBanner}
     `;
     
     if(order.history && order.history.length > 0) {
@@ -1101,8 +1213,18 @@ async function updateTrackingMap(order) {
                 })
             }).addTo(trackMap).bindPopup('Tu pedido está en camino').openPopup();
             
-            // Actualizar cada 10 segundos
-            setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker), 10000);
+            // Línea "imaginaria" de referencia (no es una ruta real por calles) del
+            // repartidor hacia tu dirección. Color distinto al de la ruta de pick-up.
+            let routeLine = L.polyline([[loc.latitude, loc.longitude], [destLat, destLng]], {
+                color: '#28a745',
+                weight: 4,
+                dashArray: '10, 10',
+                opacity: 0.85
+            }).addTo(trackMap);
+            
+            // Actualizar cada 10 segundos (la posición del repartidor en el servidor
+            // se actualiza cada 2-3 minutos, así que aquí solo refrescamos la vista)
+            setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker, routeLine, [destLat, destLng]), 10000);
         } else {
             document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha iniciado el recorrido</p>';
         }
@@ -1111,7 +1233,7 @@ async function updateTrackingMap(order) {
     }
 }
 
-async function refreshDeliveryLocation(folio, map, marker) {
+async function refreshDeliveryLocation(folio, map, marker, routeLine, destLatLng) {
     try {
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
         const result = await response.json();
@@ -1119,6 +1241,9 @@ async function refreshDeliveryLocation(folio, map, marker) {
         if(result.success && result.location) {
             const loc = result.location;
             marker.setLatLng([loc.latitude, loc.longitude]);
+            if(routeLine) {
+                routeLine.setLatLngs([[loc.latitude, loc.longitude], destLatLng]);
+            }
             map.setView([loc.latitude, loc.longitude], 15);
         }
     } catch(error) {
@@ -1246,6 +1371,16 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
