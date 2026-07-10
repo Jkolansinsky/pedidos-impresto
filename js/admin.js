@@ -218,6 +218,14 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
+function autoFillAssignedEmployee() {
+    const status = document.getElementById('orderStatus').value;
+    const employeeInput = document.getElementById('assignEmployee');
+    if(status === 'assigned' && employeeInput && !employeeInput.value.trim()) {
+        employeeInput.value = currentUser.username;
+    }
+}
+
 async function getOrderDeliveryInfo(order) {
     if(order.deliveryPerson && (order.status === 'delivering' || order.status === 'ready')) {
         return await getDeliveryPersonData(order.deliveryPerson);
@@ -363,6 +371,7 @@ async function viewOrderDetail(order) {
     buildTimeline(order);
     document.getElementById('orderStatus').value = order.status;
     document.getElementById('assignEmployee').value = order.employee || '';
+    autoFillAssignedEmployee();
     document.getElementById('statusNotes').value = '';
 
     // Deshabilitar controles si ya fue entregado
@@ -1679,6 +1688,11 @@ async function viewUserCreationLink(requestId) {
 function generateReport() {
     alert('Funcionalidad de reportes en desarrollo');
 }
+
+
+
+
+
 
 
 
