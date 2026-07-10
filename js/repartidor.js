@@ -877,6 +877,9 @@ async function openActiveDelivery(folio) {
     document.getElementById('activeDeliveryModal').classList.add('active');
 }
 
+let lastLocationSentAt = 0;
+const LOCATION_SEND_INTERVAL_MS = 2 * 60 * 1000; // cada 2 minutos, para no saturar
+
 function startGPSTracking() {
     if(!userCurrentLocation) {
         alert('Activando GPS...');
@@ -894,11 +897,15 @@ function startGPSTracking() {
                 longitude: position.coords.longitude
             };
 
+            // El marcador propio del repartidor se actualiza siempre, al instante
             if(deliveryMarker && deliveryMap) {
                 deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
             }
 
-            if(activeDelivery) {
+            // Pero al servidor (para que el cliente lo vea) solo se manda cada 2 min
+            const now = Date.now();
+            if(activeDelivery && (now - lastLocationSentAt) >= LOCATION_SEND_INTERVAL_MS) {
+                lastLocationSentAt = now;
                 updateLocationInServer(activeDelivery.folio, currentLocation);
             }
         },
@@ -911,6 +918,9 @@ function startGPSTracking() {
             maximumAge: 5000
         }
     );
+
+    // Al iniciar una entrega, mandamos la posición inicial de una vez (no esperar 2 min)
+    lastLocationSentAt = 0;
 }
 
 async function updateLocationInServer(folio, location) {
@@ -1135,9 +1145,6 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
-
-
-
 
 
 
