@@ -292,7 +292,7 @@
                 <h4><i class="fas fa-sync-alt"></i> Actualizar Estado</h4>
                 <div class="form-group">
                     <label>Nuevo Estado</label>
-                    <select id="orderStatus">
+                    <select id="orderStatus" onchange="autoFillAssignedEmployee()">
                         <option value="new">Nuevo (Recibido)</option>
                         <option value="assigned">Asignado a Empleado</option>
                         <option value="processing">En Elaboración</option>
@@ -334,6 +334,15 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
