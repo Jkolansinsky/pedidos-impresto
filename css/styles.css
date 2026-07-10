@@ -212,7 +212,7 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(90deg,rgba(255, 0, 0, 1) 0%, rgba(250, 62, 62, 1) 100%, rgba(247, 233, 233, 1) 66%);
+    background: linear-gradient(to right, #016043, #01a35a);
     color: white;
 }
 
