@@ -200,6 +200,7 @@ function displayOrders(orders) {
                     <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
                         <i class="far fa-clock"></i> ${formatDate(order.date)}
                     </p>
+                    ${order.employee ? `<p style="margin: 5px 0; font-size: 0.9em; color: #667eea;"><i class="fas fa-user"></i> Asignado a: <strong>${order.employee}</strong></p>` : ''}
                     <span class="order-status ${statusClass}">${statusText}</span>
                 </div>
                 <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
@@ -280,6 +281,9 @@ async function viewOrderDetail(order) {
                     </p>
                     <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
                         Fecha de entrega: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}
+                    </p>
+                    <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
+                        Entregado por: ${order.deliveryPerson || order.employee || 'No registrado'}
                     </p>
                 </div>
             ` : ''}
@@ -559,8 +563,6 @@ function renderDeliveryPersonInfo(deliveryPerson) {
         </div>
     `;
 }
-
-
 
 
 
