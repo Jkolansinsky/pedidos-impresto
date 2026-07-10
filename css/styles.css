@@ -18,7 +18,7 @@ body {
    HEADER
    ============================================ */
 
-.top-header {
+.top-header {    
     background: linear-gradient(to right, hsl(162, 98%, 19%), #01a35a);
     color: white;
     padding: 15px 30px;
@@ -51,8 +51,8 @@ body {
 
 .btn-logout {
     background: white;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #016043;
+    border: 2px solid #016043;
     padding: 8px 20px;
     border-radius: 20px;
     cursor: pointer;
@@ -63,7 +63,7 @@ body {
 }
 
 .btn-logout:hover {
-    background: #ff0000;   /* cambia el fondo */
+    background: #016043;   /* cambia el fondo */
     color: white;          /* cambia el texto */
     border: 2px solid #ffffff;
     transform: translateY(-2px);
@@ -83,7 +83,7 @@ body {
 }
 
 .header {
-    background: linear-gradient(to right, hsl(162, 98%, 19%), #01a35a);
+    background: linear-gradient(to right, #016043, #01a35a);;
     color: white;
     padding: 30px;
     text-align: center;
@@ -131,8 +131,8 @@ body {
 
 .nav-tab.active {
     background: white;
-    border-bottom: 3px solid #FF0000;
-    color: #FF0000;
+    border-bottom: 3px solid #016043;
+    color: #016043;
 }
 
 .tab-content {
@@ -219,8 +219,8 @@ body {
 .btn-primary:hover {
 
     background: white;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #016043;
+    border: 2px solid #016043;
     transform: translateY(-2px);
 }
 
@@ -231,8 +231,8 @@ body {
 
 .btn-success:hover {
     background: white;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #016043;
+    border: 2px solid #016043;
     transform: translateY(-2px);
 }
 
@@ -244,8 +244,8 @@ body {
 
 .btn-assing:hover {
     background: white;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #016043;
+    border: 2px solid #016043;
     transform: translateY(-2px);
 }
 
@@ -258,8 +258,8 @@ body {
 
 .btn-infoNuevo:hover {
     background: white;
-    color: #ff0000;
-    border: 2px solid #ff0000;
+    color: #016043;
+    border: 2px solid #016043;
     transform: translateY(-2px);
 }
 
@@ -278,12 +278,12 @@ body {
 
 .btn-danger {
     background: white;
-    color: #ff0000;
+    color: #016043;
     
 }
 
 .btn-danger:hover {
-    background: #ff0000;
+    background: #28a745;
     color: white;
     border: 2px solid #ffffff;
     transform: translateY(-2px);
@@ -291,11 +291,11 @@ body {
 
 .btn-warning {
     background: white;
-    color: #ff0000;
+    color: #016043;
 }
 
 .btn-warning:hover {
-    background: #ff0000;
+    background: #28a745;
     color: white;
     border: 2px solid #ffffff;
     transform: translateY(-2px);
@@ -316,11 +316,11 @@ body {
 
 .btn-info {
     background: white;
-    color: #ff0000;
+    color: #016043;
 }
 
 .btn-info:hover {
-    background: #ff0000;
+    background: #28a745;
     color: white;
     border: 2px solid #ffffff;
     transform: translateY(-2px);
@@ -1670,6 +1670,10 @@ textarea[readonly]:focus {
     padding: 6px 12px;
     font-size: 0.875em;
 }
+
+
+
+
 
 
 
