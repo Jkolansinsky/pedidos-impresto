@@ -183,6 +183,7 @@ function displayOrders(orders) {
                     <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
                         <i class="far fa-clock"></i> ${formatDate(order.date)}
                     </p>
+                    ${order.employee ? `<p style="margin: 5px 0; font-size: 0.9em; color: #667eea;"><i class="fas fa-user"></i> Asignado a: <strong>${order.employee}</strong></p>` : ''}
                     <span class="order-status ${statusClass}">${statusText}</span>
                 </div>
                 <button class="btn btn-primary" onclick='viewOrderDetail(${JSON.stringify(order).replace(/'/g, "&apos;")})'>
@@ -320,6 +321,9 @@ async function viewOrderDetail(order) {
                     </p>
                     <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
                         Fecha de entrega: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'No registrada'}
+                    </p>
+                    <p style="color: #155724; margin: 5px 0 0 0; font-size: 0.9em;">
+                        Entregado por: ${order.deliveryPerson || order.employee || 'No registrado'}
                     </p>
                     <p style="color: #856404; margin: 10px 0 0 0; font-size: 0.9em; background: #fff3cd; padding: 10px; border-radius: 5px;">
                         <i class="fas fa-lock"></i> <strong>Nota:</strong> Los pedidos entregados no se pueden modificar
@@ -1686,8 +1690,171 @@ async function viewUserCreationLink(requestId) {
 // ============================================
 
 function generateReport() {
-    alert('Funcionalidad de reportes en desarrollo');
+    const type = document.getElementById('reportType').value;
+    const startDateStr = document.getElementById('reportStartDate').value;
+    const endDateStr = document.getElementById('reportEndDate').value;
+    const resultsDiv = document.getElementById('reportResults');
+
+    if(!allOrders || allOrders.length === 0) {
+        resultsDiv.innerHTML = '<p style="color: #666; padding: 20px;">No hay pedidos cargados. Ve a la pestaña de Pedidos primero.</p>';
+        return;
+    }
+
+    // Filtrar por rango de fechas (si se especificó)
+    let filtered = allOrders.filter(o => o.date);
+    if(startDateStr) {
+        const start = new Date(startDateStr + 'T00:00:00');
+        filtered = filtered.filter(o => new Date(o.date) >= start);
+    }
+    if(endDateStr) {
+        const end = new Date(endDateStr + 'T23:59:59');
+        filtered = filtered.filter(o => new Date(o.date) <= end);
+    }
+
+    if(filtered.length === 0) {
+        resultsDiv.innerHTML = '<p style="color: #666; padding: 20px;">No hay pedidos en ese rango de fechas.</p>';
+        return;
+    }
+
+    const totalOrders = filtered.length;
+    const totalRevenue = filtered.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    const deliveredCount = filtered.filter(o => o.status === 'delivered').length;
+
+    let groups = {};
+    let groupLabel = '';
+
+    if(type === 'daily') {
+        groupLabel = 'Fecha';
+        filtered.forEach(o => {
+            const key = new Date(o.date).toLocaleDateString('es-MX');
+            if(!groups[key]) groups[key] = { count: 0, total: 0 };
+            groups[key].count++;
+            groups[key].total += parseFloat(o.total) || 0;
+        });
+    } else if(type === 'client') {
+        groupLabel = 'Cliente';
+        filtered.forEach(o => {
+            const key = `${o.client.name} (${o.client.phone})`;
+            if(!groups[key]) groups[key] = { count: 0, total: 0 };
+            groups[key].count++;
+            groups[key].total += parseFloat(o.total) || 0;
+        });
+    } else if(type === 'service') {
+        groupLabel = 'Tipo de Servicio';
+        filtered.forEach(o => {
+            const key = o.serviceType === 'pickup' ? ('Pick-up - ' + (o.branch || 'Sin sucursal')) : 'Entrega a Domicilio';
+            if(!groups[key]) groups[key] = { count: 0, total: 0 };
+            groups[key].count++;
+            groups[key].total += parseFloat(o.total) || 0;
+        });
+    } else if(type === 'employee') {
+        groupLabel = 'Empleado';
+        filtered.forEach(o => {
+            const key = o.employee || 'Sin asignar';
+            if(!groups[key]) groups[key] = { count: 0, total: 0 };
+            groups[key].count++;
+            groups[key].total += parseFloat(o.total) || 0;
+        });
+    }
+
+    // Ordenar de mayor a menor por cantidad de pedidos
+    const rows = Object.keys(groups)
+        .map(key => ({ key, ...groups[key] }))
+        .sort((a, b) => b.count - a.count);
+
+    let html = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #f0f4ff; border-radius: 8px; padding: 15px; text-align: center;">
+                <div style="font-size: 1.8em; font-weight: bold; color: #667eea;">${totalOrders}</div>
+                <div style="color: #666; font-size: 0.9em;">Pedidos</div>
+            </div>
+            <div style="background: #f0fff4; border-radius: 8px; padding: 15px; text-align: center;">
+                <div style="font-size: 1.8em; font-weight: bold; color: #28a745;">$${totalRevenue.toFixed(2)}</div>
+                <div style="color: #666; font-size: 0.9em;">Ingresos Totales</div>
+            </div>
+            <div style="background: #fff8f0; border-radius: 8px; padding: 15px; text-align: center;">
+                <div style="font-size: 1.8em; font-weight: bold; color: #fd7e14;">${deliveredCount}</div>
+                <div style="color: #666; font-size: 0.9em;">Entregados</div>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>${groupLabel}</th>
+                    <th># Pedidos</th>
+                    <th>Ingresos</th>
+                    <th>Promedio por Pedido</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map(r => `
+                    <tr>
+                        <td>${r.key}</td>
+                        <td>${r.count}</td>
+                        <td>$${r.total.toFixed(2)}</td>
+                        <td>$${(r.total / r.count).toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <button class="btn btn-success" style="margin-top: 15px;" onclick="exportReportToCSV()">
+            <i class="fas fa-file-csv"></i> Descargar CSV
+        </button>
+    `;
+
+    resultsDiv.innerHTML = html;
+    window._lastReportRows = rows;
+    window._lastReportLabel = groupLabel;
 }
+
+function exportReportToCSV() {
+    const rows = window._lastReportRows || [];
+    const label = window._lastReportLabel || 'Grupo';
+    if(rows.length === 0) return;
+
+    let csv = `${label},Pedidos,Ingresos,Promedio\n`;
+    rows.forEach(r => {
+        csv += `"${r.key}",${r.count},${r.total.toFixed(2)},${(r.total / r.count).toFixed(2)}\n`;
+    });
+
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reporte_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
