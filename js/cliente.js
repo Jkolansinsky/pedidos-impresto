@@ -903,15 +903,9 @@ function startStatusWatcher(folio, initialStatus) {
 }
 
 function notifyStatusChange(status) {
-    const messages = {
-        'assigned': ['Tu pedido fue asignado', 'Un miembro de nuestro equipo ya está por comenzar a trabajar tu pedido.', 'info'],
-        'processing': ['¡Tu pedido se está elaborando!', 'Estamos trabajando en tu pedido en este momento.', 'info'],
-        'ready': ['¡Tu pedido está listo!', 'Ya puedes pasar a recogerlo a la sucursal.', 'success'],
-        'delivering': ['¡Tu pedido va en camino!', 'Un repartidor va hacia tu dirección. Puedes ver su ubicación en tiempo real aquí abajo.', 'success'],
-        'delivered': ['¡Gracias por tu compra! 🎉', 'Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas. ¡Nos encantaría volver a atenderte pronto!', 'celebrate']
-    };
-    const [title, message, type] = messages[status] || ['Tu pedido se actualizó', getStatusText(status), 'info'];
-    showStatusToast(title, message, type);
+    const banner = getStatusBannerContent(status);
+    const toastType = status === 'delivered' ? 'celebrate' : (status === 'ready' || status === 'delivering' ? 'success' : 'info');
+    showStatusToast(banner.title, banner.message, toastType);
 }
 
 
@@ -945,21 +939,31 @@ async function trackOrder() {
         showLoading(false);
     }
 }
+function getStatusBannerContent(status) {
+    const banners = {
+        'new': { title: 'Pedido recibido', message: 'Tu pedido está en espera de ser procesado.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '📥' },
+        'assigned': { title: 'Pedido asignado', message: 'Un miembro de nuestro equipo ya está por comenzar a trabajar tu pedido.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '📋' },
+        'processing': { title: '¡Tu pedido se está elaborando!', message: 'Estamos trabajando en tu pedido en este momento.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '🖨️' },
+        'ready': { title: '¡Tu pedido está listo!', message: 'Ya puedes pasar a recogerlo a la sucursal.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '✅' },
+        'delivering': { title: '¡Tu pedido va en camino!', message: 'Un repartidor va hacia tu dirección. Puedes ver su ubicación en tiempo real aquí abajo.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '🛵' },
+        'delivered': { title: '¡Gracias por tu compra!', message: 'Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas. ¡Nos encantaría volver a atenderte pronto!', colorFrom: '#ff9800', colorTo: '#ff5722', icon: '🎉' }
+    };
+    return banners[status] || { title: 'Tu pedido se actualizó', message: getStatusText(status), colorFrom: '#667eea', colorTo: '#5563c1', icon: 'ℹ️' };
+}
+
 function displayTracking(order) {
     const results = document.getElementById('trackingResults');
     const statusText = getStatusText(order.status);
     const statusClass = 'status-' + order.status;
     
-    const thankYouBanner = order.status === 'delivered' ? `
-        <div style="background: linear-gradient(135deg, #ff9800, #ff5722); color: white; border-radius: 10px; padding: 20px; margin-top: 15px; text-align: center;">
-            <div style="font-size: 2em; margin-bottom: 5px;">🎉</div>
-            <h3 style="margin: 0 0 8px 0;">¡Gracias por tu compra!</h3>
-            <p style="margin: 0; opacity: 0.95;">
-                Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas.
-                ¡Nos encantaría volver a atenderte pronto!
-            </p>
+    const banner = getStatusBannerContent(order.status);
+    const statusBanner = `
+        <div style="background: linear-gradient(135deg, ${banner.colorFrom}, ${banner.colorTo}); color: white; border-radius: 10px; padding: 20px; margin-top: 15px; text-align: center;">
+            <div style="font-size: 2em; margin-bottom: 5px;">${banner.icon}</div>
+            <h3 style="margin: 0 0 8px 0;">${banner.title}</h3>
+            <p style="margin: 0; opacity: 0.95;">${banner.message}</p>
         </div>
-    ` : '';
+    `;
     
     results.innerHTML = `
         <div class="cart-item">
@@ -970,7 +974,7 @@ function displayTracking(order) {
             <p><strong>Fecha:</strong> ${formatDate(order.date)}</p>
             ${order.employee ? `<p><strong>Atendido por:</strong> ${order.employee}</p>` : ''}
         </div>
-        ${thankYouBanner}
+        ${statusBanner}
     `;
     
     if(order.history && order.history.length > 0) {
@@ -1371,8 +1375,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
-
 
 
 
