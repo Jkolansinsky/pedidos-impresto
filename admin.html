@@ -25,7 +25,7 @@
                 </div>
                 <div class="form-group">
                     <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+                    <input type="password" id="password" placeholder="******">
                 </div>
                 <div id="loginError" class="alert alert-error hidden"></div>
                 <button class="btn btn-primary" onclick="login()" style="width: 100%;">
@@ -217,7 +217,7 @@
                     <div class="form-group">
                         <label>Tipo de Reporte</label>
                         <select id="reportType">
-                            <option value="daily">Por DÃ­a</option>
+                            <option value="daily">Por Día</option>
                             <option value="client">Por Cliente</option>
                             <option value="service">Por Tipo de Servicio</option>
                             <option value="employee">Por Empleado</option>
@@ -280,7 +280,7 @@
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
-                <button class="close-modal" onclick="closeOrderDetail()">Ã—</button>
+                <button class="close-modal" onclick="closeOrderDetail()">X</button>
             </div>
             <div id="orderDetailContent"></div>
             
