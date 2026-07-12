@@ -820,6 +820,7 @@ function resetAll() {
 let statusWatcherId = null;
 let statusWatcherLastStatus = null;
 let statusWatcherFolio = null;
+let lastMessageCheckTimestamp = null;
 
 function ensureToastContainer() {
     let container = document.getElementById('statusToastContainer');
@@ -874,6 +875,7 @@ function startStatusWatcher(folio, initialStatus) {
     if(statusWatcherId) clearInterval(statusWatcherId);
     statusWatcherFolio = folio;
     statusWatcherLastStatus = initialStatus;
+    lastMessageCheckTimestamp = new Date().toISOString();
 
     if(initialStatus === 'delivered') {
         return; // ya está entregado, no hay nada que vigilar
@@ -888,22 +890,42 @@ function startStatusWatcher(folio, initialStatus) {
             const newStatus = result.order.status;
             if(newStatus !== statusWatcherLastStatus) {
                 statusWatcherLastStatus = newStatus;
-                notifyStatusChange(newStatus);
+                notifyStatusChange(newStatus, result.order.serviceType);
                 displayTracking(result.order); // refrescar la tarjeta con la info más reciente
 
                 if(newStatus === 'delivered') {
                     clearInterval(statusWatcherId);
                     statusWatcherId = null;
+                    return;
                 }
             }
+
+            // Revisar si el repartidor mandó algún mensaje nuevo
+            checkForDeliveryMessages(statusWatcherFolio);
         } catch(error) {
             console.error('Error revisando cambios de estatus:', error);
         }
     }, 25000);
 }
 
-function notifyStatusChange(status) {
-    const banner = getStatusBannerContent(status);
+async function checkForDeliveryMessages(folio) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryMessages&folio=' + folio + '&since=' + encodeURIComponent(lastMessageCheckTimestamp));
+        const result = await response.json();
+        if(!result.success || !result.messages || result.messages.length === 0) return;
+
+        result.messages.forEach(m => {
+            showStatusToast('Mensaje de tu repartidor', m.message, 'info');
+        });
+
+        lastMessageCheckTimestamp = new Date().toISOString();
+    } catch(error) {
+        console.error('Error consultando mensajes del repartidor:', error);
+    }
+}
+
+function notifyStatusChange(status, serviceType) {
+    const banner = getStatusBannerContent(status, serviceType);
     const toastType = status === 'delivered' ? 'celebrate' : (status === 'ready' || status === 'delivering' ? 'success' : 'info');
     showStatusToast(banner.title, banner.message, toastType);
 }
@@ -939,12 +961,14 @@ async function trackOrder() {
         showLoading(false);
     }
 }
-function getStatusBannerContent(status) {
+function getStatusBannerContent(status, serviceType) {
     const banners = {
         'new': { title: 'Pedido recibido', message: 'Tu pedido está en espera de ser procesado.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '📥' },
         'assigned': { title: 'Pedido asignado', message: 'Un miembro de nuestro equipo ya está por comenzar a trabajar tu pedido.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '📋' },
         'processing': { title: '¡Tu pedido se está elaborando!', message: 'Estamos trabajando en tu pedido en este momento.', colorFrom: '#667eea', colorTo: '#5563c1', icon: '🖨️' },
-        'ready': { title: '¡Tu pedido está listo!', message: 'Ya puedes pasar a recogerlo a la sucursal.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '✅' },
+        'ready': serviceType === 'delivery'
+            ? { title: '¡Tu pedido está terminado!', message: 'El operador ya terminó de imprimir tu pedido. Ahora solo falta que un repartidor lo tome para llevarlo a tu domicilio.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '✅' }
+            : { title: '¡Tu pedido está listo!', message: 'Ya puedes pasar a recogerlo a la sucursal.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '✅' },
         'delivering': { title: '¡Tu pedido va en camino!', message: 'Un repartidor va hacia tu dirección. Puedes ver su ubicación en tiempo real aquí abajo.', colorFrom: '#28a745', colorTo: '#1e7e34', icon: '🛵' },
         'delivered': { title: '¡Gracias por tu compra!', message: 'Tu pedido fue entregado con éxito. Esperamos que todo haya salido justo como lo necesitabas. ¡Nos encantaría volver a atenderte pronto!', colorFrom: '#ff9800', colorTo: '#ff5722', icon: '🎉' }
     };
@@ -956,7 +980,7 @@ function displayTracking(order) {
     const statusText = getStatusText(order.status);
     const statusClass = 'status-' + order.status;
     
-    const banner = getStatusBannerContent(order.status);
+    const banner = getStatusBannerContent(order.status, order.serviceType);
     const statusBanner = `
         <div style="background: linear-gradient(135deg, ${banner.colorFrom}, ${banner.colorTo}); color: white; border-radius: 10px; padding: 20px; margin-top: 15px; text-align: center;">
             <div style="font-size: 2em; margin-bottom: 5px;">${banner.icon}</div>
@@ -1230,7 +1254,11 @@ async function updateTrackingMap(order) {
             // se actualiza cada 2-3 minutos, así que aquí solo refrescamos la vista)
             setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker, routeLine, [destLat, destLng]), 10000);
         } else {
-            document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;">El repartidor aún no ha iniciado el recorrido</p>';
+            // El repartidor aún no manda su primera ubicación (puede tardar unos
+            // segundos/minutos en obtener el primer GPS). Reintentamos solos
+            // cada 10s hasta que aparezca, en vez de quedarnos estancados.
+            document.getElementById('clientTrackingMap').innerHTML = '<p style="padding: 40px; text-align: center; color: #666;"><i class="fas fa-spinner fa-spin"></i> Esperando la ubicación del repartidor...</p>';
+            setTimeout(() => updateTrackingMap(order), 10000);
         }
     } catch(error) {
         console.error('Error cargando mapa:', error);
@@ -1375,7 +1403,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
 
 
 
