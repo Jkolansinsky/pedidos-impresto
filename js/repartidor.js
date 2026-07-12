@@ -8,6 +8,7 @@ let activeDelivery = null;
 let deliveryMap = null;
 let deliveryMarker = null;
 let destinationMarker = null;
+let deliveryRouteLine = null;
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
@@ -901,6 +902,9 @@ function startGPSTracking() {
             if(deliveryMarker && deliveryMap) {
                 deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
             }
+            if(deliveryRouteLine && destinationMarker) {
+                deliveryRouteLine.setLatLngs([[currentLocation.latitude, currentLocation.longitude], destinationMarker.getLatLng()]);
+            }
 
             // Pero al servidor (para que el cliente lo vea) solo se manda cada 2 min
             const now = Date.now();
@@ -998,6 +1002,14 @@ function initDeliveryMap(order) {
         })
     }).addTo(deliveryMap).bindPopup('<strong>Tu ubicación</strong>');
     
+    // Línea de ruta virtual (referencia visual, no es una ruta real por calles)
+    deliveryRouteLine = L.polyline([[startLat, startLng], [destLat, destLng]], {
+        color: '#28a745',
+        weight: 4,
+        dashArray: '10, 10',
+        opacity: 0.85
+    }).addTo(deliveryMap);
+    
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
     deliveryMap.fitBounds(bounds, { padding: [50, 50] });
 }
@@ -1010,8 +1022,57 @@ function closeActiveDelivery() {
     
     deliveryMarker = null;
     destinationMarker = null;
+    deliveryRouteLine = null;
     
     document.getElementById('activeDeliveryModal').classList.remove('active');
+}
+
+function quickDeliveryMessage(text) {
+    document.getElementById('deliveryMessageText').value = text;
+    sendDeliveryMessageToClient();
+}
+
+async function sendDeliveryMessageToClient() {
+    const textbox = document.getElementById('deliveryMessageText');
+    const message = textbox.value.trim();
+    const statusDiv = document.getElementById('deliveryMessageStatus');
+
+    if(!message) {
+        statusDiv.style.color = '#dc3545';
+        statusDiv.textContent = 'Escribe un mensaje o elige uno rápido.';
+        return;
+    }
+
+    if(!activeDelivery) return;
+
+    statusDiv.style.color = '#666';
+    statusDiv.textContent = 'Enviando...';
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'sendDeliveryMessage',
+                folio: activeDelivery.folio,
+                message: message,
+                deliveryPerson: currentUser.username,
+                timestamp: new Date().toISOString()
+            })
+        });
+        const result = await response.json();
+
+        if(result.success) {
+            statusDiv.style.color = '#28a745';
+            statusDiv.textContent = '✓ Mensaje enviado al cliente';
+            textbox.value = '';
+        } else {
+            statusDiv.style.color = '#dc3545';
+            statusDiv.textContent = 'No se pudo enviar: ' + result.message;
+        }
+    } catch(error) {
+        statusDiv.style.color = '#dc3545';
+        statusDiv.textContent = 'Error de conexión al enviar el mensaje';
+    }
 }
 
 let selectedDeliveryPhoto = null;
@@ -1117,6 +1178,7 @@ async function completeDelivery() {
             }
             deliveryMarker = null;
             destinationMarker = null;
+            deliveryRouteLine = null;
             clearDeliveryPhoto();
             document.getElementById('activeDeliveryModal').classList.remove('active');
             activeDelivery = null;
@@ -1209,4 +1271,6 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
+
 
