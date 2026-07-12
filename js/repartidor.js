@@ -757,7 +757,7 @@ function displayDeliveries(deliveries) {
                 <div class="order-body">
                     <p><strong><i class="fas fa-user"></i> Cliente:</strong> ${order.client.name}</p>
                     <p><strong><i class="fas fa-phone"></i> Teléfono:</strong> ${order.client.phone}</p>
-                    ${order.address ? `
+                    ${order.address && order.address.street ? `
                         <p><strong><i class="fas fa-map-marker-alt"></i> Dirección:</strong> 
                         ${order.address.street}, ${order.address.colony}, ${order.address.city}</p>
                     ` : ''}
@@ -855,7 +855,7 @@ async function openActiveDelivery(folio) {
             <h4><i class="fas fa-user"></i> Información del Cliente</h4>
             <p><strong>Nombre:</strong> ${order.client.name}</p>
             <p><strong>Teléfono:</strong> <a href="tel:${order.client.phone}">${order.client.phone}</a></p>
-            ${order.address ? `
+            ${order.address && order.address.street ? `
                 <p><strong>Dirección:</strong> ${order.address.street}, ${order.address.colony}, ${order.address.city}</p>
                 <p><strong>Referencias:</strong> ${order.address.references || 'Sin referencias'}</p>
             ` : ''}
@@ -1014,6 +1014,65 @@ function closeActiveDelivery() {
     document.getElementById('activeDeliveryModal').classList.remove('active');
 }
 
+let selectedDeliveryPhoto = null;
+
+function handleDeliveryPhotoSelected(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('deliveryPhotoPreview');
+    if(!file) {
+        selectedDeliveryPhoto = null;
+        preview.innerHTML = '';
+        return;
+    }
+    selectedDeliveryPhoto = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.innerHTML = `
+            <div style="position:relative; display:inline-block;">
+                <img src="${e.target.result}" style="max-width:150px; max-height:150px; border-radius:8px; border:2px solid #28a745;">
+                <button type="button" onclick="clearDeliveryPhoto()" style="position:absolute; top:-8px; right:-8px; background:#dc3545; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">×</button>
+            </div>
+        `;
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearDeliveryPhoto() {
+    selectedDeliveryPhoto = null;
+    document.getElementById('deliveryPhotoInput').value = '';
+    document.getElementById('deliveryPhotoPreview').innerHTML = '';
+}
+
+async function uploadSelectedDeliveryPhoto(folio) {
+    if(!selectedDeliveryPhoto) return null;
+
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const base64Data = e.target.result.split(',')[1];
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'uploadDeliveryPhoto',
+                        folio: folio,
+                        fileName: selectedDeliveryPhoto.name,
+                        fileData: base64Data,
+                        mimeType: selectedDeliveryPhoto.type
+                    })
+                });
+                const result = await response.json();
+                resolve(result.success ? result.fileUrl : null);
+            } catch(error) {
+                console.error('Error subiendo foto de entrega:', error);
+                resolve(null); // no bloqueamos la entrega si falla la foto
+            }
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(selectedDeliveryPhoto);
+    });
+}
+
 async function completeDelivery() {
     const notes = document.getElementById('deliveryNotes').value.trim();
     
@@ -1025,6 +1084,9 @@ async function completeDelivery() {
 
     showLoading(true);
     try {
+        // Si el repartidor tomó una foto, se sube primero a la carpeta del pedido
+        const deliveryPhotoUrl = await uploadSelectedDeliveryPhoto(activeDelivery.folio);
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
@@ -1032,6 +1094,7 @@ async function completeDelivery() {
                 folio: activeDelivery.folio,
                 deliveryPerson: currentUser.username,
                 notes: notes,
+                deliveryPhotoUrl: deliveryPhotoUrl,
                 timestamp: new Date().toISOString()
             })
         });
@@ -1054,6 +1117,7 @@ async function completeDelivery() {
             }
             deliveryMarker = null;
             destinationMarker = null;
+            clearDeliveryPhoto();
             document.getElementById('activeDeliveryModal').classList.remove('active');
             activeDelivery = null;
             
@@ -1145,6 +1209,4 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
-
-
 
