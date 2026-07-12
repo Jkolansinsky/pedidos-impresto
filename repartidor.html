@@ -6,7 +6,6 @@
     <title>Panel de Repartidor - Centro de Copiado</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Jkolansinsky/pedidos-impresto/main/img/reparto.png">
     <link rel="stylesheet" href="css/styles.css">
 </head>
     <meta charset="UTF-8">
@@ -274,6 +273,14 @@
                     <label>Comentarios / Observaciones</label>
                     <textarea id="deliveryNotes" rows="3" placeholder="Ej: Cliente recibió conforme, Dejado con portero, etc."></textarea>
                 </div>
+                <div class="form-group">
+                    <label>Foto de Evidencia (opcional)</label>
+                    <input type="file" id="deliveryPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleDeliveryPhotoSelected(event)">
+                    <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('deliveryPhotoInput').click()">
+                        <i class="fas fa-camera"></i> Tomar Foto de la Entrega
+                    </button>
+                    <div id="deliveryPhotoPreview" style="margin-top: 10px;"></div>
+                </div>
                 <button class="btn btn-success" onclick="completeDelivery()" style="width: 100%;">
                     <i class="fas fa-check-circle"></i> Marcar como Entregado
                 </button>
@@ -294,7 +301,6 @@
     <script src="js/repartidor.js"></script>
 </body>
 </html>
-
 
 
 
