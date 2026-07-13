@@ -4,11 +4,7 @@
 
 let currentUser = null;
 let allDeliveries = [];
-let activeDelivery = null;
-let deliveryMap = null;
-let deliveryMarker = null;
-let destinationMarker = null;
-let deliveryRouteLine = null;
+let activeDeliveries = {}; // folio -> { order, map, marker, destMarker, routeLine, selectedPhoto, lastMessageCheck }
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
@@ -715,6 +711,10 @@ async function loadDeliveries(silent) {
     }
 }
 
+function safeId(folio) {
+    return folio.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
 function filterDeliveries(filter) {
     currentDeliveryFilter = filter;
     let filtered = [];
@@ -722,15 +722,19 @@ function filterDeliveries(filter) {
     if(filter === 'ready') {
         filtered = allDeliveries.filter(o => o.status === 'ready');
     } else if(filter === 'mytaken') {
-        filtered = allDeliveries.filter(o => 
-            o.status === 'delivering' && 
+        filtered = allDeliveries.filter(o =>
+            o.status === 'delivering' &&
             o.deliveryPerson === currentUser.username
         );
     } else if(filter === 'completed') {
         filtered = allDeliveries.filter(o => isDeliveredToday(o));
     }
 
-    displayDeliveries(filtered);
+    if(filter === 'mytaken') {
+        renderMyTakenDeliveries(filtered);
+    } else {
+        displayDeliveries(filtered);
+    }
 }
 
 function displayDeliveries(deliveries) {
@@ -743,7 +747,7 @@ function displayDeliveries(deliveries) {
 
     let html = '';
     deliveries.forEach(order => {
-        const statusClass = order.status === 'ready' ? 'success' : 
+        const statusClass = order.status === 'ready' ? 'success' :
                           order.status === 'delivering' ? 'path' : 'secondary';
 
         html += `
@@ -761,7 +765,9 @@ function displayDeliveries(deliveries) {
                     ${order.address && order.address.street ? `
                         <p><strong><i class="fas fa-map-marker-alt"></i> Dirección:</strong> 
                         ${order.address.street}, ${order.address.colony}, ${order.address.city}</p>
-                    ` : ''}
+                    ` : `
+                        <p style="color:#999;"><i class="fas fa-map-marker-alt"></i> Dirección no especificada</p>
+                    `}
                     <p><strong><i class="fas fa-dollar-sign"></i> Total:</strong> $${order.total.toFixed(2)}</p>
                 </div>
                 <div class="order-actions">
@@ -770,20 +776,174 @@ function displayDeliveries(deliveries) {
                             <i class="fas fa-motorcycle"></i> Tomar Entrega
                         </button>
                     ` : ''}
-                    ${order.status === 'delivering' && order.deliveryPerson === currentUser.username ? `
-                        <button class="btn btn-primary" onclick="openActiveDelivery('${order.folio}')">
-                            <i class="fas fa-route"></i> Ver Ruta
-                        </button>
-                        <button class="btn btn-danger" onclick="cancelDelivery('${order.folio}')">
-                            <i class="fas fa-times"></i> Cancelar
-                        </button>
-                    ` : ''}
                 </div>
             </div>
         `;
     });
 
     container.innerHTML = html;
+}
+
+// ============================================
+// ENTREGAS EN CURSO (en línea, sin modal)
+// ============================================
+
+function renderMyTakenDeliveries(deliveries) {
+    const container = document.getElementById('deliveriesList');
+    const currentFolios = deliveries.map(o => o.folio);
+
+    // Quitar tarjetas/mapas de folios que ya no están en curso (completados o cancelados)
+    Object.keys(activeDeliveries).forEach(folio => {
+        if(!currentFolios.includes(folio)) {
+            destroyActiveDeliveryCard(folio);
+        }
+    });
+
+    if(deliveries.length === 0) {
+        if(Object.keys(activeDeliveries).length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No tienes entregas en curso</p></div>';
+        }
+        return;
+    }
+
+    // Si es la primera vez que se pinta esta vista, limpiar el contenedor
+    if(!container.querySelector('.active-delivery-card') && Object.keys(activeDeliveries).length === 0) {
+        container.innerHTML = '';
+    }
+
+    deliveries.forEach(order => {
+        if(activeDeliveries[order.folio]) {
+            // Ya está renderizada (con su mapa vivo) - no la reconstruimos para
+            // no destruir el mapa; solo refrescamos datos del pedido en memoria.
+            activeDeliveries[order.folio].order = order;
+            return;
+        }
+        appendActiveDeliveryCard(order);
+    });
+}
+
+function appendActiveDeliveryCard(order) {
+    const container = document.getElementById('deliveriesList');
+    const id = safeId(order.folio);
+
+    const card = document.createElement('div');
+    card.className = 'order-card active-delivery-card';
+    card.id = 'activeCard_' + id;
+
+    const addressLine = (order.address && order.address.street)
+        ? `${order.address.street}, ${order.address.colony || ''}, ${order.address.city || ''}`
+        : 'Sin dirección detallada (ver ubicación en el mapa)';
+
+    card.innerHTML = `
+        <div class="order-header">
+            <div>
+                <strong>Folio: ${order.folio}</strong>
+                <span class="status-badge status-path">${getStatusText(order.status)}</span>
+            </div>
+            <div class="text-muted">${formatDate(order.date)}</div>
+        </div>
+
+        <div class="info-section">
+            <h4><i class="fas fa-user"></i> Información del Cliente</h4>
+            <p><strong>Nombre:</strong> ${order.client.name}</p>
+            <p><strong>Teléfono:</strong> <a href="tel:${order.client.phone}">${order.client.phone}</a></p>
+            <p><strong>Dirección:</strong> ${addressLine}</p>
+            ${order.address && order.address.references ? `<p><strong>Referencias:</strong> ${order.address.references}</p>` : ''}
+        </div>
+
+        <div class="info-section">
+            <h4><i class="fas fa-box"></i> Detalles del Pedido</h4>
+            <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <h4><i class="fas fa-map-marked-alt"></i> Ruta de Entrega</h4>
+            <div id="deliveryMap_${id}" style="height: 350px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+        </div>
+
+        <div class="delivery-controls" style="margin-top: 20px;">
+            <h4><i class="fas fa-comment-dots"></i> Chat con el Cliente</h4>
+            <p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">
+                No se comparten teléfonos. La conversación se borra al completar la entrega.
+            </p>
+            <div id="deliveryChat_${id}" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                <p style="color:#999; font-size:0.85em; text-align:center; margin:0;">Sin mensajes todavía</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Ya estoy afuera de tu domicilio, ¡sal cuando puedas!')">
+                    Ya estoy afuera
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'No logro encontrar tu dirección, ¿me puedes guiar?')">
+                    No encuentro la dirección
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Voy en camino, llego en unos minutos.')">
+                    Voy en camino
+                </button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="deliveryMessageText_${id}" placeholder="Escribe un mensaje..." style="flex:1; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                <button type="button" class="btn btn-path" onclick="sendDeliveryMessageToClient('${order.folio}')">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="delivery-controls">
+            <h4><i class="fas fa-clipboard-check"></i> Finalizar Entrega</h4>
+            <div class="form-group">
+                <label>Comentarios / Observaciones</label>
+                <textarea id="deliveryNotes_${id}" rows="3" placeholder="Ej: Cliente recibió conforme, Dejado con portero, etc."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Foto de Evidencia (opcional)</label>
+                <input type="file" id="deliveryPhotoInput_${id}" accept="image/*" capture="environment" style="display:none;" onchange="handleDeliveryPhotoSelected(event, '${order.folio}')">
+                <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('deliveryPhotoInput_${id}').click()">
+                    <i class="fas fa-camera"></i> Tomar Foto de la Entrega
+                </button>
+                <div id="deliveryPhotoPreview_${id}" style="margin-top: 10px;"></div>
+            </div>
+            <button class="btn btn-success" onclick="completeDelivery('${order.folio}')" style="width: 100%;">
+                <i class="fas fa-check-circle"></i> Marcar como Entregado
+            </button>
+            <button class="btn btn-danger" style="width: 100%; margin-top: 8px;" onclick="cancelDelivery('${order.folio}')">
+                <i class="fas fa-times"></i> Cancelar Entrega
+            </button>
+        </div>
+    `;
+
+    container.appendChild(card);
+
+    activeDeliveries[order.folio] = {
+        order: order,
+        map: null,
+        marker: null,
+        destMarker: null,
+        routeLine: null,
+        selectedPhoto: null,
+        chatMessages: [],
+        lastMessageCheck: new Date().toISOString()
+    };
+
+    // El mapa se crea con el contenedor YA visible en pantalla (no en un modal
+    // oculto), así Leaflet calcula bien las dimensiones desde el inicio.
+    initDeliveryMapForFolio(order.folio);
+    startGPSTracking();
+}
+
+function destroyActiveDeliveryCard(folio) {
+    const state = activeDeliveries[folio];
+    if(state && state.map) {
+        state.map.remove();
+    }
+    delete activeDeliveries[folio];
+
+    const card = document.getElementById('activeCard_' + safeId(folio));
+    if(card) card.remove();
+
+    if(Object.keys(activeDeliveries).length === 0 && gpsWatchId) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
 }
 
 async function takeDelivery(folio) {
@@ -824,14 +984,13 @@ async function proceedToTakeDelivery(folio) {
 
         if(result.success) {
             pedidosEnCurso.add(folio);
-            
-            alert('Entrega asignada exitosamente. Ahora puedes comenzar la ruta.');
-            
-            loadDeliveries();
-            
-            setTimeout(() => {
-                openActiveDelivery(folio);
-            }, 500);
+
+            alert('Entrega asignada exitosamente. Ya la puedes ver en "Mis Entregas en Curso".');
+
+            // Nos vamos directo a la pestaña de entregas en curso para que
+            // aparezca ahí mismo, en línea, con su mapa.
+            await loadDeliveries();
+            filterDeliveries('mytaken');
         } else {
             alert('Error: ' + result.message);
         }
@@ -842,53 +1001,16 @@ async function proceedToTakeDelivery(folio) {
     }
 }
 
-async function openActiveDelivery(folio) {
-    const order = allDeliveries.find(o => o.folio === folio);
-    if(!order) {
-        alert('Pedido no encontrado');
-        return;
-    }
-
-    activeDelivery = order;
-
-    let html = `
-        <div class="info-section">
-            <h4><i class="fas fa-user"></i> Información del Cliente</h4>
-            <p><strong>Nombre:</strong> ${order.client.name}</p>
-            <p><strong>Teléfono:</strong> <a href="tel:${order.client.phone}">${order.client.phone}</a></p>
-            ${order.address && order.address.street ? `
-                <p><strong>Dirección:</strong> ${order.address.street}, ${order.address.colony}, ${order.address.city}</p>
-                <p><strong>Referencias:</strong> ${order.address.references || 'Sin referencias'}</p>
-            ` : ''}
-        </div>
-        
-        <div class="info-section">
-            <h4><i class="fas fa-box"></i> Detalles del Pedido</h4>
-            <p><strong>Folio:</strong> ${order.folio}</p>
-            <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
-        </div>
-    `;
-
-    document.getElementById('deliveryInfo').innerHTML = html;
-
-    initDeliveryMap(order);
-
-    startGPSTracking();
-
-    document.getElementById('activeDeliveryModal').classList.add('active');
-}
-
 let lastLocationSentAt = 0;
 const LOCATION_SEND_INTERVAL_MS = 2 * 60 * 1000; // cada 2 minutos, para no saturar
 
 function startGPSTracking() {
     if(!userCurrentLocation) {
-        alert('Activando GPS...');
         initGeolocation();
     }
 
     if(gpsWatchId) {
-        navigator.geolocation.clearWatch(gpsWatchId);
+        return; // ya está corriendo, sirve para todas las entregas activas
     }
 
     gpsWatchId = navigator.geolocation.watchPosition(
@@ -898,19 +1020,24 @@ function startGPSTracking() {
                 longitude: position.coords.longitude
             };
 
-            // El marcador propio del repartidor se actualiza siempre, al instante
-            if(deliveryMarker && deliveryMap) {
-                deliveryMarker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
-            }
-            if(deliveryRouteLine && destinationMarker) {
-                deliveryRouteLine.setLatLngs([[currentLocation.latitude, currentLocation.longitude], destinationMarker.getLatLng()]);
-            }
+            // Actualizamos el marcador propio y la ruta en TODOS los mapas
+            // de entregas activas (todas comparten la misma posición del repartidor)
+            Object.values(activeDeliveries).forEach(state => {
+                if(state.marker && state.map) {
+                    state.marker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
+                }
+                if(state.routeLine && state.destMarker) {
+                    state.routeLine.setLatLngs([[currentLocation.latitude, currentLocation.longitude], state.destMarker.getLatLng()]);
+                }
+            });
 
-            // Pero al servidor (para que el cliente lo vea) solo se manda cada 2 min
+            // Al servidor (para que el cliente lo vea) solo se manda cada 2 min
             const now = Date.now();
-            if(activeDelivery && (now - lastLocationSentAt) >= LOCATION_SEND_INTERVAL_MS) {
+            if((now - lastLocationSentAt) >= LOCATION_SEND_INTERVAL_MS) {
                 lastLocationSentAt = now;
-                updateLocationInServer(activeDelivery.folio, currentLocation);
+                Object.keys(activeDeliveries).forEach(folio => {
+                    updateLocationInServer(folio, currentLocation);
+                });
             }
         },
         function(error) {
@@ -923,8 +1050,7 @@ function startGPSTracking() {
         }
     );
 
-    // Al iniciar una entrega, mandamos la posición inicial de una vez (no esperar 2 min)
-    lastLocationSentAt = 0;
+    lastLocationSentAt = 0; // mandar la posición inicial de una vez
 }
 
 async function updateLocationInServer(folio, location) {
@@ -945,21 +1071,22 @@ async function updateLocationInServer(folio, location) {
     }
 }
 
-function initDeliveryMap(order) {
-    const mapDiv = document.getElementById('deliveryMap');
-    
+function initDeliveryMapForFolio(folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
+    const order = state.order;
+    const id = safeId(folio);
+
     const startLat = userCurrentLocation ? userCurrentLocation.latitude : 17.989;
     const startLng = userCurrentLocation ? userCurrentLocation.longitude : -92.948;
 
     const address = order.address;
-    
     if(!address) {
-        alert('Error: Este pedido no tiene dirección de entrega');
+        document.getElementById('deliveryMap_' + id).innerHTML = '<p style="padding:20px; text-align:center; color:#dc3545;">Este pedido no tiene dirección de entrega</p>';
         return;
     }
-    
+
     let destLat, destLng;
-    
     if(address.latitude && address.longitude) {
         destLat = parseFloat(address.latitude);
         destLng = parseFloat(address.longitude);
@@ -967,148 +1094,194 @@ function initDeliveryMap(order) {
         destLat = 17.9892;
         destLng = -92.9475;
     }
-    
+
     if(isNaN(destLat) || isNaN(destLng)) {
-        alert('Error: Las coordenadas del destino no son válidas');
+        document.getElementById('deliveryMap_' + id).innerHTML = '<p style="padding:20px; text-align:center; color:#dc3545;">Las coordenadas del destino no son válidas</p>';
         return;
     }
-    
-    if(deliveryMap) {
-        deliveryMap.remove();
-    }
-    
-    deliveryMap = L.map('deliveryMap').setView([startLat, startLng], 14);
-    
+
+    const map = L.map('deliveryMap_' + id).setView([startLat, startLng], 14);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
-    }).addTo(deliveryMap);
-    
+    }).addTo(map);
+
     const addressLine = (address.street)
         ? `${address.street}${address.colony ? ', ' + address.colony : ''}${address.city ? ', ' + address.city : ''}`
         : 'Sin dirección detallada (ver ubicación en el mapa)';
 
-    destinationMarker = L.marker([destLat, destLng], {
+    const destMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#dc3545;width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color:white;font-size:18px;"></i></div>',
             iconSize: [35, 35]
         })
-    }).addTo(deliveryMap).bindPopup(
+    }).addTo(map).bindPopup(
         `<strong>Destino: ${order.client.name}</strong><br>${addressLine}`
     ).openPopup();
-    
-    deliveryMarker = L.marker([startLat, startLng], {
+
+    const marker = L.marker([startLat, startLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
             html: '<div style="background-color:#ffc107;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:20px;"></i></div>',
             iconSize: [40, 40]
         })
-    }).addTo(deliveryMap).bindPopup('<strong>Tu ubicación</strong>');
-    
-    // Línea de ruta virtual (referencia visual, no es una ruta real por calles)
-    deliveryRouteLine = L.polyline([[startLat, startLng], [destLat, destLng]], {
+    }).addTo(map).bindPopup('<strong>Tu ubicación</strong>');
+
+    const routeLine = L.polyline([[startLat, startLng], [destLat, destLng]], {
         color: '#28a745',
         weight: 4,
         dashArray: '10, 10',
         opacity: 0.85
-    }).addTo(deliveryMap);
-    
+    }).addTo(map);
+
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
-    deliveryMap.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(bounds, { padding: [50, 50] });
+
+    // Como el contenedor ya está visible en la pantalla principal (no en un
+    // modal oculto), esto es solo un respaldo extra por si el navegador tardó
+    // en calcular el layout.
+    setTimeout(() => map.invalidateSize(), 200);
+
+    state.map = map;
+    state.marker = marker;
+    state.destMarker = destMarker;
+    state.routeLine = routeLine;
 }
 
-function closeActiveDelivery() {
-    if(deliveryMap) {
-        deliveryMap.remove();
-        deliveryMap = null;
-    }
-    
-    deliveryMarker = null;
-    destinationMarker = null;
-    deliveryRouteLine = null;
-    
-    document.getElementById('activeDeliveryModal').classList.remove('active');
-}
+// ============================================
+// CHAT CON EL CLIENTE (efímero, no se guarda en Sheets)
+// ============================================
 
-function quickDeliveryMessage(text) {
-    document.getElementById('deliveryMessageText').value = text;
-    sendDeliveryMessageToClient();
-}
+function renderDeliveryChat(folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
+    const chatDiv = document.getElementById('deliveryChat_' + safeId(folio));
+    if(!chatDiv) return;
 
-async function sendDeliveryMessageToClient() {
-    const textbox = document.getElementById('deliveryMessageText');
-    const message = textbox.value.trim();
-    const statusDiv = document.getElementById('deliveryMessageStatus');
-
-    if(!message) {
-        statusDiv.style.color = '#dc3545';
-        statusDiv.textContent = 'Escribe un mensaje o elige uno rápido.';
+    if(state.chatMessages.length === 0) {
+        chatDiv.innerHTML = '<p style="color:#999; font-size:0.85em; text-align:center; margin:0;">Sin mensajes todavía</p>';
         return;
     }
 
-    if(!activeDelivery) return;
+    chatDiv.innerHTML = state.chatMessages.map(m => {
+        const isMe = m.sender === 'repartidor';
+        return `
+            <div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; background: ${isMe ? '#28a745' : '#e9ecef'}; color: ${isMe ? 'white' : '#333'}; padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 0.9em;">
+                ${m.message}
+            </div>
+        `;
+    }).join('');
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
 
-    statusDiv.style.color = '#666';
-    statusDiv.textContent = 'Enviando...';
+function quickDeliveryMessage(folio, text) {
+    const input = document.getElementById('deliveryMessageText_' + safeId(folio));
+    if(input) input.value = text;
+    sendDeliveryMessageToClient(folio);
+}
+
+async function sendDeliveryMessageToClient(folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
+
+    const input = document.getElementById('deliveryMessageText_' + safeId(folio));
+    const message = input.value.trim();
+    if(!message) return;
+
+    input.value = '';
+    state.chatMessages.push({ message, sender: 'repartidor' });
+    renderDeliveryChat(folio);
 
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'sendDeliveryMessage',
-                folio: activeDelivery.folio,
+                folio: folio,
                 message: message,
                 deliveryPerson: currentUser.username,
+                sender: 'repartidor',
                 timestamp: new Date().toISOString()
             })
         });
         const result = await response.json();
-
-        if(result.success) {
-            statusDiv.style.color = '#28a745';
-            statusDiv.textContent = '✓ Mensaje enviado al cliente';
-            textbox.value = '';
-        } else {
-            statusDiv.style.color = '#dc3545';
-            statusDiv.textContent = 'No se pudo enviar: ' + result.message;
+        if(!result.success) {
+            console.error('No se pudo enviar el mensaje:', result.message);
         }
     } catch(error) {
-        statusDiv.style.color = '#dc3545';
-        statusDiv.textContent = 'Error de conexión al enviar el mensaje';
+        console.error('Error de conexión al enviar el mensaje:', error);
     }
 }
 
-let selectedDeliveryPhoto = null;
+async function checkForClientReplies(folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
 
-function handleDeliveryPhotoSelected(event) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryMessages&folio=' + folio + '&since=' + encodeURIComponent(state.lastMessageCheck));
+        const result = await response.json();
+        if(!result.success || !result.messages || result.messages.length === 0) return;
+
+        let hasClientMessage = false;
+        result.messages.forEach(m => {
+            if(m.sender === 'cliente') {
+                state.chatMessages.push({ message: m.message, sender: 'cliente' });
+                hasClientMessage = true;
+            }
+        });
+
+        state.lastMessageCheck = new Date().toISOString();
+
+        if(hasClientMessage) {
+            renderDeliveryChat(folio);
+        }
+    } catch(error) {
+        console.error('Error consultando respuestas del cliente:', error);
+    }
+}
+
+// ============================================
+// FOTO DE EVIDENCIA (por folio)
+// ============================================
+
+function handleDeliveryPhotoSelected(event, folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
+
     const file = event.target.files[0];
-    const preview = document.getElementById('deliveryPhotoPreview');
+    const preview = document.getElementById('deliveryPhotoPreview_' + safeId(folio));
     if(!file) {
-        selectedDeliveryPhoto = null;
+        state.selectedPhoto = null;
         preview.innerHTML = '';
         return;
     }
-    selectedDeliveryPhoto = file;
+    state.selectedPhoto = file;
     const reader = new FileReader();
     reader.onload = (e) => {
         preview.innerHTML = `
             <div style="position:relative; display:inline-block;">
                 <img src="${e.target.result}" style="max-width:150px; max-height:150px; border-radius:8px; border:2px solid #28a745;">
-                <button type="button" onclick="clearDeliveryPhoto()" style="position:absolute; top:-8px; right:-8px; background:#dc3545; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">×</button>
+                <button type="button" onclick="clearDeliveryPhoto('${folio}')" style="position:absolute; top:-8px; right:-8px; background:#dc3545; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">×</button>
             </div>
         `;
     };
     reader.readAsDataURL(file);
 }
 
-function clearDeliveryPhoto() {
-    selectedDeliveryPhoto = null;
-    document.getElementById('deliveryPhotoInput').value = '';
-    document.getElementById('deliveryPhotoPreview').innerHTML = '';
+function clearDeliveryPhoto(folio) {
+    const state = activeDeliveries[folio];
+    if(!state) return;
+    state.selectedPhoto = null;
+    const input = document.getElementById('deliveryPhotoInput_' + safeId(folio));
+    if(input) input.value = '';
+    const preview = document.getElementById('deliveryPhotoPreview_' + safeId(folio));
+    if(preview) preview.innerHTML = '';
 }
 
 async function uploadSelectedDeliveryPhoto(folio) {
-    if(!selectedDeliveryPhoto) return null;
+    const state = activeDeliveries[folio];
+    if(!state || !state.selectedPhoto) return null;
 
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -1120,9 +1293,9 @@ async function uploadSelectedDeliveryPhoto(folio) {
                     body: JSON.stringify({
                         action: 'uploadDeliveryPhoto',
                         folio: folio,
-                        fileName: selectedDeliveryPhoto.name,
+                        fileName: state.selectedPhoto.name,
                         fileData: base64Data,
-                        mimeType: selectedDeliveryPhoto.type
+                        mimeType: state.selectedPhoto.type
                     })
                 });
                 const result = await response.json();
@@ -1133,13 +1306,19 @@ async function uploadSelectedDeliveryPhoto(folio) {
             }
         };
         reader.onerror = () => resolve(null);
-        reader.readAsDataURL(selectedDeliveryPhoto);
+        reader.readAsDataURL(state.selectedPhoto);
     });
 }
 
-async function completeDelivery() {
-    const notes = document.getElementById('deliveryNotes').value.trim();
-    
+// ============================================
+// FINALIZAR / CANCELAR ENTREGA
+// ============================================
+
+async function completeDelivery(folio) {
+    const id = safeId(folio);
+    const notesEl = document.getElementById('deliveryNotes_' + id);
+    const notes = notesEl ? notesEl.value.trim() : '';
+
     if(!notes) {
         if(!confirm('¿Deseas completar la entrega sin comentarios?')) {
             return;
@@ -1149,13 +1328,13 @@ async function completeDelivery() {
     showLoading(true);
     try {
         // Si el repartidor tomó una foto, se sube primero a la carpeta del pedido
-        const deliveryPhotoUrl = await uploadSelectedDeliveryPhoto(activeDelivery.folio);
+        const deliveryPhotoUrl = await uploadSelectedDeliveryPhoto(folio);
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'completeDelivery',
-                folio: activeDelivery.folio,
+                folio: folio,
                 deliveryPerson: currentUser.username,
                 notes: notes,
                 deliveryPhotoUrl: deliveryPhotoUrl,
@@ -1164,28 +1343,11 @@ async function completeDelivery() {
         });
 
         const result = await response.json();
-        
+
         if(result.success) {
-            pedidosEnCurso.delete(activeDelivery.folio);
-            
+            pedidosEnCurso.delete(folio);
             alert('✅ Entrega completada exitosamente');
-            
-            if(gpsWatchId) {
-                navigator.geolocation.clearWatch(gpsWatchId);
-                gpsWatchId = null;
-            }
-            
-            if(deliveryMap) {
-                deliveryMap.remove();
-                deliveryMap = null;
-            }
-            deliveryMarker = null;
-            destinationMarker = null;
-            deliveryRouteLine = null;
-            clearDeliveryPhoto();
-            document.getElementById('activeDeliveryModal').classList.remove('active');
-            activeDelivery = null;
-            
+            destroyActiveDeliveryCard(folio); // borra también el chat efímero
             loadDeliveries();
         } else {
             alert('Error al completar entrega: ' + result.message);
@@ -1217,17 +1379,7 @@ async function cancelDelivery(folio) {
 
         if(result.success) {
             pedidosEnCurso.delete(folio);
-            
-            if(activeDelivery && activeDelivery.folio === folio) {
-                if(gpsWatchId) {
-                    navigator.geolocation.clearWatch(gpsWatchId);
-                    gpsWatchId = null;
-                }
-                
-                closeActiveDelivery();
-                activeDelivery = null;
-            }
-
+            destroyActiveDeliveryCard(folio);
             alert('Entrega cancelada y devuelta a la lista');
             loadDeliveries();
         } else {
@@ -1240,9 +1392,12 @@ async function cancelDelivery(folio) {
     }
 }
 
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
+
+let messageWatcherId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar si hay token en URL
@@ -1259,6 +1414,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if(deliveryAutoRefreshId) clearInterval(deliveryAutoRefreshId);
         deliveryAutoRefreshId = setInterval(() => loadDeliveries(true), 15000);
+
+        // Revisar cada 20s si el cliente respondió algo en el chat de alguna entrega activa
+        if(messageWatcherId) clearInterval(messageWatcherId);
+        messageWatcherId = setInterval(() => {
+            Object.keys(activeDeliveries).forEach(folio => checkForClientReplies(folio));
+        }, 20000);
     }
 });
 
@@ -1269,14 +1430,11 @@ window.addEventListener('beforeunload', function() {
     if(gpsWatchId) {
         navigator.geolocation.clearWatch(gpsWatchId);
     }
-    if(deliveryMap) {
-        deliveryMap.remove();
-    }
+    Object.values(activeDeliveries).forEach(state => {
+        if(state.map) state.map.remove();
+    });
     stopCamera();
 });
-
-
-
 
 
 
