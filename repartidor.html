@@ -6,7 +6,7 @@
     <title>Panel de Repartidor - Centro de Copiado</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Jkolansinsky/pedidos-impresto/main/img/reparto.png">
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Jkolansinsky/pedidos-impresto/main/img/reparto.png">
     <link rel="stylesheet" href="css/styles.css">
 </head>
     <meta charset="UTF-8">
@@ -251,70 +251,6 @@
         </div>
     </div>
 
-    <!-- Modal de Entrega en Curso -->
-    <div id="activeDeliveryModal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">
-                <h3><i class="fas fa-route"></i> Entrega en Curso</h3>
-                <button class="close-modal" onclick="closeActiveDelivery()">×</button>
-            </div>
-            
-            <div id="deliveryInfo"></div>
-
-            <!-- Mapa de Ruta -->
-            <div style="margin-top: 20px;">
-                <h4><i class="fas fa-map-marked-alt"></i> Ruta de Entrega</h4>
-                <div id="deliveryMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
-            </div>
-
-            <!-- Mensaje al cliente -->
-            <div class="delivery-controls" style="margin-top: 20px;">
-                <h4><i class="fas fa-comment-dots"></i> Enviar Mensaje al Cliente</h4>
-                <p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">
-                    Le llega como aviso en su pantalla de rastreo del pedido. No se comparten teléfonos.
-                </p>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                    <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('Ya estoy afuera de tu domicilio, ¡sal cuando puedas!')">
-                        Ya estoy afuera
-                    </button>
-                    <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('No logro encontrar tu dirección, ¿me puedes guiar?')">
-                        No encuentro la dirección
-                    </button>
-                    <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('Voy en camino, llego en unos minutos.')">
-                        Voy en camino
-                    </button>
-                </div>
-                <div class="form-group">
-                    <textarea id="deliveryMessageText" rows="2" placeholder="O escribe un mensaje personalizado..."></textarea>
-                </div>
-                <button type="button" class="btn btn-path" style="width: 100%;" onclick="sendDeliveryMessageToClient()">
-                    <i class="fas fa-paper-plane"></i> Enviar Mensaje
-                </button>
-                <div id="deliveryMessageStatus" style="margin-top: 8px; font-size: 0.85em;"></div>
-            </div>
-
-            <!-- Controles de Entrega -->
-            <div class="delivery-controls">
-                <h4><i class="fas fa-clipboard-check"></i> Finalizar Entrega</h4>
-                <div class="form-group">
-                    <label>Comentarios / Observaciones</label>
-                    <textarea id="deliveryNotes" rows="3" placeholder="Ej: Cliente recibió conforme, Dejado con portero, etc."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Foto de Evidencia (opcional)</label>
-                    <input type="file" id="deliveryPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleDeliveryPhotoSelected(event)">
-                    <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('deliveryPhotoInput').click()">
-                        <i class="fas fa-camera"></i> Tomar Foto de la Entrega
-                    </button>
-                    <div id="deliveryPhotoPreview" style="margin-top: 10px;"></div>
-                </div>
-                <button class="btn btn-success" onclick="completeDelivery()" style="width: 100%;">
-                    <i class="fas fa-check-circle"></i> Marcar como Entregado
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Loading -->
     <div id="loading" class="loading">
         <div class="loading-content">
@@ -328,6 +264,7 @@
     <script src="js/repartidor.js"></script>
 </body>
 </html>
+
 
 
 
