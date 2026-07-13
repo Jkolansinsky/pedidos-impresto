@@ -896,6 +896,7 @@ function startStatusWatcher(folio, initialStatus) {
                 if(newStatus === 'delivered') {
                     clearInterval(statusWatcherId);
                     statusWatcherId = null;
+                    clientChatMessages = []; // se borra el chat, ya no es necesario
                     return;
                 }
             }
@@ -915,7 +916,13 @@ async function checkForDeliveryMessages(folio) {
         if(!result.success || !result.messages || result.messages.length === 0) return;
 
         result.messages.forEach(m => {
-            showStatusToast('Mensaje de tu repartidor', m.message, 'info');
+            // Solo mostramos burbuja/toast de los mensajes del repartidor (los del
+            // cliente ya se agregaron al chat al momento de enviarlos)
+            if(m.sender !== 'cliente') {
+                showStatusToast('Mensaje de tu repartidor', m.message, 'info');
+                clientChatMessages.push({ message: m.message, sender: 'repartidor' });
+                renderClientDeliveryChat();
+            }
         });
 
         lastMessageCheckTimestamp = new Date().toISOString();
@@ -1147,10 +1154,72 @@ async function showTrackingMapWithDelivery(order) {
         ${deliveryPersonHTML}
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Ubicación en Tiempo Real</h4>
         <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin-bottom: 10px;"><i class="fas fa-comment-dots"></i> Chat con tu repartidor</h4>
+            <p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">
+                Útil si no te encuentra o necesitas indicarle algo. Esta conversación no se guarda, desaparece cuando tu pedido se entrega.
+            </p>
+            <div id="clientDeliveryChat" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;"></div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="clientMessageInput" placeholder="Escribe un mensaje..." style="flex:1; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                <button class="btn btn-primary" onclick="sendClientMessageToDelivery()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
     `;
     mapContainer.appendChild(mapDiv);
     
     setTimeout(() => updateTrackingMap(order), 300);
+}
+
+// ============================================
+// CHAT EFÍMERO CON EL REPARTIDOR (no se guarda en ningún lado)
+// ============================================
+
+let clientChatMessages = [];
+
+function renderClientDeliveryChat() {
+    const chatDiv = document.getElementById('clientDeliveryChat');
+    if(!chatDiv) return;
+
+    if(clientChatMessages.length === 0) {
+        chatDiv.innerHTML = '<p style="color:#999; font-size:0.85em; text-align:center; margin:0;">Sin mensajes todavía</p>';
+        return;
+    }
+
+    chatDiv.innerHTML = clientChatMessages.map(m => {
+        const isMe = m.sender === 'cliente';
+        return `
+            <div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; background: ${isMe ? '#667eea' : '#e9ecef'}; color: ${isMe ? 'white' : '#333'}; padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 0.9em;">
+                ${m.message}
+            </div>
+        `;
+    }).join('');
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+async function sendClientMessageToDelivery() {
+    const input = document.getElementById('clientMessageInput');
+    const message = input.value.trim();
+    if(!message || !statusWatcherFolio) return;
+
+    input.value = '';
+    clientChatMessages.push({ message, sender: 'cliente' });
+    renderClientDeliveryChat();
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'sendDeliveryMessage',
+                folio: statusWatcherFolio,
+                message: message,
+                sender: 'cliente',
+                timestamp: new Date().toISOString()
+            })
+        });
+    } catch(error) {
+        console.error('Error enviando mensaje al repartidor:', error);
+    }
 }
 
 async function showTrackingMapDestinationOnly(order) {
@@ -1330,6 +1399,18 @@ async function updateTrackingMap(order) {
             const destLat = address.latitude || 17.9892;
             const destLng = address.longitude || -92.9475;
             
+            // Obtener el nombre del repartidor para mostrarlo en el mapa
+            let deliveryPersonName = 'Tu repartidor';
+            if(order.deliveryPerson) {
+                try {
+                    const dpResponse = await fetch(SCRIPT_URL + '?action=getDeliveryPersonData&username=' + encodeURIComponent(order.deliveryPerson));
+                    const dpResult = await dpResponse.json();
+                    if(dpResult.success && dpResult.user && dpResult.user.name) {
+                        deliveryPersonName = dpResult.user.name;
+                    }
+                } catch(e) { /* usamos el genérico si falla */ }
+            }
+            
             const trackMap = L.map('clientTrackingMap').setView([loc.latitude, loc.longitude], 15);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1345,14 +1426,14 @@ async function updateTrackingMap(order) {
                 })
             }).addTo(trackMap).bindPopup('Tu dirección');
             
-            // Marcador del repartidor
+            // Marcador del repartidor, identificado con su nombre
             const deliveryMarker = L.marker([loc.latitude, loc.longitude], {
                 icon: L.divIcon({
                     className: 'custom-div-icon',
                     html: '<div style="background-color:#ffc107;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.4);"><i class="fas fa-motorcycle" style="color:white;font-size:24px;"></i></div>',
                     iconSize: [50, 50]
                 })
-            }).addTo(trackMap).bindPopup('Tu pedido está en camino').openPopup();
+            }).addTo(trackMap).bindPopup(`<strong>${deliveryPersonName}</strong><br>Tu repartidor`).openPopup();
             
             // Línea "imaginaria" de referencia (no es una ruta real por calles) del
             // repartidor hacia tu dirección. Color distinto al de la ruta de pick-up.
@@ -1516,7 +1597,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
 
 
 
