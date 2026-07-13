@@ -983,6 +983,10 @@ function initDeliveryMap(order) {
         attribution: '© OpenStreetMap contributors'
     }).addTo(deliveryMap);
     
+    const addressLine = (address.street)
+        ? `${address.street}${address.colony ? ', ' + address.colony : ''}${address.city ? ', ' + address.city : ''}`
+        : 'Sin dirección detallada (ver ubicación en el mapa)';
+
     destinationMarker = L.marker([destLat, destLng], {
         icon: L.divIcon({
             className: 'custom-div-icon',
@@ -990,8 +994,7 @@ function initDeliveryMap(order) {
             iconSize: [35, 35]
         })
     }).addTo(deliveryMap).bindPopup(
-        `<strong>Destino: ${order.client.name}</strong><br>` +
-        `${address.street}, ${address.colony}<br>`
+        `<strong>Destino: ${order.client.name}</strong><br>${addressLine}`
     ).openPopup();
     
     deliveryMarker = L.marker([startLat, startLng], {
@@ -1271,6 +1274,9 @@ window.addEventListener('beforeunload', function() {
     }
     stopCamera();
 });
+
+
+
 
 
 
