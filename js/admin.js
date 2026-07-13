@@ -527,6 +527,23 @@ function notifyClient() {
 // GESTIÓN DE USUARIOS
 // ============================================
 
+async function loadDeliveryRatingBadge(username, cellId) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryPersonRatingSummary&deliveryPerson=' + encodeURIComponent(username));
+        const result = await response.json();
+        const cell = document.getElementById(cellId);
+        if(!cell) return;
+
+        if(result.success && result.count > 0) {
+            cell.innerHTML = `<i class="fas fa-star" style="color:#ffc107;"></i> ${result.average} (${result.count})`;
+        } else {
+            cell.innerHTML = '<span style="color:#aaa;">Sin calificar</span>';
+        }
+    } catch(error) {
+        console.error('Error cargando calificación de repartidor:', error);
+    }
+}
+
 async function loadUsersTable() {
     showLoading(true);
     try {
@@ -557,12 +574,13 @@ async function loadUsersTable() {
                     '<span class="order-status status-ready">Activo</span>' : 
                     '<span class="order-status status-delivered">Inactivo</span>';
                 const branchText = user.role === 'user' ? (user.branch || '<span style="color:#c00">Sin asignar</span>') : '—';
+                const ratingCellId = 'rating-' + user.username.replace(/[^a-zA-Z0-9]/g, '');
                 
                 html += `
                     <tr>
                         <td><strong>${user.username}</strong></td>
                         <td>${user.name}</td>
-                        <td>${roleText}</td>
+                        <td>${roleText}${user.role === 'delivery' ? ` <span id="${ratingCellId}" style="color:#888; font-size:0.85em;"></span>` : ''}</td>
                         <td>${branchText}</td>
                         <td>${statusBadge}</td>
                         <td>
@@ -579,6 +597,10 @@ async function loadUsersTable() {
                         </td>
                     </tr>
                 `;
+
+                if(user.role === 'delivery') {
+                    loadDeliveryRatingBadge(user.username, ratingCellId);
+                }
             });
 
             html += '</tbody></table>';
