@@ -1034,9 +1034,101 @@ function displayTracking(order) {
             // Pedido aún no sale - solo mostrar destino
             showTrackingMapDestinationOnly(order);
         }
+        
+        if(order.status === 'delivered' && order.deliveryPerson) {
+            maybeShowDeliveryRating(order);
+        }
     } else {
         // Pickup - mostrar sucursal
         showTrackingMapPickup(order);
+    }
+}
+
+// ============================================
+// CALIFICACIÓN DEL REPARTIDOR (1-5 estrellas)
+// ============================================
+
+async function maybeShowDeliveryRating(order) {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getDeliveryRating&folio=' + order.folio);
+        const result = await response.json();
+
+        const container = document.getElementById('trackingResults');
+        const ratingDiv = document.createElement('div');
+        ratingDiv.id = 'deliveryRatingSection';
+        ratingDiv.style.cssText = 'margin-top: 20px; padding: 20px; background: #fff8f0; border-radius: 10px; text-align: center; border: 2px solid #ffe0b2;';
+
+        if(result.success && result.rated) {
+            ratingDiv.innerHTML = `
+                <p style="margin: 0; color: #666;"><i class="fas fa-check-circle" style="color:#28a745;"></i> Ya calificaste el trato de tu repartidor. ¡Gracias!</p>
+            `;
+        } else {
+            ratingDiv.innerHTML = `
+                <h4 style="margin-bottom: 10px;"><i class="fas fa-star" style="color:#ffc107;"></i> ¿Cómo fue el trato de tu repartidor?</h4>
+                <div id="starRatingWidget" style="font-size: 2em; cursor: pointer; margin-bottom: 12px;">
+                    ${[1,2,3,4,5].map(n => `<i class="far fa-star star-option" data-value="${n}" style="color:#ffc107; margin: 0 3px;"></i>`).join('')}
+                </div>
+                <textarea id="deliveryRatingComment" rows="2" placeholder="Comentario (opcional)" style="width:100%; max-width:400px; margin-bottom:10px;"></textarea><br>
+                <button class="btn btn-primary" onclick="submitDeliveryRatingFromClient('${order.folio}', '${order.deliveryPerson}')">
+                    <i class="fas fa-paper-plane"></i> Enviar Calificación
+                </button>
+            `;
+        }
+
+        container.appendChild(ratingDiv);
+
+        if(!result.rated) {
+            setupStarRatingWidget();
+        }
+    } catch(error) {
+        console.error('Error cargando estado de calificación:', error);
+    }
+}
+
+let selectedRatingValue = 0;
+
+function setupStarRatingWidget() {
+    const stars = document.querySelectorAll('#starRatingWidget .star-option');
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            selectedRatingValue = parseInt(star.dataset.value, 10);
+            stars.forEach(s => {
+                const val = parseInt(s.dataset.value, 10);
+                s.className = val <= selectedRatingValue ? 'fas fa-star star-option' : 'far fa-star star-option';
+            });
+        });
+    });
+}
+
+async function submitDeliveryRatingFromClient(folio, deliveryPerson) {
+    if(!selectedRatingValue) {
+        alert('Selecciona de 1 a 5 estrellas');
+        return;
+    }
+
+    const comment = document.getElementById('deliveryRatingComment').value.trim();
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'submitDeliveryRating',
+                folio: folio,
+                deliveryPerson: deliveryPerson,
+                rating: selectedRatingValue,
+                comment: comment
+            })
+        });
+        const result = await response.json();
+
+        const ratingDiv = document.getElementById('deliveryRatingSection');
+        if(result.success) {
+            ratingDiv.innerHTML = `<p style="margin: 0; color: #666;"><i class="fas fa-check-circle" style="color:#28a745;"></i> ¡Gracias por tu calificación!</p>`;
+        } else {
+            alert(result.message || 'No se pudo enviar la calificación');
+        }
+    } catch(error) {
+        alert('Error de conexión al enviar la calificación');
     }
 }
 
@@ -1064,8 +1156,18 @@ async function showTrackingMapWithDelivery(order) {
 async function showTrackingMapDestinationOnly(order) {
     const mapContainer = document.getElementById('trackingResults');
     
+    const statusMessage = getDeliveryStatusMessage(order.status);
+    
     const mapDiv = document.createElement('div');
     mapDiv.innerHTML = `
+        <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <h3 style="color: #667eea; margin-bottom: 10px;">
+                <i class="fas fa-truck"></i> Entrega a Domicilio
+            </h3>
+            <p style="font-size: 1.2em; color: #333;">
+                ${statusMessage}
+            </p>
+        </div>
         <h4 style="margin-top: 20px;"><i class="fas fa-map-marked-alt"></i> Dirección de Entrega</h4>
         <div id="clientTrackingMap" style="height: 400px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
     `;
@@ -1090,6 +1192,17 @@ async function showTrackingMapDestinationOnly(order) {
             })
         }).addTo(map).bindPopup('Tu dirección').openPopup();
     }, 300);
+}
+
+function getDeliveryStatusMessage(status) {
+    const messages = {
+        'new': 'Su pedido está en espera de ser procesado.',
+        'assigned': 'Su pedido fue asignado y está por comenzar a elaborarse.',
+        'processing': 'Su pedido se está elaborando.',
+        'ready': 'Su pedido ya está terminado, en espera de que un repartidor lo tome.',
+        'delivered': 'Su pedido ya fue entregado.'
+    };
+    return messages[status] || 'Su pedido está en proceso.';
 }
 
 function getPickupStatusMessage(status) {
@@ -1403,9 +1516,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
-
-
 
 
 
