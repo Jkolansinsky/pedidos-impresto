@@ -4,7 +4,7 @@
 
 let currentUser = null;
 let allDeliveries = [];
-let activeDeliveries = {}; // folio -> { order, map, marker, destMarker, routeLine, selectedPhoto, lastMessageCheck }
+let activeDeliveries = {}; // folio -> { order, map, marker, destMarker, selectedPhoto, lastMessageCheck }
 let updateInterval = null;
 let gpsWatchId = null;
 let currentLocation = null;
@@ -918,7 +918,6 @@ function appendActiveDeliveryCard(order) {
         map: null,
         marker: null,
         destMarker: null,
-        routeLine: null,
         selectedPhoto: null,
         chatMessages: [],
         lastMessageCheck: new Date().toISOString()
@@ -1026,9 +1025,6 @@ function startGPSTracking() {
                 if(state.marker && state.map) {
                     state.marker.setLatLng([currentLocation.latitude, currentLocation.longitude]);
                 }
-                if(state.routeLine && state.destMarker) {
-                    state.routeLine.setLatLngs([[currentLocation.latitude, currentLocation.longitude], state.destMarker.getLatLng()]);
-                }
             });
 
             // Al servidor (para que el cliente lo vea) solo se manda cada 2 min
@@ -1128,13 +1124,6 @@ function initDeliveryMapForFolio(folio) {
         })
     }).addTo(map).bindPopup('<strong>Tu ubicación</strong>');
 
-    const routeLine = L.polyline([[startLat, startLng], [destLat, destLng]], {
-        color: '#28a745',
-        weight: 4,
-        dashArray: '10, 10',
-        opacity: 0.85
-    }).addTo(map);
-
     const bounds = L.latLngBounds([[startLat, startLng], [destLat, destLng]]);
     map.fitBounds(bounds, { padding: [50, 50] });
 
@@ -1146,7 +1135,6 @@ function initDeliveryMapForFolio(folio) {
     state.map = map;
     state.marker = marker;
     state.destMarker = destMarker;
-    state.routeLine = routeLine;
 }
 
 // ============================================
@@ -1435,6 +1423,3 @@ window.addEventListener('beforeunload', function() {
     });
     stopCamera();
 });
-
-
-
