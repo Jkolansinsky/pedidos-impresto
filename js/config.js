@@ -1,5 +1,5 @@
 // ============================================
-// CONFIGURACIÃ“N GLOBAL
+// CONFIGURACION GLOBAL
 // ============================================
 
 // URL de tu Google Apps Script (CAMBIAR POR LA TUYA)
@@ -63,7 +63,7 @@ function safeJSONParse(str, defaultValue = null) {
 }
 
 /**
- * Cierra sesiÃ³n
+ * Cierra sesion
  */
 function logout() {
     localStorage.removeItem('currentUser');
@@ -91,7 +91,7 @@ function checkAuth(requiredRole) {
 }
 
 /**
- * Solicita permisos de geolocalizaciÃ³n al cargar la pÃ¡gina
+ * Solicita permisos de geolocalizacion al cargar la pagina
  */
 function initGeolocation() {
     if('geolocation' in navigator) {
@@ -101,7 +101,7 @@ function initGeolocation() {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 };
-                console.log('GeolocalizaciÃ³n activada:', userCurrentLocation);
+                console.log('Geolocalizacion activada:', userCurrentLocation);
                 
                 // Iniciar seguimiento continuo
                 geoWatchId = navigator.geolocation.watchPosition(
@@ -122,8 +122,8 @@ function initGeolocation() {
                 );
             },
             function(error) {
-                console.error('Error de geolocalizaciÃ³n:', error);
-                alert('Por favor activa la ubicaciÃ³n para usar todas las funcionalidades del sistema');
+                console.error('Error de geolocalizacion:', error);
+                alert('Por favor activa la ubicacion para usar todas las funcionalidades del sistema');
             },
             {
                 enableHighAccuracy: true,
@@ -132,23 +132,23 @@ function initGeolocation() {
             }
         );
     } else {
-        console.warn('GeolocalizaciÃ³n no soportada');
-        alert('Tu navegador no soporta geolocalizaciÃ³n');
+        console.warn('Geolocalizacion no soportada');
+        alert('Tu navegador no soporta geolocalizacion');
     }
 }
 
 /**
- * Geocodificar direcciÃ³n a coordenadas usando Nominatim (OpenStreetMap)
+ * Geocodificar direccion a coordenadas usando Nominatim (OpenStreetMap)
  */
 async function geocodeAddress(address) {
     try {
-        console.log('ðŸŒ Iniciando geocodificaciÃ³n para:', address);
+        console.log(' Iniciando geocodificacion para:', address);
         
         // Limpiar y preparar la direcciÃ³n
         const cleanAddress = address.trim();
         const query = encodeURIComponent(cleanAddress);
         
-        // Usar Nominatim con parÃ¡metros mejorados para MÃ©xico
+        // Usar Nominatim con parametros mejorados para Mexico
         const url = `https://nominatim.openstreetmap.org/search?` +
                     `format=json` +
                     `&q=${query}` +
@@ -156,9 +156,9 @@ async function geocodeAddress(address) {
                     `&countrycodes=mx` +
                     `&addressdetails=1` +
                     `&bounded=1` +
-                    `&viewbox=-93.5,17.5,-92.3,18.5`;  // Ãrea de Tabasco
+                    `&viewbox=-93.5,17.5,-92.3,18.5`;  // Area de Tabasco
         
-        console.log('ðŸ”— URL de geocodificaciÃ³n:', url);
+        console.log(' URL de geocodificacion:', url);
         
         const response = await fetch(url, {
             headers: {
@@ -168,10 +168,10 @@ async function geocodeAddress(address) {
         
         const data = await response.json();
         
-        console.log('ðŸ“¦ Respuesta completa de geocodificaciÃ³n:', data);
+        console.log('ðŸ“¦ Respuesta completa de geocodificacion:', data);
         
         if(data && data.length > 0) {
-            // Tomar el primer resultado (mÃ¡s relevante)
+            // Tomar el primer resultado (mas relevante)
             const result = data[0];
             
             const coords = {
@@ -179,20 +179,20 @@ async function geocodeAddress(address) {
                 longitude: parseFloat(result.lon)
             };
             
-            console.log('âœ… Coordenadas encontradas:', coords);
-            console.log('ðŸ“ Nombre del lugar:', result.display_name);
-            console.log('ðŸ“ Tipo de lugar:', result.type);
-            console.log('ðŸ“ Importancia:', result.importance);
+            console.log(' Coordenadas encontradas:', coords);
+            console.log(' Nombre del lugar:', result.display_name);
+            console.log(' Tipo de lugar:', result.type);
+            console.log(' Importancia:', result.importance);
             
-            // Verificar que las coordenadas estÃ©n dentro de un rango razonable para Villahermosa/Tabasco
+            // Verificar que las coordenadas estan dentro de un rango razonable para Villahermosa/Tabasco
             const isInTabasco = (
                 coords.latitude >= 17.5 && coords.latitude <= 18.5 &&
                 coords.longitude >= -93.5 && coords.longitude <= -92.3
             );
             
             if(!isInTabasco) {
-                console.warn('âš ï¸ Las coordenadas parecen estar fuera de Tabasco');
-                console.warn('âš ï¸ Usando coordenadas por defecto');
+                console.warn(' Las coordenadas parecen estar fuera de Tabasco');
+                console.warn(' Usando coordenadas por defecto');
                 return {
                     latitude: 17.9892,
                     longitude: -92.9475
@@ -202,7 +202,7 @@ async function geocodeAddress(address) {
             return coords;
         }
         
-        console.warn('âš ï¸ No se encontraron coordenadas, usando ubicaciÃ³n por defecto de Villahermosa');
+        console.warn(' No se encontraron coordenadas, usando ubicacion por defecto de Villahermosa');
         
         // Si no encuentra, retornar coordenadas por defecto (Centro de Villahermosa)
         return {
@@ -210,7 +210,7 @@ async function geocodeAddress(address) {
             longitude: -92.9475
         };
     } catch(error) {
-        console.error('âŒ Error en geocodificaciÃ³n:', error);
+        console.error('Error en geocodificacion:', error);
         // Coordenadas por defecto (Centro de Villahermosa)
         return {
             latitude: 17.9892,
@@ -245,12 +245,12 @@ function isDeliveredToday(order) {
     return false;
 }
 
-// Inicializar geolocalizaciÃ³n al cargar cualquier pÃ¡gina
+// Inicializar geolocalizacion al cargar cualquier pagina
 document.addEventListener('DOMContentLoaded', function() {
     initGeolocation();
 });
 
-// Limpiar el watch cuando se cierre la pÃ¡gina
+// Limpiar el watch cuando se cierre la pagina
 window.addEventListener('beforeunload', function() {
     if(geoWatchId) {
         navigator.geolocation.clearWatch(geoWatchId);
