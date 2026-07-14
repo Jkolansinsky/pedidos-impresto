@@ -684,6 +684,7 @@ async function submitOrder() {
             client: currentClient,
             serviceType: currentService,
             branch: currentBranch,
+            address: currentClient.address || {},
             works: cart.map((w, idx) => ({
                 fileName: w.fileName,
                 printType: w.printType,
@@ -1364,14 +1365,6 @@ async function showTrackingMapPickup(order) {
                 }).addTo(map);
                 clientMarker.bindPopup('Tu ubicación');
                 
-                // Línea "imaginaria" (no es una ruta real por calles, solo referencia visual)
-                L.polyline([[branchLat, branchLng], [clientLat, clientLng]], {
-                    color: '#667eea',
-                    weight: 3,
-                    dashArray: '8, 8',
-                    opacity: 0.8
-                }).addTo(map);
-                
                 map.fitBounds([[branchLat, branchLng], [clientLat, clientLng]], { padding: [50, 50] });
                 branchMarker.openPopup();
             } else {
@@ -1435,18 +1428,9 @@ async function updateTrackingMap(order) {
                 })
             }).addTo(trackMap).bindPopup(`<strong>${deliveryPersonName}</strong><br>Tu repartidor`).openPopup();
             
-            // Línea "imaginaria" de referencia (no es una ruta real por calles) del
-            // repartidor hacia tu dirección. Color distinto al de la ruta de pick-up.
-            let routeLine = L.polyline([[loc.latitude, loc.longitude], [destLat, destLng]], {
-                color: '#28a745',
-                weight: 4,
-                dashArray: '10, 10',
-                opacity: 0.85
-            }).addTo(trackMap);
-            
             // Actualizar cada 10 segundos (la posición del repartidor en el servidor
             // se actualiza cada 2-3 minutos, así que aquí solo refrescamos la vista)
-            setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker, routeLine, [destLat, destLng]), 10000);
+            setInterval(() => refreshDeliveryLocation(order.folio, trackMap, deliveryMarker), 10000);
         } else {
             // El repartidor aún no manda su primera ubicación (puede tardar unos
             // segundos/minutos en obtener el primer GPS). Reintentamos solos
@@ -1459,7 +1443,7 @@ async function updateTrackingMap(order) {
     }
 }
 
-async function refreshDeliveryLocation(folio, map, marker, routeLine, destLatLng) {
+async function refreshDeliveryLocation(folio, map, marker) {
     try {
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryLocation&folio=' + folio);
         const result = await response.json();
@@ -1467,9 +1451,6 @@ async function refreshDeliveryLocation(folio, map, marker, routeLine, destLatLng
         if(result.success && result.location) {
             const loc = result.location;
             marker.setLatLng([loc.latitude, loc.longitude]);
-            if(routeLine) {
-                routeLine.setLatLngs([[loc.latitude, loc.longitude], destLatLng]);
-            }
             map.setView([loc.latitude, loc.longitude], 15);
         }
     } catch(error) {
@@ -1597,7 +1578,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
 
 
 
