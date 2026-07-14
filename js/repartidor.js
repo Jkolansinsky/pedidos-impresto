@@ -870,7 +870,7 @@ function appendActiveDeliveryCard(order) {
                 <p style="color:#999; font-size:0.85em; text-align:center; margin:0;">Sin mensajes todavía</p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Ya estoy afuera de tu domicilio, ¡sal cuando puedas!')">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Ya estoy afuera de tu domicilio, ¡Puede salir por su pedido!')">
                     Ya estoy afuera
                 </button>
                 <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'No logro encontrar tu dirección, ¿me puedes guiar?')">
