@@ -6,7 +6,6 @@
     <title>Panel de Administración - Centro de Copiado</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Jkolansinsky/pedidos-impresto/main/img/admin.png">
     <link rel="stylesheet" href="css/styles.css">
 </head>
     <meta charset="UTF-8">
@@ -25,7 +24,7 @@
                 </div>
                 <div class="form-group">
                     <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="******">
+                    <input type="password" id="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                 </div>
                 <div id="loginError" class="alert alert-error hidden"></div>
                 <button class="btn btn-primary" onclick="login()" style="width: 100%;">
@@ -83,6 +82,13 @@
                 <div id="orders-tab" class="tab-content active">
                     <h2><i class="fas fa-tasks"></i> Gestión de Pedidos</h2>
                     
+                    <div id="adminBranchFilterGroup" class="form-group hidden" style="max-width: 350px;">
+                        <label><i class="fas fa-store"></i> Ver sucursal:</label>
+                        <select id="adminBranchFilterSelect" onchange="changeAdminBranchFilter()">
+                            <option value="">Todas las sucursales</option>
+                        </select>
+                    </div>
+
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="filterOrders('all')">Todos</button>
                         <button class="btn btn-infoNuevo" onclick="filterOrders('new')">Nuevos</button>
@@ -122,11 +128,11 @@
                         </select>
                     </div>
                     <div class="form-group" id="newUserBranchGroup">
-                        <label>Sucursal *</label>
+                        <label id="newUserBranchLabel">Sucursal *</label>
                         <select id="newUserBranch">
                             <option value="">Selecciona una sucursal...</option>
                         </select>
-                        <small>Este usuario solo verá los pedidos de esta sucursal</small>
+                        <small id="newUserBranchHint">Este usuario solo verá los pedidos de esta sucursal</small>
                     </div>
                     <div class="form-group">
                         <label>Nombre Completo *</label>
@@ -214,10 +220,16 @@
                 <div id="reports-tab" class="tab-content">
                     <h2><i class="fas fa-chart-bar"></i> Reportes</h2>
                     
+                    <div class="form-group" id="reportBranchFilterGroup" hidden>
+                        <label><i class="fas fa-store"></i> Sucursal</label>
+                        <select id="reportBranchFilter">
+                            <option value="">Todas las sucursales</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label>Tipo de Reporte</label>
                         <select id="reportType">
-                            <option value="daily">Por Día</option>
+                            <option value="daily">Por DÃ­a</option>
                             <option value="client">Por Cliente</option>
                             <option value="service">Por Tipo de Servicio</option>
                             <option value="employee">Por Empleado</option>
@@ -280,7 +292,7 @@
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h3><i class="fas fa-file-invoice"></i> Detalle del Pedido</h3>
-                <button class="close-modal" onclick="closeOrderDetail()">X</button>
+                <button class="close-modal" onclick="closeOrderDetail()">Ã—</button>
             </div>
             <div id="orderDetailContent"></div>
             
@@ -335,32 +347,6 @@
     <script src="js/admin.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
