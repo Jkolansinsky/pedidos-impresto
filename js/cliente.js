@@ -71,6 +71,7 @@ function selectService(type) {
 function backToServiceType() {
     document.getElementById('branch-selection-step').classList.add('hidden');
     document.getElementById('delivery-address-step').classList.add('hidden');
+    document.getElementById('branch-suggestion-step').classList.add('hidden');
     document.getElementById('service-type-step').classList.remove('hidden');
     currentService = '';
 }
@@ -162,6 +163,101 @@ async function confirmAddress() {
     console.log('✅ Dirección guardada en currentClient:', currentClient.address);
 
     document.getElementById('delivery-address-step').classList.add('hidden');
+    showBranchSuggestionStep();
+}
+
+// ============================================
+// SUGERENCIA DE SUCURSAL MÁS CERCANA (entrega a domicilio)
+// ============================================
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // radio de la Tierra en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function showBranchSuggestionStep() {
+    if(!branches || branches.length === 0) {
+        await loadBranches();
+    }
+
+    const branchesWithCoords = branches.filter(b => b.latitude && b.longitude);
+
+    if(branchesWithCoords.length === 0) {
+        // No hay forma de calcular cercanía, dejamos elegir manualmente
+        currentBranch = branches.length > 0 ? branches[0].name : '';
+        document.getElementById('branch-suggestion-step').classList.remove('hidden');
+        document.getElementById('suggestedBranchBox').innerHTML = '<p>Selecciona la sucursal que preparará tu pedido:</p>';
+        renderBranchAlternatives(branches, null);
+        document.getElementById('branchAlternativesBox').classList.remove('hidden');
+        return;
+    }
+
+    const clientLat = currentClient.address.latitude;
+    const clientLng = currentClient.address.longitude;
+
+    const withDistance = branchesWithCoords.map(b => ({
+        ...b,
+        distance: distanceKm(clientLat, clientLng, parseFloat(b.latitude), parseFloat(b.longitude))
+    })).sort((a, b) => a.distance - b.distance);
+
+    const nearest = withDistance[0];
+    currentBranch = nearest.name;
+
+    document.getElementById('branch-suggestion-step').classList.remove('hidden');
+    document.getElementById('suggestedBranchBox').innerHTML = `
+        <i class="fas fa-map-marker-alt" style="font-size: 2em; color: #667eea;"></i>
+        <p style="margin: 10px 0;">La sucursal más cercana para atender tu pedido es:</p>
+        <h3 style="color: #667eea;">${nearest.name}</h3>
+        <p style="color: #666; font-size: 0.9em;">${nearest.address || ''} · aprox. ${nearest.distance.toFixed(1)} km</p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px; flex-wrap: wrap;">
+            <button class="btn btn-success" onclick="confirmSuggestedBranch()">
+                <i class="fas fa-check"></i> Sí, que esta sucursal me atienda
+            </button>
+            <button class="btn btn-secondary" onclick="toggleBranchAlternatives()">
+                <i class="fas fa-list"></i> Elegir otra sucursal
+            </button>
+        </div>
+    `;
+
+    renderBranchAlternatives(withDistance, nearest.name);
+}
+
+function renderBranchAlternatives(list, currentName) {
+    const box = document.getElementById('branchAlternativesBox');
+    box.innerHTML = `
+        <p style="font-size: 0.9em; color: #666;">
+            <i class="fas fa-info-circle"></i> A mayor distancia, la entrega podría tardar un poco más de lo normal.
+        </p>
+        ${list.map(b => `
+            <div class="cart-item" style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px;">
+                <div>
+                    <strong>${b.name}</strong>${b.name === currentName ? ' <span style="color:#28a745;">(más cercana)</span>' : ''}<br>
+                    <span style="font-size:0.85em; color:#666;">${b.address || ''}${b.distance !== undefined ? ' · ' + b.distance.toFixed(1) + ' km' : ''}</span>
+                </div>
+                <button class="btn btn-primary" style="padding:8px 14px;" onclick="selectDeliveryBranch('${b.name}')">Elegir</button>
+            </div>
+        `).join('')}
+    `;
+}
+
+function toggleBranchAlternatives() {
+    document.getElementById('branchAlternativesBox').classList.toggle('hidden');
+}
+
+function confirmSuggestedBranch() {
+    document.getElementById('branch-suggestion-step').classList.add('hidden');
+    document.getElementById('work-config-step').classList.remove('hidden');
+}
+
+function selectDeliveryBranch(branchName) {
+    currentBranch = branchName;
+    document.getElementById('branch-suggestion-step').classList.add('hidden');
     document.getElementById('work-config-step').classList.remove('hidden');
 }
 
@@ -807,6 +903,7 @@ function resetAll() {
     document.getElementById('service-type-step').classList.add('hidden');
     document.getElementById('branch-selection-step').classList.add('hidden');
     document.getElementById('delivery-address-step').classList.add('hidden');
+    document.getElementById('branch-suggestion-step').classList.add('hidden');
     document.getElementById('work-config-step').classList.add('hidden');
     document.getElementById('cart-step').classList.add('hidden');
     
@@ -1473,9 +1570,9 @@ async function getDeliveryPersonData(username) {
         console.log('Respuesta del servidor:', result);
         
         if(result.success) {
-            console.log('Datos del repartidor:', result.userData);
-            console.log('URL de la foto:', result.userData.photoUrl);
-            return result.userData;
+            console.log('Datos del repartidor:', result.user);
+            console.log('URL de la foto:', result.user ? result.user.photoUrl : null);
+            return result.user;
         }
         
         console.warn('No se encontraron datos del repartidor');
@@ -1578,68 +1675,6 @@ async function loadBranches() {
         console.error('Error cargando sucursales:', error);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
