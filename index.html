@@ -6,8 +6,6 @@
     <title>Centro de Copiado - Hacer Pedido</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-    <link rel="icon" type="image/ico" href="https://raw.githubusercontent.com/Jkolansinsky/pedidos-impresto/main/img/Simbolo-Impresto.ico">
-    
     
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -39,7 +37,7 @@
 
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-print"></i> Sistema PickGo</h1>
+            <h1><i class="fas fa-print"></i> Sistema Impresto PID</h1>
             <p>Pedidos Pick-up y Entrega a Domicilio</p>
         </div>
 
@@ -131,6 +129,15 @@
                     <button class="btn btn-primary" onclick="confirmAddress()">
                         Continuar <i class="fas fa-arrow-right"></i>
                     </button>
+                    <button class="btn btn-secondary" onclick="backToServiceType()">
+                        <i class="fas fa-arrow-left"></i> Regresar
+                    </button>
+                </div>
+
+                <div id="branch-suggestion-step" class="hidden">
+                    <h2><i class="fas fa-store"></i> Sucursal que Atenderá tu Pedido</h2>
+                    <div id="suggestedBranchBox" class="cart-item" style="text-align:center; padding: 20px;"></div>
+                    <div id="branchAlternativesBox" class="hidden" style="margin-top: 15px;"></div>
                     <button class="btn btn-secondary" onclick="backToServiceType()">
                         <i class="fas fa-arrow-left"></i> Regresar
                     </button>
@@ -260,7 +267,8 @@
                     <div class="form-group" style="margin-top: 20px;">
                         <label>Método de Pago</label>
                         <select id="paymentMethod" onchange="updatePaymentInfo()">
-                            <option value="TRANSFERENCIA">Transferencia Bancaria</option>                            
+                            <option value="TRANSFERENCIA">Transferencia Bancaria</option>
+                            <option value="EFECTIVO">Efectivo (Solo en tienda)</option>
                         </select>
                     </div>
 
@@ -332,68 +340,6 @@
     <script src="js/cliente.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
