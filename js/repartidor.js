@@ -669,6 +669,12 @@ async function login() {
             // Auto-actualización: refresca las entregas cada 15s sin recargar la página
             if(deliveryAutoRefreshId) clearInterval(deliveryAutoRefreshId);
             deliveryAutoRefreshId = setInterval(() => loadDeliveries(true), 15000);
+
+            // Revisar cada 20s si el cliente respondió algo en el chat de alguna entrega activa
+            if(messageWatcherId) clearInterval(messageWatcherId);
+            messageWatcherId = setInterval(() => {
+                Object.keys(activeDeliveries).forEach(folio => checkForClientReplies(folio));
+            }, 20000);
         } else {
             errorDiv.textContent = result.message || 'Usuario o contraseña incorrectos';
             errorDiv.classList.remove('hidden');
@@ -870,7 +876,7 @@ function appendActiveDeliveryCard(order) {
                 <p style="color:#999; font-size:0.85em; text-align:center; margin:0;">Sin mensajes todavía</p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Ya estoy afuera de tu domicilio, ¡Puede salir por su pedido!')">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'Ya estoy afuera de tu domicilio, ¡sal cuando puedas!')">
                     Ya estoy afuera
                 </button>
                 <button type="button" class="btn btn-secondary" style="font-size: 0.85em; padding: 8px 12px;" onclick="quickDeliveryMessage('${order.folio}', 'No logro encontrar tu dirección, ¿me puedes guiar?')">
@@ -1423,3 +1429,4 @@ window.addEventListener('beforeunload', function() {
     });
     stopCamera();
 });
+
