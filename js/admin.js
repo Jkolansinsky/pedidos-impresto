@@ -71,7 +71,18 @@ function showAdminPanel(user) {
     currentUser = user;
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('adminPanel').classList.remove('hidden');
-    document.getElementById('currentUserName').textContent = user.username;
+    document.getElementById('currentUserName').textContent = user.username +
+        (user.branch ? ' (' + user.branch + ')' : ' (Admin General)');
+
+    if(user.branch) {
+        // Admin de sucursal: no ve el selector, siempre queda fijo en la suya
+        document.getElementById('adminBranchFilterGroup').classList.add('hidden');
+    } else {
+        // Admin General: puede elegir qué sucursal monitorear (o "todas")
+        document.getElementById('adminBranchFilterGroup').classList.remove('hidden');
+        populateAdminBranchFilter();
+    }
+
     loadOrders();
 
     // Auto-actualización: refresca la lista de pedidos cada 20s sin recargar la página
@@ -83,6 +94,25 @@ function showAdminPanel(user) {
             loadOrders(true);
         }
     }, 20000);
+}
+
+async function populateAdminBranchFilter() {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getBranches');
+        const result = await response.json();
+        if(result.success) {
+            const select = document.getElementById('adminBranchFilterSelect');
+            select.innerHTML = '<option value="">Todas las sucursales</option>' +
+                result.branches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        }
+    } catch(error) {
+        console.error('Error cargando sucursales para el filtro:', error);
+    }
+}
+
+function changeAdminBranchFilter() {
+    adminBranchFilter = document.getElementById('adminBranchFilterSelect').value;
+    loadOrders();
 }
 
 
@@ -108,6 +138,28 @@ function showAdminTab(tabName) {
         loadPricesTable();
     } else if(tabName === 'branches') {
         loadBranchesTable();
+    } else if(tabName === 'reports') {
+        const group = document.getElementById('reportBranchFilterGroup');
+        if(!currentUser.branch) {
+            group.hidden = false;
+            populateReportBranchFilter();
+        } else {
+            group.hidden = true;
+        }
+    }
+}
+
+async function populateReportBranchFilter() {
+    try {
+        const response = await fetch(SCRIPT_URL + '?action=getBranches');
+        const result = await response.json();
+        if(result.success) {
+            const select = document.getElementById('reportBranchFilter');
+            select.innerHTML = '<option value="">Todas las sucursales</option>' +
+                result.branches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        }
+    } catch(error) {
+        console.error('Error cargando sucursales para reportes:', error);
     }
 }
 
@@ -116,10 +168,21 @@ function showAdminTab(tabName) {
 // AGREGAR DESPUÉS DE LA LÍNEA 90 (después de showAdminTab)
 // ============================================
 
+let adminBranchFilter = ''; // solo aplica para Administrador General
+
 async function loadOrders(silent) {
     if(!silent) showLoading(true);
     try {
-        const response = await fetch(SCRIPT_URL + '?action=getAllOrders');
+        // Si el admin tiene una sucursal asignada, SIEMPRE se restringe a esa
+        // sucursal (no puede ver ni tomar pedidos de otras). Si es
+        // Administrador General (sin sucursal asignada), puede ver todo, o
+        // filtrar por la sucursal que elija en el selector.
+        const branchToUse = currentUser.branch || adminBranchFilter;
+        const url = branchToUse
+            ? SCRIPT_URL + '?action=getAllOrders&branch=' + encodeURIComponent(branchToUse)
+            : SCRIPT_URL + '?action=getAllOrders';
+
+        const response = await fetch(url);
         const result = await response.json();
         
         if(result.success) {
@@ -573,7 +636,9 @@ async function loadUsersTable() {
                 const statusBadge = user.active ? 
                     '<span class="order-status status-ready">Activo</span>' : 
                     '<span class="order-status status-delivered">Inactivo</span>';
-                const branchText = user.role === 'user' ? (user.branch || '<span style="color:#c00">Sin asignar</span>') : '—';
+                const branchText = user.role === 'user' ? (user.branch || '<span style="color:#c00">Sin asignar</span>')
+                                  : user.role === 'admin' ? (user.branch ? user.branch : '<span style="color:#667eea;"><i class="fas fa-globe"></i> General</span>')
+                                  : '—';
                 const ratingCellId = 'rating-' + user.username.replace(/[^a-zA-Z0-9]/g, '');
                 
                 html += `
@@ -618,10 +683,13 @@ async function editUser(user) {
     if(newPassword === null) return;
 
     let newBranch = user.branch || '';
-    if(user.role === 'user') {
+    if(user.role === 'user' || user.role === 'admin') {
         const branches = await getBranchNamesForPrompt();
+        const hint = user.role === 'admin'
+            ? `Sucursal asignada a ${user.username} (déjalo VACÍO para que sea Administrador General, con acceso a todas las sucursales).`
+            : `Sucursal asignada a ${user.username}.`;
         newBranch = prompt(
-            `Sucursal asignada a ${user.username}.\nOpciones disponibles: ${branches.join(', ') || '(no hay sucursales registradas)'}\n\nEscribe el nombre EXACTO de la sucursal:`,
+            `${hint}\nOpciones disponibles: ${branches.join(', ') || '(no hay sucursales registradas)'}\n\nEscribe el nombre EXACTO de la sucursal, o deja vacío:`,
             user.branch || ''
         );
         if(newBranch === null) return; // canceló
@@ -644,7 +712,7 @@ async function updateUserPassword(username, password, branch, role) {
     try {
         const payload = { action: 'updateUser', username: username };
         if(password) payload.password = password;
-        if(role === 'user') payload.branch = branch || '';
+        if(role === 'user' || role === 'admin') payload.branch = branch || '';
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -697,7 +765,23 @@ async function deactivateUser(username) {
 function toggleNewUserBranchField() {
     const role = document.getElementById('newUserRole').value;
     const group = document.getElementById('newUserBranchGroup');
-    if(group) group.style.display = (role === 'user') ? '' : 'none';
+    const label = document.getElementById('newUserBranchLabel');
+    const hint = document.getElementById('newUserBranchHint');
+    const select = document.getElementById('newUserBranch');
+
+    if(role === 'user') {
+        group.style.display = '';
+        label.textContent = 'Sucursal *';
+        hint.textContent = 'Este usuario solo verá los pedidos de esta sucursal';
+        if(select.options[0]) select.options[0].textContent = 'Selecciona una sucursal...';
+    } else if(role === 'admin') {
+        group.style.display = '';
+        label.textContent = 'Sucursal (opcional)';
+        hint.textContent = 'Déjalo vacío para un Administrador General (ve y gestiona TODAS las sucursales). Si eliges una sucursal, este admin solo verá y podrá gestionar pedidos de esa sucursal.';
+        if(select.options[0]) select.options[0].textContent = 'Administrador General (todas las sucursales)';
+    } else {
+        group.style.display = 'none';
+    }
 }
 
 async function populateNewUserBranchSelect() {
@@ -745,7 +829,7 @@ async function createNewUser() {
                 password: password,
                 role: role,
                 name: name,
-                branch: role === 'user' ? branch : ''
+                branch: (role === 'user' || role === 'admin') ? branch : ''
             })
         });
 
@@ -1711,19 +1795,38 @@ async function viewUserCreationLink(requestId) {
 // REPORTES
 // ============================================
 
-function generateReport() {
+async function generateReport() {
     const type = document.getElementById('reportType').value;
     const startDateStr = document.getElementById('reportStartDate').value;
     const endDateStr = document.getElementById('reportEndDate').value;
     const resultsDiv = document.getElementById('reportResults');
 
-    if(!allOrders || allOrders.length === 0) {
+    // Admin de sucursal: sus pedidos ya vienen filtrados de por sí.
+    // Admin General: usa el filtro de sucursal propio de Reportes (independiente
+    // del que esté usando ahorita en la pestaña de Pedidos).
+    let reportOrders = allOrders;
+    if(!currentUser.branch) {
+        const reportBranch = document.getElementById('reportBranchFilter').value;
+        if(reportBranch) {
+            resultsDiv.innerHTML = '<p style="color:#666; padding:20px;">Cargando pedidos de la sucursal...</p>';
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getAllOrders&branch=' + encodeURIComponent(reportBranch));
+                const result = await response.json();
+                reportOrders = result.success ? result.orders : [];
+            } catch(error) {
+                resultsDiv.innerHTML = '<p style="color:#dc3545; padding:20px;">Error cargando pedidos de la sucursal.</p>';
+                return;
+            }
+        }
+    }
+
+    if(!reportOrders || reportOrders.length === 0) {
         resultsDiv.innerHTML = '<p style="color: #666; padding: 20px;">No hay pedidos cargados. Ve a la pestaña de Pedidos primero.</p>';
         return;
     }
 
     // Filtrar por rango de fechas (si se especificó)
-    let filtered = allOrders.filter(o => o.date);
+    let filtered = reportOrders.filter(o => o.date);
     if(startDateStr) {
         const start = new Date(startDateStr + 'T00:00:00');
         filtered = filtered.filter(o => new Date(o.date) >= start);
@@ -1847,71 +1950,5 @@ function exportReportToCSV() {
     a.click();
     URL.revokeObjectURL(url);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
