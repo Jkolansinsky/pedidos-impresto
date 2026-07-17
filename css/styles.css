@@ -851,10 +851,6 @@ table tbody tr:hover {
    RESPONSIVE
    ============================================ */
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-
 @media (max-width: 768px) {
     .service-type {
         grid-template-columns: 1fr;
