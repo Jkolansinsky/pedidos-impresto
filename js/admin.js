@@ -1065,18 +1065,11 @@ async function saveBranch() {
 
 async function getDeliveryPersonData(username) {
     try {
-        console.log('=== OBTENIENDO DATOS DEL REPARTIDOR ===');
-        console.log('Username:', username);
-        
         const response = await fetch(SCRIPT_URL + '?action=getDeliveryPersonData&username=' + username);
         const result = await response.json();
         
-        console.log('Respuesta del servidor:', result);
-        
         if(result.success) {
-            console.log('Datos del repartidor:', result.userData);
-            console.log('URL de la foto:', result.userData.photoUrl);
-            return result.userData;
+            return result.user;
         }
         
         console.warn('No se encontraron datos del repartidor');
@@ -1087,25 +1080,30 @@ async function getDeliveryPersonData(username) {
     }
 }
 
+// Convierte un link de Google Drive a una URL de imagen directa (para <img>)
+function toDriveDirectImageUrl(url) {
+    if(!url || url.trim() === '') return null;
+    let fileId = null;
+    let match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if(match) fileId = match[1];
+    if(!fileId) {
+        match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if(match) fileId = match[1];
+    }
+    if(!fileId) return url;
+    return `https://lh3.googleusercontent.com/d/${fileId}=s200-c`;
+}
+
 function renderDeliveryPersonInfo(deliveryPerson) {
     if(!deliveryPerson) {
         console.warn('No hay datos del repartidor para mostrar');
         return '';
     }
     
-    console.log('=== RENDERIZANDO INFO DEL REPARTIDOR ===');
-    console.log('Datos completos:', deliveryPerson);
-    console.log('Photo URL:', deliveryPerson.photoUrl);
-    
     // SVG de placeholder solo como ÚLTIMO recurso si no hay foto
     const placeholderSVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+agTwvdGV4dD48L3N2Zz4=';
     
-    // Usar la foto del repartidor SI EXISTE, sino usar placeholder
-    const photoUrl = (deliveryPerson.photoUrl && deliveryPerson.photoUrl.trim() !== '') 
-        ? deliveryPerson.photoUrl 
-        : placeholderSVG;
-    
-    console.log('URL final a usar:', photoUrl);
+    const photoUrl = toDriveDirectImageUrl(deliveryPerson.photoUrl) || placeholderSVG;
     
     const deliveryName = deliveryPerson.name || deliveryPerson.username || 'Repartidor';
     
@@ -1950,5 +1948,8 @@ function exportReportToCSV() {
     a.click();
     URL.revokeObjectURL(url);
 }
+
+
+
 
 
