@@ -1583,25 +1583,38 @@ async function getDeliveryPersonData(username) {
     }
 }
 
+// Convierte un link de Google Drive (de cualquier formato común) a una URL
+// de imagen directa que sí funciona dentro de un <img src="...">
+function toDriveDirectImageUrl(url) {
+    if(!url || url.trim() === '') return null;
+
+    // Extraer el ID del archivo, venga en el formato que venga
+    let fileId = null;
+    let match = url.match(/\/d\/([a-zA-Z0-9_-]+)/); // .../file/d/ID/view
+    if(match) fileId = match[1];
+    if(!fileId) {
+        match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); // ...?id=ID
+        if(match) fileId = match[1];
+    }
+
+    if(!fileId) return url; // no es un link de Drive reconocible, se usa tal cual
+
+    return `https://lh3.googleusercontent.com/d/${fileId}=s200-c`;
+}
+
 function renderDeliveryPersonInfo(deliveryPerson) {
     if(!deliveryPerson) {
         console.warn('No hay datos del repartidor para mostrar');
         return '';
     }
     
-    console.log('=== RENDERIZANDO INFO DEL REPARTIDOR ===');
-    console.log('Datos completos:', deliveryPerson);
-    console.log('Photo URL:', deliveryPerson.photoUrl);
-    
     // SVG de placeholder solo como ÚLTIMO recurso si no hay foto
     const placeholderSVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+agTwvdGV4dD48L3N2Zz4=';
     
-    // Usar la foto del repartidor SI EXISTE, sino usar placeholder
-    const photoUrl = (deliveryPerson.photoUrl && deliveryPerson.photoUrl.trim() !== '') 
-        ? deliveryPerson.photoUrl 
-        : placeholderSVG;
-    
-    console.log('URL final a usar:', photoUrl);
+    // El link que da Drive (file.getUrl()) es una pÃ¡gina para VER el archivo,
+    // no una imagen directa â€” un <img> no puede usarlo tal cual. Lo
+    // convertimos al formato de imagen directa de Drive.
+    const photoUrl = toDriveDirectImageUrl(deliveryPerson.photoUrl) || placeholderSVG;
     
     const deliveryName = deliveryPerson.name || deliveryPerson.username || 'Repartidor';
     
