@@ -865,6 +865,7 @@ function appendActiveDeliveryCard(order) {
         <div style="margin-top: 15px;">
             <h4><i class="fas fa-map-marked-alt"></i> Ruta de Entrega</h4>
             <div id="deliveryMap_${id}" style="height: 350px; border-radius: 8px; overflow: hidden; margin-top: 10px;"></div>
+            <p id="gpsStatus_${id}" style="font-size: 0.8em; color: #999; margin-top: 5px;"><i class="fas fa-satellite-dish"></i> Activando GPS...</p>
         </div>
 
         <div class="delivery-controls" style="margin-top: 20px;">
@@ -932,6 +933,7 @@ function appendActiveDeliveryCard(order) {
     // El mapa se crea con el contenedor YA visible en pantalla (no en un modal
     // oculto), así Leaflet calcula bien las dimensiones desde el inicio.
     initDeliveryMapForFolio(order.folio);
+    pendingImmediateSendFolios.add(order.folio); // que mande su ubicación ya, sin esperar el throttle
     startGPSTracking();
 }
 
@@ -1007,6 +1009,7 @@ async function proceedToTakeDelivery(folio) {
 }
 
 let lastLocationSentAt = 0;
+let pendingImmediateSendFolios = new Set(); // folios nuevos que deben mandar su posición YA, sin esperar el throttle
 const LOCATION_SEND_INTERVAL_MS = 2 * 60 * 1000; // cada 2 minutos, para no saturar
 
 function startGPSTracking() {
@@ -1025,6 +1028,8 @@ function startGPSTracking() {
                 longitude: position.coords.longitude
             };
 
+            console.log('📍 Posición GPS recibida:', currentLocation);
+
             // Actualizamos el marcador propio y la ruta en TODOS los mapas
             // de entregas activas (todas comparten la misma posición del repartidor)
             Object.values(activeDeliveries).forEach(state => {
@@ -1033,17 +1038,29 @@ function startGPSTracking() {
                 }
             });
 
-            // Al servidor (para que el cliente lo vea) solo se manda cada 2 min
+            // Al servidor (para que el cliente lo vea) solo se manda cada 2 min,
+            // EXCEPTO folios nuevos que todavía no han mandado ni una vez.
             const now = Date.now();
-            if((now - lastLocationSentAt) >= LOCATION_SEND_INTERVAL_MS) {
-                lastLocationSentAt = now;
-                Object.keys(activeDeliveries).forEach(folio => {
+            const dueByThrottle = (now - lastLocationSentAt) >= LOCATION_SEND_INTERVAL_MS;
+
+            Object.keys(activeDeliveries).forEach(folio => {
+                if(dueByThrottle || pendingImmediateSendFolios.has(folio)) {
+                    pendingImmediateSendFolios.delete(folio);
                     updateLocationInServer(folio, currentLocation);
-                });
+                }
+            });
+
+            if(dueByThrottle) {
+                lastLocationSentAt = now;
             }
         },
         function(error) {
             console.error('Error GPS:', error);
+            Object.keys(activeDeliveries).forEach(folio => {
+                const statusEl = document.getElementById('gpsStatus_' + safeId(folio));
+                if(statusEl) statusEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#dc3545;"></i> No se pudo activar tu GPS';
+            });
+            alert('No se pudo activar tu ubicación GPS. Actívala en los ajustes de tu navegador/celular para que el cliente pueda ver tu ubicación en tiempo real.');
         },
         {
             enableHighAccuracy: true,
@@ -1051,13 +1068,13 @@ function startGPSTracking() {
             maximumAge: 5000
         }
     );
-
-    lastLocationSentAt = 0; // mandar la posición inicial de una vez
 }
 
 async function updateLocationInServer(folio, location) {
+    const statusEl = document.getElementById('gpsStatus_' + safeId(folio));
     try {
-        await fetch(SCRIPT_URL, {
+        console.log('📤 Enviando ubicación al servidor para folio', folio, location);
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'updateLocation',
@@ -1068,8 +1085,17 @@ async function updateLocationInServer(folio, location) {
                 timestamp: new Date().toISOString()
             })
         });
+        const result = await response.json();
+        if(result.success) {
+            console.log('✅ Ubicación enviada correctamente para', folio);
+            if(statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle" style="color:#28a745;"></i> Ubicación compartida hace un momento';
+        } else {
+            console.error('❌ El servidor rechazó la ubicación:', result.message);
+            if(statusEl) statusEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#dc3545;"></i> No se pudo compartir tu ubicación';
+        }
     } catch(error) {
-        console.error('Error actualizando ubicación:', error);
+        console.error('❌ Error de conexión enviando ubicación:', error);
+        if(statusEl) statusEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#dc3545;"></i> Sin conexión para compartir ubicación';
     }
 }
 
